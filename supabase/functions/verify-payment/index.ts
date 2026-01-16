@@ -81,16 +81,15 @@ serve(async (req) => {
     if (profileError) throw profileError;
 
     // Calculate new paid credits with carry-over logic
+    // Always carry over existing paid credits when a new subscription is made
+    // (even if they had expired - the new subscription "revives" them)
     let currentPaidCredits = profile.paid_credits || 0;
-    const currentExpiryDate = profile.credits_expiry_date ? new Date(profile.credits_expiry_date) : null;
-    const now = new Date();
 
-    // If existing paid credits haven't expired, carry them over
-    if (currentExpiryDate && currentExpiryDate > now && currentPaidCredits > 0) {
-      console.log(`Carrying over ${currentPaidCredits} existing paid credits`);
-    } else {
-      // Existing credits expired or don't exist, start fresh
-      currentPaidCredits = 0;
+    if (currentPaidCredits > 0) {
+      const wasExpired = profile.credits_expiry_date 
+        ? new Date(profile.credits_expiry_date) < new Date() 
+        : false;
+      console.log(`[CREDIT] Carrying over ${currentPaidCredits} existing paid credits${wasExpired ? ' (were expired, now revived)' : ''}`);
     }
 
     const newPaidCredits = currentPaidCredits + creditsToAdd;
