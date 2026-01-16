@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,9 +18,15 @@ interface PlanOption {
 
 const Pricing = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [userEmail, setUserEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
+  
+  // Get pre-selected values from URL params (for renewals)
+  const preSelectedPlan = searchParams.get("plan") as "pro" | "scholar" | null;
+  const preSelectedBilling = searchParams.get("billing") as BillingPeriod | null;
+  
+  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>(preSelectedBilling || "monthly");
 
   useEffect(() => {
     loadPaystackScript();
@@ -168,8 +174,14 @@ const Pricing = () => {
 
       <main className="container mx-auto px-4 py-12">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4">Choose Your Plan</h1>
-          <p className="text-lg text-muted-foreground mb-6">Select the perfect plan for your academic journey</p>
+          <h1 className="text-4xl font-bold mb-4">
+            {preSelectedPlan ? "Renew Your Plan" : "Choose Your Plan"}
+          </h1>
+          <p className="text-lg text-muted-foreground mb-6">
+            {preSelectedPlan 
+              ? `Renewing your ${preSelectedPlan.toUpperCase()} plan` 
+              : "Select the perfect plan for your academic journey"}
+          </p>
           
           {/* Billing Period Toggle */}
           <div className="inline-flex items-center gap-1 p-1 bg-muted rounded-lg">
@@ -242,8 +254,13 @@ const Pricing = () => {
         </Card>
 
         {/* Pro Plans */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-center mb-6">Pro Plans</h2>
+        <div className={`mb-8 ${preSelectedPlan === "pro" ? "ring-2 ring-primary ring-offset-4 rounded-xl p-4" : ""}`}>
+          <h2 className="text-3xl font-bold text-center mb-6">
+            Pro Plans
+            {preSelectedPlan === "pro" && (
+              <Badge className="ml-2 rounded-full">Recommended</Badge>
+            )}
+          </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {proPlans.map((plan, index) => (
               <Card key={index} className="hover:shadow-lg transition-all hover:scale-[1.02]">
@@ -264,7 +281,7 @@ const Pricing = () => {
                     onClick={() => handlePurchase("pro", plan.price, plan.credits, plan.durationDays)}
                     disabled={isLoading}
                   >
-                    Purchase
+                    {preSelectedPlan === "pro" ? "Renew" : "Purchase"}
                   </Button>
                 </CardContent>
               </Card>
@@ -273,11 +290,16 @@ const Pricing = () => {
         </div>
 
         {/* Scholar Plans */}
-        <div className="mb-8">
+        <div className={`mb-8 ${preSelectedPlan === "scholar" ? "ring-2 ring-primary ring-offset-4 rounded-xl p-4" : ""}`}>
           <div className="text-center mb-6">
             <div className="flex items-center justify-center gap-2 mb-2">
               <Sparkles className="h-6 w-6 text-primary" />
-              <h2 className="text-3xl font-bold">Scholar Plans</h2>
+              <h2 className="text-3xl font-bold">
+                Scholar Plans
+                {preSelectedPlan === "scholar" && (
+                  <Badge className="ml-2 rounded-full">Recommended</Badge>
+                )}
+              </h2>
             </div>
             <p className="text-muted-foreground">Includes all Pro features plus:</p>
             <div className="flex flex-wrap justify-center gap-2 mt-2">
@@ -309,7 +331,7 @@ const Pricing = () => {
                     onClick={() => handlePurchase("scholar", plan.price, plan.credits, plan.durationDays)}
                     disabled={isLoading}
                   >
-                    Purchase
+                    {preSelectedPlan === "scholar" ? "Renew" : "Purchase"}
                   </Button>
                 </CardContent>
               </Card>
