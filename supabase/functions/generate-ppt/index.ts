@@ -49,36 +49,55 @@ serve(async (req) => {
     const today = new Date().toISOString().split('T')[0];
     const needsDailyReset = profile.daily_reset_date !== today;
 
-    let dailyCredits = needsDailyReset ? 8 : profile.daily_credits;
+    let dailyCredits = profile.daily_credits;
     let paidCredits = profile.paid_credits || 0;
+    const creditsExpiryDate = profile.credits_expiry_date;
 
-    // Check if paid credits are expired
-    const creditsExpired = profile.credits_expiry_date && 
-      new Date(profile.credits_expiry_date) < new Date();
-    
-    if (creditsExpired) {
-      paidCredits = 0;
+    // Check if paid credits have expired
+    const paidCreditsExpired = creditsExpiryDate ? new Date(creditsExpiryDate) < new Date() : true;
+
+    // Enhanced logging - before state
+    console.log(`[CREDIT] PPT - User: ${user.id}, Plan: ${profile.plan_type}`);
+    console.log(`[CREDIT] Before - Daily: ${profile.daily_credits}, Paid: ${profile.paid_credits}`);
+    console.log(`[CREDIT] Daily Reset Date: ${profile.daily_reset_date}, Today: ${today}, Needs Reset: ${needsDailyReset}`);
+    console.log(`[CREDIT] Expiry: ${creditsExpiryDate}, Expired: ${paidCreditsExpired}`);
+
+    // Reset daily credits if needed (all users get 8 free daily credits)
+    if (needsDailyReset) {
+      dailyCredits = 8;
+      console.log(`[CREDIT] Daily credits reset to 8`);
     }
 
-    // Check if user has any credits
-    if (dailyCredits <= 0 && paidCredits <= 0) {
+    // Credit deduction logic for Scholar users:
+    // 1. Use daily credits first (free bonus)
+    // 2. Then use paid credits (if not expired)
+    
+    let canProceed = false;
+    let creditSource = '';
+
+    if (dailyCredits > 0) {
+      dailyCredits -= 1;
+      canProceed = true;
+      creditSource = 'daily';
+    } else if (paidCredits > 0 && !paidCreditsExpired) {
+      paidCredits -= 1;
+      canProceed = true;
+      creditSource = 'paid';
+    }
+
+    if (!canProceed) {
+      const errorMessage = paidCreditsExpired 
+        ? 'Your paid credits have expired. Please purchase more credits.'
+        : 'Insufficient credits. Please purchase more credits.';
+      
+      console.log(`[CREDIT] Insufficient credits - Expired: ${paidCreditsExpired}`);
       return new Response(
-        JSON.stringify({ error: 'Insufficient credits. Please purchase more credits.' }),
+        JSON.stringify({ error: errorMessage }),
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Deduct credits: daily first, then paid
-    let creditSource = '';
-    if (dailyCredits > 0) {
-      dailyCredits -= 1;
-      creditSource = 'daily';
-    } else if (paidCredits > 0) {
-      paidCredits -= 1;
-      creditSource = 'paid';
-    }
-
-    console.log(`Credit deducted from: ${creditSource}. Daily: ${dailyCredits}, Paid: ${paidCredits}`);
+    console.log(`[CREDIT] PPT deducted from: ${creditSource}. After - Daily: ${dailyCredits}, Paid: ${paidCredits}`);
 
     const docResponse = await fetch(document_url);
     const docText = await docResponse.text();
