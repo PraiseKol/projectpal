@@ -1,0 +1,221 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Mail, CreditCard, Calendar, GraduationCap, Receipt } from "lucide-react";
+import { toast } from "sonner";
+import { ThemeToggle } from "@/components/ThemeToggle";
+
+const Settings = () => {
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<any>(null);
+  const [userEmail, setUserEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const loadUserData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        navigate("/auth");
+        return;
+      }
+
+      setUserEmail(user.email || "");
+
+      const { data: profileData, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      if (error) throw error;
+      setProfile(profileData);
+    } catch (error) {
+      console.error("Error loading user data:", error);
+      toast.error("Failed to load settings");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Format expiry date
+  const formatExpiryDate = (dateString: string | null) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+  };
+
+  // Check if daily credits should show as full (new day)
+  const getSmartDailyCredits = () => {
+    if (!profile?.daily_reset_date) return profile?.daily_credits ?? 8;
+    const today = new Date().toISOString().split('T')[0];
+    const resetDate = new Date(profile.daily_reset_date).toISOString().split('T')[0];
+    return resetDate !== today ? 8 : (profile?.daily_credits ?? 8);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border/50 shadow-sm">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button onClick={() => navigate("/dashboard")} variant="outline" size="sm">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-primary rounded-xl">
+                <GraduationCap className="h-6 w-6 text-primary-foreground" />
+              </div>
+              <span className="text-xl font-bold">Settings</span>
+            </div>
+          </div>
+          <ThemeToggle />
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8 max-w-3xl">
+        {/* Quick Links */}
+        <Card className="mb-6 shadow-lg rounded-2xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" />
+              Quick Links
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Button onClick={() => navigate("/transactions")} variant="outline" className="w-full justify-start rounded-xl">
+              <CreditCard className="h-4 w-4 mr-2" />
+              Transaction History
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Account Information */}
+        <Card className="mb-6 shadow-lg rounded-2xl">
+          <CardHeader>
+            <CardTitle>Account Information</CardTitle>
+            <CardDescription>Your account details and preferences</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3 p-4 bg-accent rounded-xl shadow-sm">
+              <Mail className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <div className="text-sm text-muted-foreground">Email Address</div>
+                <div className="font-medium">{userEmail}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Plan & Credits */}
+        <Card className="mb-6 shadow-lg rounded-2xl">
+          <CardHeader>
+            <CardTitle>Plan & Credits</CardTitle>
+            <CardDescription>Your current subscription and credit balance</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-accent rounded-xl shadow-sm">
+              <div className="flex items-center gap-3">
+                <CreditCard className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <div className="text-sm text-muted-foreground">Current Plan</div>
+                  <div className="font-medium">
+                    <Badge className="mt-1">{profile?.plan_type?.toUpperCase()}</Badge>
+                  </div>
+                </div>
+              </div>
+              <Button onClick={() => navigate("/pricing")} className="rounded-xl">
+                {profile?.plan_type === 'free' ? 'Upgrade Plan' : 'Purchase Credits'}
+              </Button>
+            </div>
+
+            <div className="grid gap-4 grid-cols-2">
+              <div className="p-4 bg-accent rounded-xl shadow-sm">
+                <div className="text-sm text-muted-foreground">Daily Credits (Free)</div>
+                <div className="text-3xl font-bold">
+                  <span>{getSmartDailyCredits()}</span>
+                  <span className="text-lg text-muted-foreground font-normal">/8</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">Resets daily at midnight</div>
+              </div>
+              
+              {profile?.plan_type === 'free' ? (
+                <div className="p-4 bg-accent rounded-xl shadow-sm">
+                  <div className="text-sm text-muted-foreground">Monthly Credits</div>
+                  <div className="text-3xl font-bold">
+                    <span>{profile?.monthly_credits}</span>
+                    <span className="text-lg text-muted-foreground font-normal">/40</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Resets monthly</div>
+                </div>
+              ) : (
+                <div className="p-4 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-xl shadow-sm border border-primary/20">
+                  <div className="text-sm text-muted-foreground">Paid Credits</div>
+                  <div className="text-3xl font-bold">
+                    <span>{profile?.paid_credits || 0}</span>
+                    <span className="text-lg text-muted-foreground font-normal"> remaining</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {profile?.credits_expiry_date 
+                      ? `Expires: ${formatExpiryDate(profile.credits_expiry_date)}`
+                      : 'No expiry set'}
+                  </div>
+                </div>
+              )}
+            </div>
+            {profile?.plan_type !== 'free' && (
+              <p className="text-xs text-muted-foreground mt-2">Daily credits are consumed first, then paid credits</p>
+            )}
+
+            {/* Credits Expiry Info for Pro/Scholar */}
+            {profile?.plan_type !== 'free' && profile?.credits_expiry_date && (
+              <div className="p-4 bg-accent rounded-xl shadow-sm">
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <div className="text-sm text-muted-foreground">Credits Expiry Date</div>
+                    <div className="font-medium">{formatExpiryDate(profile.credits_expiry_date)}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {new Date(profile.credits_expiry_date) > new Date()
+                        ? 'Paid credits are active and will carry over on renewal'
+                        : 'Paid credits have expired - purchase more to continue'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {profile?.daily_reset_date && (
+              <div className="flex items-center gap-3 p-4 bg-accent rounded-xl shadow-sm">
+                <Calendar className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <div className="text-sm text-muted-foreground">Last Daily Reset</div>
+                  <div className="font-medium">
+                    {new Date(profile.daily_reset_date).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </main>
+    </div>
+  );
+};
+
+export default Settings;
