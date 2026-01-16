@@ -8,10 +8,19 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
 
+type BillingPeriod = "monthly" | "quarterly" | "yearly";
+
+interface PlanOption {
+  price: number;
+  credits: number;
+  durationDays: number;
+}
+
 const Pricing = () => {
   const navigate = useNavigate();
   const [userEmail, setUserEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
 
   useEffect(() => {
     loadPaystackScript();
@@ -32,7 +41,7 @@ const Pricing = () => {
     }
   };
 
-  const handlePurchase = async (planType: string, price: number, credits: number) => {
+  const handlePurchase = async (planType: string, price: number, credits: number, durationDays: number) => {
     if (!userEmail) {
       toast.error("Please log in to purchase credits");
       navigate("/auth");
@@ -51,6 +60,8 @@ const Pricing = () => {
         metadata: {
           plan_type: planType,
           credits: credits,
+          duration_days: durationDays,
+          billing_period: billingPeriod,
         },
         callback: function(response: any) {
           // Redirect to checkout success page with reference
@@ -69,25 +80,69 @@ const Pricing = () => {
     }
   };
 
-  const proPlans = [
+  // Base monthly prices and credits
+  const baseProPlans = [
     { price: 10000, credits: 120 },
     { price: 20000, credits: 240 },
     { price: 40000, credits: 480 },
     { price: 80000, credits: 960 },
   ];
 
-  const scholarPlans = [
+  const baseScholarPlans = [
     { price: 15000, credits: 120 },
     { price: 30000, credits: 240 },
     { price: 60000, credits: 480 },
     { price: 120000, credits: 960 },
   ];
 
+  // Calculate plans based on billing period
+  const getPlans = (basePlans: { price: number; credits: number }[]): PlanOption[] => {
+    switch (billingPeriod) {
+      case "quarterly":
+        return basePlans.map(plan => ({
+          price: Math.round(plan.price * 3 * 0.9), // 10% discount
+          credits: plan.credits * 3,
+          durationDays: 90,
+        }));
+      case "yearly":
+        return basePlans.map(plan => ({
+          price: Math.round(plan.price * 12 * 0.8), // 20% discount
+          credits: plan.credits * 12,
+          durationDays: 365,
+        }));
+      default:
+        return basePlans.map(plan => ({
+          price: plan.price,
+          credits: plan.credits,
+          durationDays: 30,
+        }));
+    }
+  };
+
+  const proPlans = getPlans(baseProPlans);
+  const scholarPlans = getPlans(baseScholarPlans);
+
   const scholarFeatures = [
     "PowerPoint presentation generator",
     "Advanced paraphraser tool",
     "Document upload & editing",
   ];
+
+  const getBillingLabel = () => {
+    switch (billingPeriod) {
+      case "quarterly": return "3 months";
+      case "yearly": return "year";
+      default: return "month";
+    }
+  };
+
+  const getMonthlyEquivalent = (price: number) => {
+    switch (billingPeriod) {
+      case "quarterly": return Math.round(price / 3);
+      case "yearly": return Math.round(price / 12);
+      default: return price;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -112,9 +167,43 @@ const Pricing = () => {
       </header>
 
       <main className="container mx-auto px-4 py-12">
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-4">Choose Your Plan</h1>
-          <p className="text-lg text-muted-foreground">Select the perfect plan for your academic journey</p>
+          <p className="text-lg text-muted-foreground mb-6">Select the perfect plan for your academic journey</p>
+          
+          {/* Billing Period Toggle */}
+          <div className="inline-flex items-center gap-1 p-1 bg-muted rounded-lg">
+            <Button
+              variant={billingPeriod === "monthly" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setBillingPeriod("monthly")}
+              className="relative"
+            >
+              Monthly
+            </Button>
+            <Button
+              variant={billingPeriod === "quarterly" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setBillingPeriod("quarterly")}
+              className="relative"
+            >
+              3 Months
+              <Badge variant="secondary" className="absolute -top-2 -right-2 text-xs px-1 py-0">
+                -10%
+              </Badge>
+            </Button>
+            <Button
+              variant={billingPeriod === "yearly" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setBillingPeriod("yearly")}
+              className="relative"
+            >
+              Yearly
+              <Badge variant="secondary" className="absolute -top-2 -right-2 text-xs px-1 py-0">
+                -20%
+              </Badge>
+            </Button>
+          </div>
         </div>
 
         {/* Free Plan */}
@@ -156,16 +245,23 @@ const Pricing = () => {
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-center mb-6">Pro Plans</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {proPlans.map((plan) => (
-              <Card key={plan.price} className="hover:shadow-lg transition-all hover:scale-[1.02]">
+            {proPlans.map((plan, index) => (
+              <Card key={index} className="hover:shadow-lg transition-all hover:scale-[1.02]">
                 <CardHeader>
                   <CardTitle className="text-2xl">₦{plan.price.toLocaleString()}</CardTitle>
-                  <CardDescription>{plan.credits} credits</CardDescription>
+                  <CardDescription>
+                    {plan.credits} credits / {getBillingLabel()}
+                    {billingPeriod !== "monthly" && (
+                      <span className="block text-xs mt-1">
+                        ₦{getMonthlyEquivalent(plan.price).toLocaleString()}/mo
+                      </span>
+                    )}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Button 
                     className="w-full" 
-                    onClick={() => handlePurchase("pro", plan.price, plan.credits)}
+                    onClick={() => handlePurchase("pro", plan.price, plan.credits, plan.durationDays)}
                     disabled={isLoading}
                   >
                     Purchase
@@ -193,17 +289,24 @@ const Pricing = () => {
             </div>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {scholarPlans.map((plan) => (
-              <Card key={plan.price} variant="glass" className="hover:shadow-xl transition-all hover:scale-[1.02]">
+            {scholarPlans.map((plan, index) => (
+              <Card key={index} variant="glass" className="hover:shadow-xl transition-all hover:scale-[1.02]">
                 <CardHeader>
                   <CardTitle className="text-2xl">₦{plan.price.toLocaleString()}</CardTitle>
-                  <CardDescription>{plan.credits} credits</CardDescription>
+                  <CardDescription>
+                    {plan.credits} credits / {getBillingLabel()}
+                    {billingPeriod !== "monthly" && (
+                      <span className="block text-xs mt-1">
+                        ₦{getMonthlyEquivalent(plan.price).toLocaleString()}/mo
+                      </span>
+                    )}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Button 
                     variant="gradient"
                     className="w-full" 
-                    onClick={() => handlePurchase("scholar", plan.price, plan.credits)}
+                    onClick={() => handlePurchase("scholar", plan.price, plan.credits, plan.durationDays)}
                     disabled={isLoading}
                   >
                     Purchase
