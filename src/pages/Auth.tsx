@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,24 +9,95 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, Eye, EyeOff, CheckCircle2, XCircle } from "lucide-react";
 import { SEO } from "@/components/SEO";
+import { 
+  signInSchema, 
+  signUpSchema, 
+  forgotPasswordSchema,
+  getAuthErrorMessage 
+} from "@/lib/validations/auth";
 
 const Auth = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [resetEmail, setResetEmail] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+
+  // Check if user is already logged in
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate("/dashboard", { replace: true });
+      }
+      setIsCheckingAuth(false);
+    };
+    
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && event === "SIGNED_IN") {
+        navigate("/dashboard", { replace: true });
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  // Password strength indicators
+  const passwordChecks = {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
+    number: /\d/.test(password),
+  };
+
+  const validateSignIn = () => {
+    const result = signInSchema.safeParse({ email, password });
+    if (!result.success) {
+      const fieldErrors: { email?: string; password?: string } = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0] === "email") fieldErrors.email = err.message;
+        if (err.path[0] === "password") fieldErrors.password = err.message;
+      });
+      setErrors(fieldErrors);
+      return false;
+    }
+    setErrors({});
+    return true;
+  };
+
+  const validateSignUp = () => {
+    const result = signUpSchema.safeParse({ email, password });
+    if (!result.success) {
+      const fieldErrors: { email?: string; password?: string } = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0] === "email") fieldErrors.email = err.message;
+        if (err.path[0] === "password") fieldErrors.password = err.message;
+      });
+      setErrors(fieldErrors);
+      return false;
+    }
+    setErrors({});
+    return true;
+  };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateSignUp()) return;
+    
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/dashboard`,
@@ -35,10 +106,16 @@ const Auth = () => {
 
       if (error) throw error;
 
-      toast.success("Account created successfully! Please check your email to confirm.");
+      // Check if user already exists (Supabase returns user with identities: [] for existing users)
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        toast.error("An account with this email already exists. Please sign in instead.");
+        return;
+      }
+
+      toast.success("Account created successfully! You can now sign in.");
       navigate("/dashboard");
     } catch (error: any) {
-      toast.error(error.message || "Failed to create account");
+      toast.error(getAuthErrorMessage(error.message));
     } finally {
       setIsLoading(false);
     }
@@ -46,11 +123,14 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateSignIn()) return;
+    
     setIsLoading(true);
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(),
         password,
       });
 
@@ -59,13 +139,14 @@ const Auth = () => {
       toast.success("Signed in successfully!");
       navigate("/dashboard");
     } catch (error: any) {
-      toast.error(error.message || "Failed to sign in");
+      toast.error(getAuthErrorMessage(error.message));
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    setIsLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -76,19 +157,21 @@ const Auth = () => {
 
       if (error) throw error;
     } catch (error: any) {
-      toast.error(error.message || "Failed to sign in with Google");
+      toast.error(getAuthErrorMessage(error.message));
+      setIsLoading(false);
     }
   };
 
   const handleForgotPassword = async () => {
-    if (!resetEmail) {
-      toast.error("Please enter your email address");
+    const result = forgotPasswordSchema.safeParse({ email: resetEmail });
+    if (!result.success) {
+      toast.error(result.error.errors[0].message);
       return;
     }
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       
@@ -98,11 +181,65 @@ const Auth = () => {
       setShowForgotPassword(false);
       setResetEmail("");
     } catch (error: any) {
-      toast.error(error.message || "Failed to send reset email");
+      toast.error(getAuthErrorMessage(error.message));
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Show loading while checking auth
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const PasswordStrengthIndicator = () => (
+    <div className="mt-2 space-y-1 text-xs">
+      <div className="flex items-center gap-2">
+        {passwordChecks.length ? (
+          <CheckCircle2 className="h-3 w-3 text-green-500" />
+        ) : (
+          <XCircle className="h-3 w-3 text-muted-foreground" />
+        )}
+        <span className={passwordChecks.length ? "text-green-500" : "text-muted-foreground"}>
+          At least 8 characters
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        {passwordChecks.uppercase ? (
+          <CheckCircle2 className="h-3 w-3 text-green-500" />
+        ) : (
+          <XCircle className="h-3 w-3 text-muted-foreground" />
+        )}
+        <span className={passwordChecks.uppercase ? "text-green-500" : "text-muted-foreground"}>
+          One uppercase letter
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        {passwordChecks.lowercase ? (
+          <CheckCircle2 className="h-3 w-3 text-green-500" />
+        ) : (
+          <XCircle className="h-3 w-3 text-muted-foreground" />
+        )}
+        <span className={passwordChecks.lowercase ? "text-green-500" : "text-muted-foreground"}>
+          One lowercase letter
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        {passwordChecks.number ? (
+          <CheckCircle2 className="h-3 w-3 text-green-500" />
+        ) : (
+          <XCircle className="h-3 w-3 text-muted-foreground" />
+        )}
+        <span className={passwordChecks.number ? "text-green-500" : "text-muted-foreground"}>
+          One number
+        </span>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -122,7 +259,7 @@ const Auth = () => {
           <CardDescription>Your academic project assistant</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="signin" className="w-full">
+          <Tabs defaultValue="signin" className="w-full" onValueChange={() => setErrors({})}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -136,22 +273,58 @@ const Auth = () => {
                     type="email"
                     placeholder="your@email.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+                    }}
                     required
-                    className="rounded-xl"
+                    className={`rounded-xl ${errors.email ? "border-destructive" : ""}`}
+                    aria-invalid={!!errors.email}
+                    aria-describedby={errors.email ? "signin-email-error" : undefined}
                   />
+                  {errors.email && (
+                    <p id="signin-email-error" className="text-sm text-destructive">
+                      {errors.email}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signin-password">Password</Label>
-                  <Input
-                    id="signin-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="rounded-xl"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="signin-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                      }}
+                      required
+                      className={`rounded-xl pr-10 ${errors.password ? "border-destructive" : ""}`}
+                      aria-invalid={!!errors.password}
+                      aria-describedby={errors.password ? "signin-password-error" : undefined}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
+                  {errors.password && (
+                    <p id="signin-password-error" className="text-sm text-destructive">
+                      {errors.password}
+                    </p>
+                  )}
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading} variant="gradient">
                   {isLoading ? "Signing in..." : "Sign In"}
@@ -198,6 +371,7 @@ const Auth = () => {
                   variant="outline"
                   className="w-full"
                   onClick={handleGoogleSignIn}
+                  disabled={isLoading}
                 >
                   <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                     <path
@@ -230,23 +404,59 @@ const Auth = () => {
                     type="email"
                     placeholder="your@email.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+                    }}
                     required
-                    className="rounded-xl"
+                    className={`rounded-xl ${errors.email ? "border-destructive" : ""}`}
+                    aria-invalid={!!errors.email}
+                    aria-describedby={errors.email ? "signup-email-error" : undefined}
                   />
+                  {errors.email && (
+                    <p id="signup-email-error" className="text-sm text-destructive">
+                      {errors.email}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-password">Password</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    className="rounded-xl"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="signup-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                      }}
+                      required
+                      className={`rounded-xl pr-10 ${errors.password ? "border-destructive" : ""}`}
+                      aria-invalid={!!errors.password}
+                      aria-describedby={errors.password ? "signup-password-error" : undefined}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
+                  {errors.password && (
+                    <p id="signup-password-error" className="text-sm text-destructive">
+                      {errors.password}
+                    </p>
+                  )}
+                  <PasswordStrengthIndicator />
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading} variant="gradient">
                   {isLoading ? "Creating account..." : "Create Account"}
@@ -266,6 +476,7 @@ const Auth = () => {
                   variant="outline"
                   className="w-full"
                   onClick={handleGoogleSignIn}
+                  disabled={isLoading}
                 >
                   <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                     <path
