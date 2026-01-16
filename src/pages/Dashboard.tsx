@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, FileText, Sparkles, LogOut, CreditCard, GraduationCap, Settings as SettingsIcon, Receipt, AlertTriangle, Clock } from "lucide-react";
+import { MessageSquare, FileText, Sparkles, LogOut, CreditCard, GraduationCap, Settings as SettingsIcon, Receipt, AlertTriangle, Clock, RefreshCw } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -267,15 +267,39 @@ const Dashboard = () => {
                               : '[&>div]:bg-primary'
                         }`}
                       />
-                      <div className="text-xs text-muted-foreground">
-                        Expires: {formatExpiryDate(profile.credits_expiry_date)}
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs text-muted-foreground">
+                          Expires: {formatExpiryDate(profile.credits_expiry_date)}
+                        </div>
+                        {(expiryInfo.isExpiringSoon || expiryInfo.isWarning) && (
+                          <Button 
+                            size="sm" 
+                            variant={expiryInfo.isExpiringSoon ? "destructive" : "outline"}
+                            className="h-7 text-xs gap-1"
+                            onClick={() => navigate(`/pricing?plan=${profile.plan_type}&billing=monthly`)}
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                            Renew
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}
                   
                   {expiryInfo?.isExpired && (
-                    <div className="mt-2 text-sm text-destructive font-medium">
-                      Credits have expired
+                    <div className="mt-3 space-y-2">
+                      <div className="text-sm text-destructive font-medium">
+                        Credits have expired
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="destructive"
+                        className="w-full gap-1"
+                        onClick={() => navigate(`/pricing?plan=${profile.plan_type}&billing=monthly`)}
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                        Renew Plan Now
+                      </Button>
                     </div>
                   )}
                   
