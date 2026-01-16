@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { GraduationCap, Eye, EyeOff, CheckCircle2, XCircle } from "lucide-react";
+import { GraduationCap, Eye, EyeOff, CheckCircle2, XCircle, Mail, ArrowLeft, RefreshCw } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { 
   signInSchema, 
@@ -28,6 +28,11 @@ const Auth = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  
+  // Email verification states
+  const [pendingVerification, setPendingVerification] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [isResending, setIsResending] = useState(false);
 
   // Check if user is already logged in
   useEffect(() => {
@@ -88,6 +93,34 @@ const Auth = () => {
     return true;
   };
 
+  const handleResendConfirmation = async () => {
+    setIsResending(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: pendingEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
+      
+      if (error) throw error;
+      
+      toast.success("Verification email resent! Please check your inbox.");
+    } catch (error: any) {
+      toast.error(getAuthErrorMessage(error.message));
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  const handleBackToSignUp = () => {
+    setPendingVerification(false);
+    setPendingEmail("");
+    setEmail("");
+    setPassword("");
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -112,8 +145,10 @@ const Auth = () => {
         return;
       }
 
-      toast.success("Account created successfully! You can now sign in.");
-      navigate("/dashboard");
+      // Show email verification pending screen
+      setPendingEmail(email.trim());
+      setPendingVerification(true);
+      toast.success("Please check your email to verify your account!");
     } catch (error: any) {
       toast.error(getAuthErrorMessage(error.message));
     } finally {
@@ -129,12 +164,21 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Check if the error is about email not being confirmed
+        if (error.message.toLowerCase().includes('email not confirmed')) {
+          setPendingEmail(email.trim());
+          setPendingVerification(true);
+          toast.error("Please verify your email before signing in. Check your inbox for the verification link.");
+          return;
+        }
+        throw error;
+      }
 
       toast.success("Signed in successfully!");
       navigate("/dashboard");
@@ -240,6 +284,72 @@ const Auth = () => {
       </div>
     </div>
   );
+
+  // Email verification pending screen
+  if (pendingVerification) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <SEO 
+          title="Verify Your Email | ScholarAI Hub"
+          description="Please check your email to verify your account."
+        />
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <div className="p-4 bg-primary/10 rounded-full">
+                <Mail className="h-12 w-12 text-primary" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl font-bold">Check Your Email</CardTitle>
+            <CardDescription className="text-base mt-2">
+              We've sent a verification link to
+            </CardDescription>
+            <p className="font-semibold text-foreground mt-1">{pendingEmail}</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
+              <p className="mb-2">
+                Click the link in the email to verify your account. Once verified, you'll be automatically signed in.
+              </p>
+              <p>
+                Can't find the email? Check your spam folder.
+              </p>
+            </div>
+            
+            <div className="flex flex-col gap-2">
+              <Button
+                variant="outline"
+                onClick={handleResendConfirmation}
+                disabled={isResending}
+                className="w-full"
+              >
+                {isResending ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Resend Verification Email
+                  </>
+                )}
+              </Button>
+              
+              <Button
+                variant="ghost"
+                onClick={handleBackToSignUp}
+                className="w-full"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Use a Different Email
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
