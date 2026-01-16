@@ -54,9 +54,16 @@ serve(async (req) => {
     // Check if paid credits have expired
     const paidCreditsExpired = creditsExpiryDate ? new Date(creditsExpiryDate) < new Date() : true;
 
-    // Reset daily credits if needed
+    // Enhanced logging - before state
+    console.log(`[CREDIT] Paraphrase - User: ${user.id}, Plan: ${profile.plan_type}`);
+    console.log(`[CREDIT] Before - Daily: ${profile.daily_credits}, Paid: ${profile.paid_credits}`);
+    console.log(`[CREDIT] Daily Reset Date: ${profile.daily_reset_date}, Today: ${today}, Needs Reset: ${needsDailyReset}`);
+    console.log(`[CREDIT] Expiry: ${creditsExpiryDate}, Expired: ${paidCreditsExpired}`);
+
+    // Reset daily credits if needed (all users get 8 free daily credits)
     if (needsDailyReset) {
       dailyCredits = 8;
+      console.log(`[CREDIT] Daily credits reset to 8`);
     }
 
     // Credit deduction logic for Scholar users:
@@ -81,13 +88,14 @@ serve(async (req) => {
         ? 'Your paid credits have expired. Please purchase more credits.'
         : 'Insufficient credits. Please purchase more credits.';
       
+      console.log(`[CREDIT] Insufficient credits - Expired: ${paidCreditsExpired}`);
       return new Response(
         JSON.stringify({ error: errorMessage }),
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Paraphrase credit deducted from: ${creditSource}. Daily: ${dailyCredits}, Paid: ${paidCredits}`);
+    console.log(`[CREDIT] Paraphrase deducted from: ${creditSource}. After - Daily: ${dailyCredits}, Paid: ${paidCredits}`);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {

@@ -52,9 +52,16 @@ serve(async (req) => {
     // Check if paid credits have expired
     const paidCreditsExpired = creditsExpiryDate ? new Date(creditsExpiryDate) < new Date() : true;
 
+    // Enhanced logging - before state
+    console.log(`[CREDIT] User: ${user.id}, Plan: ${profile.plan_type}`);
+    console.log(`[CREDIT] Before - Daily: ${profile.daily_credits}, Monthly: ${profile.monthly_credits}, Paid: ${profile.paid_credits}`);
+    console.log(`[CREDIT] Daily Reset Date: ${profile.daily_reset_date}, Today: ${today}, Needs Reset: ${needsDailyReset}`);
+    console.log(`[CREDIT] Expiry: ${creditsExpiryDate}, Expired: ${paidCreditsExpired}`);
+
     // Reset daily credits if needed (all users get 8 free daily credits)
     if (needsDailyReset) {
       dailyCredits = 8;
+      console.log(`[CREDIT] Daily credits reset to 8`);
       
       // For free users only: check monthly credit reset
       if (profile.plan_type === 'free') {
@@ -64,6 +71,7 @@ serve(async (req) => {
         if (lastResetMonth !== currentMonth) {
           // New month - reset monthly credits to 40 for free users
           monthlyCredits = 40;
+          console.log(`[CREDIT] Monthly credits reset to 40 for free user`);
         }
       }
     }
@@ -99,13 +107,14 @@ serve(async (req) => {
           ? 'Your paid credits have expired. Please purchase more credits.'
           : 'Insufficient credits. Please purchase more credits.';
       
+      console.log(`[CREDIT] Insufficient credits - Plan: ${profile.plan_type}, Expired: ${paidCreditsExpired}`);
       return new Response(
         JSON.stringify({ error: errorMessage }),
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Credit deducted from: ${creditSource}. Daily: ${dailyCredits}, Monthly: ${monthlyCredits}, Paid: ${paidCredits}`);
+    console.log(`[CREDIT] Deducted from: ${creditSource}. After - Daily: ${dailyCredits}, Monthly: ${monthlyCredits}, Paid: ${paidCredits}`);
 
     // Fetch conversation history
     const { data: previousMessages, error: messagesError } = await supabaseClient
