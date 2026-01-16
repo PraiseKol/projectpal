@@ -66,6 +66,10 @@ serve(async (req) => {
     const metadata = paystackData.data.metadata;
     const planType = metadata.plan_type;
     const creditsToAdd = metadata.credits;
+    const durationDays = metadata.duration_days || 30; // Default to 30 days for legacy purchases
+    const billingPeriod = metadata.billing_period || 'monthly';
+
+    console.log(`Payment metadata: plan=${planType}, credits=${creditsToAdd}, duration=${durationDays} days, billing=${billingPeriod}`);
 
     // Get current profile
     const { data: profile, error: profileError } = await supabaseClient
@@ -91,9 +95,9 @@ serve(async (req) => {
 
     const newPaidCredits = currentPaidCredits + creditsToAdd;
     
-    // Set/extend credits expiry date to 30 days from now
+    // Set/extend credits expiry date based on duration_days from metadata
     const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 30);
+    expiryDate.setDate(expiryDate.getDate() + durationDays);
 
     console.log(`Payment verified. Adding ${creditsToAdd} credits. New total: ${newPaidCredits}. Expiry: ${expiryDate.toISOString()}`);
 
