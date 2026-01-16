@@ -3,14 +3,30 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, ArrowLeft, GraduationCap, Sparkles } from "lucide-react";
+import { Check, ArrowLeft, GraduationCap, Sparkles, CreditCard, Calendar, Coins } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 
 type BillingPeriod = "monthly" | "quarterly" | "yearly";
 
 interface PlanOption {
+  price: number;
+  credits: number;
+  durationDays: number;
+}
+
+interface SelectedPurchase {
+  planType: string;
   price: number;
   credits: number;
   durationDays: number;
@@ -21,6 +37,8 @@ const Pricing = () => {
   const [searchParams] = useSearchParams();
   const [userEmail, setUserEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedPurchase, setSelectedPurchase] = useState<SelectedPurchase | null>(null);
   
   // Get pre-selected values from URL params (for renewals)
   const preSelectedPlan = searchParams.get("plan") as "pro" | "scholar" | null;
@@ -47,13 +65,23 @@ const Pricing = () => {
     }
   };
 
-  const handlePurchase = async (planType: string, price: number, credits: number, durationDays: number) => {
+  const openConfirmModal = (planType: string, price: number, credits: number, durationDays: number) => {
     if (!userEmail) {
       toast.error("Please log in to purchase credits");
       navigate("/auth");
       return;
     }
+    setSelectedPurchase({ planType, price, credits, durationDays });
+    setShowConfirmModal(true);
+  };
 
+  const confirmPurchase = () => {
+    if (!selectedPurchase) return;
+    setShowConfirmModal(false);
+    handlePurchase(selectedPurchase.planType, selectedPurchase.price, selectedPurchase.credits, selectedPurchase.durationDays);
+  };
+
+  const handlePurchase = async (planType: string, price: number, credits: number, durationDays: number) => {
     setIsLoading(true);
 
     try {
@@ -278,7 +306,7 @@ const Pricing = () => {
                 <CardContent>
                   <Button 
                     className="w-full" 
-                    onClick={() => handlePurchase("pro", plan.price, plan.credits, plan.durationDays)}
+                    onClick={() => openConfirmModal("pro", plan.price, plan.credits, plan.durationDays)}
                     disabled={isLoading}
                   >
                     {preSelectedPlan === "pro" ? "Renew" : "Purchase"}
@@ -328,7 +356,7 @@ const Pricing = () => {
                   <Button 
                     variant="gradient"
                     className="w-full" 
-                    onClick={() => handlePurchase("scholar", plan.price, plan.credits, plan.durationDays)}
+                    onClick={() => openConfirmModal("scholar", plan.price, plan.credits, plan.durationDays)}
                     disabled={isLoading}
                   >
                     {preSelectedPlan === "scholar" ? "Renew" : "Purchase"}
@@ -370,6 +398,88 @@ const Pricing = () => {
           </CardContent>
         </Card>
       </main>
+
+      {/* Purchase Confirmation Modal */}
+      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Confirm Purchase
+            </DialogTitle>
+            <DialogDescription>
+              Review your order before proceeding to payment
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedPurchase && (
+            <div className="space-y-4">
+              {/* Plan Type */}
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Plan</span>
+                <Badge variant={selectedPurchase.planType === "scholar" ? "default" : "secondary"}>
+                  {selectedPurchase.planType.toUpperCase()}
+                </Badge>
+              </div>
+              
+              <Separator />
+              
+              {/* Billing Period */}
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Billing Period
+                </span>
+                <span className="font-medium">
+                  {billingPeriod === "monthly" ? "Monthly" : 
+                   billingPeriod === "quarterly" ? "3 Months" : "Yearly"}
+                </span>
+              </div>
+              
+              {/* Duration */}
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Duration</span>
+                <span className="font-medium">{selectedPurchase.durationDays} days</span>
+              </div>
+              
+              {/* Credits */}
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground flex items-center gap-2">
+                  <Coins className="h-4 w-4" />
+                  Credits
+                </span>
+                <span className="font-medium">{selectedPurchase.credits.toLocaleString()}</span>
+              </div>
+              
+              <Separator />
+              
+              {/* Total Cost */}
+              <div className="flex justify-between items-center text-lg">
+                <span className="font-semibold">Total</span>
+                <span className="font-bold text-primary">
+                  ₦{selectedPurchase.price.toLocaleString()}
+                </span>
+              </div>
+              
+              {/* Monthly equivalent for non-monthly billing */}
+              {billingPeriod !== "monthly" && (
+                <p className="text-sm text-muted-foreground text-center">
+                  (₦{getMonthlyEquivalent(selectedPurchase.price).toLocaleString()}/month equivalent)
+                </p>
+              )}
+            </div>
+          )}
+          
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowConfirmModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmPurchase} disabled={isLoading}>
+              {isLoading ? "Processing..." : "Proceed to Payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
