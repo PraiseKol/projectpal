@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, FileText, Sparkles, LogOut, CreditCard, GraduationCap, Settings as SettingsIcon, Receipt } from "lucide-react";
+import { MessageSquare, FileText, Sparkles, LogOut, CreditCard, GraduationCap, Settings as SettingsIcon, Receipt, AlertTriangle, Clock } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { MobileNav } from "@/components/MobileNav";
@@ -101,6 +102,29 @@ const Dashboard = () => {
     return resetDate !== today ? 8 : (profile?.daily_credits ?? 8);
   };
 
+  // Calculate remaining days until credits expire
+  const getCreditsExpiryInfo = () => {
+    if (!profile?.credits_expiry_date) return null;
+    const expiry = new Date(profile.credits_expiry_date);
+    const now = new Date();
+    const diffTime = expiry.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Estimate total days based on common billing periods
+    const totalDays = diffDays > 200 ? 365 : diffDays > 60 ? 90 : 30;
+    const percentage = Math.max(0, Math.min(100, (diffDays / totalDays) * 100));
+    
+    return {
+      daysRemaining: diffDays > 0 ? diffDays : 0,
+      percentage,
+      isExpired: diffDays <= 0,
+      isExpiringSoon: diffDays > 0 && diffDays <= 7,
+      isWarning: diffDays > 7 && diffDays <= 30,
+    };
+  };
+
+  const expiryInfo = getCreditsExpiryInfo();
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -192,17 +216,72 @@ const Dashboard = () => {
                   <div className="text-xs text-muted-foreground mt-1">Resets monthly</div>
                 </div>
               ) : (
-                <div className="p-4 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl border border-primary/20">
-                  <div className="text-sm text-muted-foreground">Paid Credits</div>
+                <div className={`p-4 rounded-2xl border ${
+                  expiryInfo?.isExpiringSoon 
+                    ? 'bg-destructive/10 border-destructive/30' 
+                    : expiryInfo?.isWarning 
+                      ? 'bg-yellow-500/10 border-yellow-500/30' 
+                      : 'bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-muted-foreground">Paid Credits</div>
+                    {expiryInfo?.isExpiringSoon && (
+                      <Badge variant="destructive" className="text-xs gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        Expiring Soon!
+                      </Badge>
+                    )}
+                  </div>
                   <div className="text-3xl font-bold mt-1">
                     <span>{profile?.paid_credits || 0}</span>
                     <span className="text-lg text-muted-foreground font-normal"> remaining</span>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {profile?.credits_expiry_date 
-                      ? `Expires: ${formatExpiryDate(profile.credits_expiry_date)}`
-                      : 'No expiry set'}
-                  </div>
+                  
+                  {expiryInfo && !expiryInfo.isExpired && (
+                    <div className="mt-3 space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Clock className={`h-4 w-4 ${
+                          expiryInfo.isExpiringSoon 
+                            ? 'text-destructive' 
+                            : expiryInfo.isWarning 
+                              ? 'text-yellow-500' 
+                              : 'text-primary'
+                        }`} />
+                        <span className={`font-medium ${
+                          expiryInfo.isExpiringSoon 
+                            ? 'text-destructive' 
+                            : expiryInfo.isWarning 
+                              ? 'text-yellow-600 dark:text-yellow-400' 
+                              : ''
+                        }`}>
+                          {expiryInfo.daysRemaining} days left
+                        </span>
+                      </div>
+                      <Progress 
+                        value={expiryInfo.percentage} 
+                        className={`h-2 ${
+                          expiryInfo.isExpiringSoon 
+                            ? '[&>div]:bg-destructive' 
+                            : expiryInfo.isWarning 
+                              ? '[&>div]:bg-yellow-500' 
+                              : '[&>div]:bg-primary'
+                        }`}
+                      />
+                      <div className="text-xs text-muted-foreground">
+                        Expires: {formatExpiryDate(profile.credits_expiry_date)}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {expiryInfo?.isExpired && (
+                    <div className="mt-2 text-sm text-destructive font-medium">
+                      Credits have expired
+                    </div>
+                  )}
+                  
+                  {!expiryInfo && (
+                    <div className="text-xs text-muted-foreground mt-1">No expiry set</div>
+                  )}
                 </div>
               )}
             </div>

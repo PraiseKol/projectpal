@@ -157,9 +157,11 @@ export type Database = {
       transactions: {
         Row: {
           amount: number
+          billing_period: string | null
           created_at: string | null
           credits_purchased: number
           currency: string | null
+          duration_days: number | null
           id: string
           plan_type: string
           reference: string
@@ -168,9 +170,11 @@ export type Database = {
         }
         Insert: {
           amount: number
+          billing_period?: string | null
           created_at?: string | null
           credits_purchased: number
           currency?: string | null
+          duration_days?: number | null
           id?: string
           plan_type: string
           reference: string
@@ -179,9 +183,11 @@ export type Database = {
         }
         Update: {
           amount?: number
+          billing_period?: string | null
           created_at?: string | null
           credits_purchased?: number
           currency?: string | null
+          duration_days?: number | null
           id?: string
           plan_type?: string
           reference?: string
