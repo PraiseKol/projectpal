@@ -43,14 +43,24 @@ const TransactionHistory = () => {
     }
   };
 
+  const formatBillingPeriod = (period: string | null) => {
+    switch (period) {
+      case 'quarterly': return '3 Months';
+      case 'yearly': return 'Yearly';
+      default: return 'Monthly';
+    }
+  };
+
   const exportToCSV = () => {
-    const headers = ["Date", "Reference", "Amount", "Plan", "Credits", "Status"];
+    const headers = ["Date", "Reference", "Amount", "Plan", "Credits", "Billing Period", "Duration", "Status"];
     const rows = transactions.map(t => [
       new Date(t.created_at).toLocaleDateString(),
       t.reference,
       `₦${t.amount.toLocaleString()}`,
       t.plan_type,
       t.credits_purchased,
+      formatBillingPeriod(t.billing_period),
+      `${t.duration_days || 30} days`,
       t.status
     ]);
 
@@ -128,6 +138,8 @@ const TransactionHistory = () => {
                       <TableHead>Amount</TableHead>
                       <TableHead>Plan</TableHead>
                       <TableHead>Credits</TableHead>
+                      <TableHead>Billing</TableHead>
+                      <TableHead>Duration</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -149,6 +161,14 @@ const TransactionHistory = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>{transaction.credits_purchased} credits</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {formatBillingPeriod(transaction.billing_period)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {transaction.duration_days || 30} days
+                        </TableCell>
                         <TableCell>
                           <Badge variant={transaction.status === "success" ? "default" : "destructive"}>
                             {transaction.status}

@@ -131,7 +131,9 @@ serve(async (req) => {
         currency: paystackData.data.currency,
         plan_type: planType,
         credits_purchased: creditsToAdd,
-        status: 'success'
+        status: 'success',
+        billing_period: billingPeriod,
+        duration_days: durationDays
       });
 
     if (transactionError) {
