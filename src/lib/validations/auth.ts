@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+export const nameSchema = z
+  .string()
+  .trim()
+  .min(1, "This field is required")
+  .max(50, "Must be less than 50 characters")
+  .regex(/^[a-zA-Z\s'-]+$/, "Only letters, spaces, hyphens, and apostrophes allowed");
+
 export const emailSchema = z
   .string()
   .trim()
@@ -22,6 +29,8 @@ export const signInSchema = z.object({
 });
 
 export const signUpSchema = z.object({
+  firstName: nameSchema,
+  lastName: nameSchema,
   email: emailSchema,
   password: passwordSchema,
 });

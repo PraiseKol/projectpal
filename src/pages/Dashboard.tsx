@@ -184,7 +184,9 @@ const Dashboard = () => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-2xl">Welcome Back!</CardTitle>
+<CardTitle className="text-2xl">
+                  Welcome Back{profile?.first_name ? `, ${profile.first_name}` : ''}!
+                </CardTitle>
                 <CardDescription className="mt-1">
                   Plan: <Badge className="ml-2 rounded-full">{profile?.plan_type?.toUpperCase()}</Badge>
                 </CardDescription>

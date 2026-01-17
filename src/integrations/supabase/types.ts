@@ -148,7 +148,9 @@ export type Database = {
           credits_expiry_date: string | null
           daily_credits: number
           daily_reset_date: string
+          first_name: string | null
           id: string
+          last_name: string | null
           monthly_credits: number
           paid_credits: number
           plan_type: Database["public"]["Enums"]["plan_type"]
@@ -159,7 +161,9 @@ export type Database = {
           credits_expiry_date?: string | null
           daily_credits?: number
           daily_reset_date?: string
+          first_name?: string | null
           id: string
+          last_name?: string | null
           monthly_credits?: number
           paid_credits?: number
           plan_type?: Database["public"]["Enums"]["plan_type"]
@@ -170,7 +174,9 @@ export type Database = {
           credits_expiry_date?: string | null
           daily_credits?: number
           daily_reset_date?: string
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           monthly_credits?: number
           paid_credits?: number
           plan_type?: Database["public"]["Enums"]["plan_type"]
