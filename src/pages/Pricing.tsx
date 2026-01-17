@@ -82,19 +82,12 @@ const Pricing = () => {
   };
 
   const handlePurchase = async (planType: string, price: number, credits: number, durationDays: number) => {
-    const paystackPublicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
-    
-    if (!paystackPublicKey) {
-      toast.error("Payment system not configured");
-      return;
-    }
-    
     setIsLoading(true);
 
     try {
       // @ts-ignore - Paystack is loaded via script
       const handler = window.PaystackPop.setup({
-        key: paystackPublicKey,
+        key: "pk_test_c815d1b343e5d4087eeb23e833437334270ca6b6",
         email: userEmail,
         amount: price * 100, // Amount in kobo
         currency: "NGN",
