@@ -49,7 +49,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <Card className="w-full max-w-md">
             <CardHeader className="text-center">
               <div className="flex justify-center mb-4">
-                <div className="p-3 bg-destructive/10 rounded-2xl">
+                <div className="p-3 bg-gradient-to-br from-destructive/20 to-destructive/10 rounded-2xl border border-destructive/20">
                   <AlertTriangle className="h-8 w-8 text-destructive" />
                 </div>
               </div>
@@ -60,7 +60,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </CardHeader>
             <CardContent className="space-y-4">
               {import.meta.env.DEV && this.state.error && (
-                <div className="p-3 bg-muted rounded-lg text-sm font-mono text-muted-foreground overflow-auto max-h-32">
+                <div className="p-3 bg-muted rounded-lg text-sm font-mono text-muted-foreground overflow-auto max-h-32 border border-border">
                   {this.state.error.message}
                 </div>
               )}
