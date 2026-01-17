@@ -51,7 +51,11 @@ const CheckoutSuccess = () => {
       <Card className="max-w-md w-full p-8 text-center">
         {status === "verifying" && (
           <>
-            <Loader2 className="h-16 w-16 animate-spin mx-auto mb-4 text-primary" />
+            <div className="flex justify-center mb-4">
+              <div className="p-4 bg-gradient-to-br from-primary/20 to-accent/10 rounded-2xl border border-primary/20">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              </div>
+            </div>
             <h2 className="text-2xl font-bold mb-2">Verifying Payment</h2>
             <p className="text-muted-foreground">{message}</p>
           </>
@@ -59,10 +63,14 @@ const CheckoutSuccess = () => {
 
         {status === "success" && (
           <>
-            <CheckCircle className="h-16 w-16 mx-auto mb-4 text-green-600" />
+            <div className="flex justify-center mb-4">
+              <div className="p-4 bg-gradient-to-br from-primary/20 to-accent/10 rounded-2xl border border-primary/20">
+                <CheckCircle className="h-12 w-12 text-primary" />
+              </div>
+            </div>
             <h2 className="text-2xl font-bold mb-2">Payment Successful!</h2>
             <p className="text-muted-foreground mb-6">{message}</p>
-            <Button onClick={() => navigate("/dashboard")} className="w-full">
+            <Button onClick={() => navigate("/dashboard")} variant="gradient" className="w-full">
               Go to Dashboard
             </Button>
           </>
@@ -70,15 +78,19 @@ const CheckoutSuccess = () => {
 
         {status === "error" && (
           <>
-            <XCircle className="h-16 w-16 mx-auto mb-4 text-destructive" />
+            <div className="flex justify-center mb-4">
+              <div className="p-4 bg-gradient-to-br from-destructive/20 to-destructive/10 rounded-2xl border border-destructive/20">
+                <XCircle className="h-12 w-12 text-destructive" />
+              </div>
+            </div>
             <h2 className="text-2xl font-bold mb-2">Payment Failed</h2>
             <p className="text-muted-foreground mb-6">{message}</p>
-            <div className="space-y-2">
-              <Button onClick={() => navigate("/pricing")} className="w-full">
-                Try Again
-              </Button>
-              <Button onClick={() => navigate("/dashboard")} variant="outline" className="w-full">
+            <div className="flex gap-3">
+              <Button onClick={() => navigate("/dashboard")} variant="outline" className="flex-1">
                 Back to Dashboard
+              </Button>
+              <Button onClick={() => navigate("/pricing")} variant="gradient" className="flex-1">
+                Try Again
               </Button>
             </div>
           </>
