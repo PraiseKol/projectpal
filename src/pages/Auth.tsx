@@ -48,7 +48,10 @@ const Auth = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session && event === "SIGNED_IN") {
-        navigate("/dashboard", { replace: true });
+        // Only redirect if email is confirmed
+        if (session.user.email_confirmed_at) {
+          navigate("/dashboard", { replace: true });
+        }
       }
     });
 
@@ -145,10 +148,16 @@ const Auth = () => {
         return;
       }
 
-      // Show email verification pending screen
-      setPendingEmail(email.trim());
-      setPendingVerification(true);
-      toast.success("Please check your email to verify your account!");
+      // Check if email needs confirmation
+      if (data.user && !data.user.email_confirmed_at) {
+        // Email not confirmed - show verification screen
+        setPendingEmail(email.trim());
+        setPendingVerification(true);
+        toast.success("Please check your email to verify your account!");
+      } else if (data.session) {
+        // User was auto-confirmed (shouldn't happen with proper settings)
+        navigate("/dashboard");
+      }
     } catch (error: any) {
       toast.error(getAuthErrorMessage(error.message));
     } finally {
