@@ -39,6 +39,7 @@ const Pricing = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedPurchase, setSelectedPurchase] = useState<SelectedPurchase | null>(null);
+  const [paystackKey, setPaystackKey] = useState<string | null>(null);
   
   // Get pre-selected values from URL params (for renewals)
   const preSelectedPlan = searchParams.get("plan") as "pro" | "scholar" | null;
@@ -49,7 +50,22 @@ const Pricing = () => {
   useEffect(() => {
     loadPaystackScript();
     getUserEmail();
+    fetchPaystackKey();
   }, []);
+
+  const fetchPaystackKey = async () => {
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "PAYSTACK_PUBLIC_KEY")
+      .maybeSingle();
+    
+    if (data?.value) {
+      setPaystackKey(data.value);
+    } else if (error) {
+      console.error("Error fetching Paystack key:", error);
+    }
+  };
 
   const loadPaystackScript = () => {
     const script = document.createElement("script");
@@ -82,12 +98,17 @@ const Pricing = () => {
   };
 
   const handlePurchase = async (planType: string, price: number, credits: number, durationDays: number) => {
+    if (!paystackKey) {
+      toast.error("Payment system not configured");
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
       // @ts-ignore - Paystack is loaded via script
       const handler = window.PaystackPop.setup({
-        key: "pk_test_c815d1b343e5d4087eeb23e833437334270ca6b6",
+        key: paystackKey,
         email: userEmail,
         amount: price * 100, // Amount in kobo
         currency: "NGN",
