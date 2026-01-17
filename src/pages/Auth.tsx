@@ -22,12 +22,14 @@ const Auth = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [resetEmail, setResetEmail] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ firstName?: string; lastName?: string; email?: string; password?: string }>({});
   
   // Email verification states
   const [pendingVerification, setPendingVerification] = useState(false);
@@ -82,10 +84,12 @@ const Auth = () => {
   };
 
   const validateSignUp = () => {
-    const result = signUpSchema.safeParse({ email, password });
+    const result = signUpSchema.safeParse({ firstName, lastName, email, password });
     if (!result.success) {
-      const fieldErrors: { email?: string; password?: string } = {};
+      const fieldErrors: { firstName?: string; lastName?: string; email?: string; password?: string } = {};
       result.error.errors.forEach((err) => {
+        if (err.path[0] === "firstName") fieldErrors.firstName = err.message;
+        if (err.path[0] === "lastName") fieldErrors.lastName = err.message;
         if (err.path[0] === "email") fieldErrors.email = err.message;
         if (err.path[0] === "password") fieldErrors.password = err.message;
       });
@@ -120,6 +124,8 @@ const Auth = () => {
   const handleBackToSignUp = () => {
     setPendingVerification(false);
     setPendingEmail("");
+    setFirstName("");
+    setLastName("");
     setEmail("");
     setPassword("");
   };
@@ -137,6 +143,10 @@ const Auth = () => {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: {
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+          },
         },
       });
 
@@ -516,6 +526,52 @@ const Auth = () => {
             </TabsContent>
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4 mt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-firstname">First Name</Label>
+                    <Input
+                      id="signup-firstname"
+                      type="text"
+                      placeholder="John"
+                      value={firstName}
+                      onChange={(e) => {
+                        setFirstName(e.target.value);
+                        if (errors.firstName) setErrors((prev) => ({ ...prev, firstName: undefined }));
+                      }}
+                      required
+                      className={`rounded-xl ${errors.firstName ? "border-destructive" : ""}`}
+                      aria-invalid={!!errors.firstName}
+                      aria-describedby={errors.firstName ? "signup-firstname-error" : undefined}
+                    />
+                    {errors.firstName && (
+                      <p id="signup-firstname-error" className="text-sm text-destructive">
+                        {errors.firstName}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-lastname">Last Name</Label>
+                    <Input
+                      id="signup-lastname"
+                      type="text"
+                      placeholder="Doe"
+                      value={lastName}
+                      onChange={(e) => {
+                        setLastName(e.target.value);
+                        if (errors.lastName) setErrors((prev) => ({ ...prev, lastName: undefined }));
+                      }}
+                      required
+                      className={`rounded-xl ${errors.lastName ? "border-destructive" : ""}`}
+                      aria-invalid={!!errors.lastName}
+                      aria-describedby={errors.lastName ? "signup-lastname-error" : undefined}
+                    />
+                    {errors.lastName && (
+                      <p id="signup-lastname-error" className="text-sm text-destructive">
+                        {errors.lastName}
+                      </p>
+                    )}
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
                   <Input
