@@ -3,7 +3,21 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, ArrowLeft, GraduationCap, Sparkles, CreditCard, Calendar, Coins } from "lucide-react";
+import { Check, X, ArrowLeft, GraduationCap, Sparkles, CreditCard, Calendar, Coins, Info } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
@@ -388,34 +402,348 @@ const Pricing = () => {
           </div>
         </div>
 
-        {/* Features Comparison */}
-        <Card className="max-w-3xl mx-auto">
+        {/* Comprehensive Plan Comparison Table */}
+        <Card className="max-w-5xl mx-auto mb-8">
           <CardHeader>
-            <CardTitle>What's Included</CardTitle>
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <CardTitle className="text-2xl">Plan Comparison</CardTitle>
+                <CardDescription>Compare all features and perks across plans</CardDescription>
+              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <Info className="h-4 w-4" />
+                      Credit Info
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <div className="space-y-2 text-sm">
+                      <p><strong>Daily Credits:</strong> Reset at midnight each day (subscribers only)</p>
+                      <p><strong>Monthly Cap:</strong> Maximum credits per month for free users</p>
+                      <p><strong>Paid Credits:</strong> Pool of credits from subscription, valid until expiry</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-2">
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-secondary" />
-                <span>Generate project topics and proposals</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-secondary" />
-                <span>Write Chapters 1-5 with AI assistance</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-secondary" />
-                <span>Edit and improve existing chapters</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-secondary" />
-                <span>Generate academic references</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-secondary" />
-                <span>24/7 AI assistance</span>
-              </li>
-            </ul>
+            {/* Mobile Cards View */}
+            <div className="md:hidden space-y-6">
+              {[
+                { 
+                  name: "Free", 
+                  badge: "Basic",
+                  dailyCredits: "8 credits/day",
+                  monthlyCap: "40 total",
+                  paidCredits: "None",
+                  creditsReset: "Monthly",
+                  features: {
+                    chat: true,
+                    topics: true,
+                    proposal: true,
+                    chapters: true,
+                    references: true,
+                    documents: false,
+                    ppt: false,
+                    paraphraser: false,
+                    support: "Basic"
+                  }
+                },
+                { 
+                  name: "Pro", 
+                  badge: "Popular",
+                  dailyCredits: "8 credits/day",
+                  monthlyCap: "No cap",
+                  paidCredits: "Based on plan",
+                  creditsReset: "Daily",
+                  features: {
+                    chat: true,
+                    topics: true,
+                    proposal: true,
+                    chapters: true,
+                    references: true,
+                    documents: false,
+                    ppt: false,
+                    paraphraser: false,
+                    support: "Priority"
+                  }
+                },
+                { 
+                  name: "Scholar", 
+                  badge: "Best Value",
+                  dailyCredits: "8 credits/day",
+                  monthlyCap: "No cap",
+                  paidCredits: "Based on plan",
+                  creditsReset: "Daily",
+                  features: {
+                    chat: true,
+                    topics: true,
+                    proposal: true,
+                    chapters: true,
+                    references: true,
+                    documents: true,
+                    ppt: true,
+                    paraphraser: true,
+                    support: "Priority"
+                  }
+                }
+              ].map((plan) => (
+                <Card key={plan.name} variant={plan.name === "Scholar" ? "glass" : "default"} className="overflow-hidden">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-xl">{plan.name}</CardTitle>
+                      <Badge variant={plan.name === "Scholar" ? "default" : "secondary"} className="rounded-full">
+                        {plan.badge}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Credits Info */}
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-muted-foreground text-xs">Daily Credits</p>
+                        <p className="font-semibold">{plan.dailyCredits}</p>
+                      </div>
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-muted-foreground text-xs">Monthly Cap</p>
+                        <p className="font-semibold">{plan.monthlyCap}</p>
+                      </div>
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-muted-foreground text-xs">Paid Credits</p>
+                        <p className="font-semibold">{plan.paidCredits}</p>
+                      </div>
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-muted-foreground text-xs">Credits Reset</p>
+                        <p className="font-semibold">{plan.creditsReset}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Features */}
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-muted-foreground">Features</p>
+                      <div className="grid gap-2">
+                        {[
+                          { label: "AI Chat Assistance", value: plan.features.chat },
+                          { label: "Project Topics", value: plan.features.topics },
+                          { label: "Proposal Writing", value: plan.features.proposal },
+                          { label: "Chapter Writing", value: plan.features.chapters },
+                          { label: "Academic References", value: plan.features.references },
+                          { label: "Document Upload", value: plan.features.documents },
+                          { label: "PowerPoint Generator", value: plan.features.ppt },
+                          { label: "Advanced Paraphraser", value: plan.features.paraphraser },
+                        ].map((feature) => (
+                          <div key={feature.label} className="flex items-center justify-between text-sm">
+                            <span>{feature.label}</span>
+                            {feature.value ? (
+                              <Check className="h-4 w-4 text-secondary" />
+                            ) : (
+                              <X className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
+                        ))}
+                        <div className="flex items-center justify-between text-sm">
+                          <span>Support</span>
+                          <Badge variant="outline" className="text-xs">{plan.features.support}</Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[250px]">Feature</TableHead>
+                    <TableHead className="text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <span>Free</span>
+                        <Badge variant="outline" className="text-xs">Basic</Badge>
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <span>Pro</span>
+                        <Badge variant="secondary" className="text-xs">Popular</Badge>
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <span>Scholar</span>
+                        <Badge className="text-xs">Best Value</Badge>
+                      </div>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {/* Credits Section */}
+                  <TableRow className="bg-muted/50">
+                    <TableCell colSpan={4} className="font-semibold">
+                      <div className="flex items-center gap-2">
+                        <Coins className="h-4 w-4" />
+                        Credits & Limits
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Daily Credits</TableCell>
+                    <TableCell className="text-center">8 credits/day</TableCell>
+                    <TableCell className="text-center">8 credits/day</TableCell>
+                    <TableCell className="text-center">8 credits/day</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        Monthly Credit Cap
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Info className="h-3 w-3 text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Free users are limited to 40 credits per month total</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center text-muted-foreground">40 total</TableCell>
+                    <TableCell className="text-center font-medium text-secondary">No cap</TableCell>
+                    <TableCell className="text-center font-medium text-secondary">No cap</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Paid Credits Pool</TableCell>
+                    <TableCell className="text-center text-muted-foreground">None</TableCell>
+                    <TableCell className="text-center">Based on plan</TableCell>
+                    <TableCell className="text-center">Based on plan</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        Credits Reset
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Info className="h-3 w-3 text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Subscribers get fresh daily credits until subscription expires</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center text-muted-foreground">Monthly (40 cap)</TableCell>
+                    <TableCell className="text-center font-medium text-secondary">Daily (until expiry)</TableCell>
+                    <TableCell className="text-center font-medium text-secondary">Daily (until expiry)</TableCell>
+                  </TableRow>
+
+                  {/* AI Features Section */}
+                  <TableRow className="bg-muted/50">
+                    <TableCell colSpan={4} className="font-semibold">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4" />
+                        AI Features
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>AI Chat Assistance</TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Project Topics Generation</TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Proposal Writing</TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Chapter Writing (1-5)</TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Academic References</TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                  </TableRow>
+
+                  {/* Scholar-Only Features */}
+                  <TableRow className="bg-muted/50">
+                    <TableCell colSpan={4} className="font-semibold">
+                      <div className="flex items-center gap-2">
+                        <GraduationCap className="h-4 w-4" />
+                        Scholar-Exclusive Features
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Document Upload & Editing</TableCell>
+                    <TableCell className="text-center"><X className="h-4 w-4 text-muted-foreground mx-auto" /></TableCell>
+                    <TableCell className="text-center"><X className="h-4 w-4 text-muted-foreground mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>PowerPoint Generator</TableCell>
+                    <TableCell className="text-center"><X className="h-4 w-4 text-muted-foreground mx-auto" /></TableCell>
+                    <TableCell className="text-center"><X className="h-4 w-4 text-muted-foreground mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Advanced Paraphraser</TableCell>
+                    <TableCell className="text-center"><X className="h-4 w-4 text-muted-foreground mx-auto" /></TableCell>
+                    <TableCell className="text-center"><X className="h-4 w-4 text-muted-foreground mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                  </TableRow>
+
+                  {/* Support */}
+                  <TableRow className="bg-muted/50">
+                    <TableCell colSpan={4} className="font-semibold">Support</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Support Level</TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline">Basic</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="secondary">Priority</Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge>Priority</Badge>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Info Notes */}
+            <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+              <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                <Info className="h-4 w-4" />
+                How Credits Work
+              </h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• <strong>Free users:</strong> Get 8 credits per day, up to 40 credits per month total. Credits reset monthly.</li>
+                <li>• <strong>Active subscribers:</strong> Get 8 fresh credits every day (no monthly cap) + your paid credits pool until subscription expires.</li>
+                <li>• <strong>Expired subscriptions:</strong> Revert to free user limits (8 daily, 40 monthly cap).</li>
+              </ul>
+            </div>
           </CardContent>
         </Card>
       </main>
