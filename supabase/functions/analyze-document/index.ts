@@ -144,7 +144,7 @@ Provide a detailed academic review with:
 
 Be thorough but constructive. Focus on helping the author improve their academic writing.`;
 
-    const aiResponse = await fetch("https://api.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${lovableApiKey}`,

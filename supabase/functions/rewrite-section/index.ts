@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
       summarize: `Summarize the following text concisely while preserving the key points and main ideas. Make it shorter but keep the essential meaning.`,
     };
 
-    const aiResponse = await fetch("https://api.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${lovableApiKey}`,
