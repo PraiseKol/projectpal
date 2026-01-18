@@ -52,12 +52,34 @@ const Settings = () => {
     return date.toLocaleDateString();
   };
 
+  // Check if user has active subscription
+  const isActiveSubscriber = () => {
+    if (profile?.plan_type === 'free') return false;
+    if (!profile?.credits_expiry_date) return false;
+    return new Date(profile.credits_expiry_date) > new Date();
+  };
+
+  // Check if subscription is expired
+  const isSubscriptionExpired = () => {
+    if (profile?.plan_type === 'free') return false;
+    if (!profile?.credits_expiry_date) return true;
+    return new Date(profile.credits_expiry_date) < new Date();
+  };
+
   // Check if daily credits should show as full (new day)
   const getSmartDailyCredits = () => {
     if (!profile?.daily_reset_date) return profile?.daily_credits ?? 8;
     const today = new Date().toISOString().split('T')[0];
     const resetDate = new Date(profile.daily_reset_date).toISOString().split('T')[0];
-    return resetDate !== today ? 8 : (profile?.daily_credits ?? 8);
+    
+    if (isActiveSubscriber()) {
+      return resetDate !== today ? 8 : (profile?.daily_credits ?? 8);
+    } else {
+      if (resetDate !== today) {
+        return Math.min(8, profile?.monthly_credits ?? 0);
+      }
+      return profile?.daily_credits ?? 0;
+    }
   };
 
   if (isLoading) {
@@ -146,15 +168,22 @@ const Settings = () => {
 
             <div className="grid gap-4 grid-cols-2">
               <div className="p-4 bg-accent rounded-xl shadow-sm">
-                <div className="text-sm text-muted-foreground">Daily Credits (Free)</div>
+                <div className="text-sm text-muted-foreground">
+                  Daily Credits {isActiveSubscriber() ? '(Unlimited)' : '(From Monthly Pool)'}
+                </div>
                 <div className="text-3xl font-bold">
                   <span>{getSmartDailyCredits()}</span>
                   <span className="text-lg text-muted-foreground font-normal">/8</span>
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">Resets daily at midnight</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {isActiveSubscriber() 
+                    ? 'Resets daily (no monthly cap)' 
+                    : 'Counts towards 40/month limit'}
+                </div>
               </div>
               
-              {profile?.plan_type === 'free' ? (
+              {/* Show monthly credits for free users OR expired subscribers */}
+              {(profile?.plan_type === 'free' || isSubscriptionExpired()) ? (
                 <div className="p-4 bg-accent rounded-xl shadow-sm">
                   <div className="text-sm text-muted-foreground">Monthly Credits</div>
                   <div className="text-3xl font-bold">

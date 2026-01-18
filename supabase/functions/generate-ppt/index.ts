@@ -38,6 +38,7 @@ serve(async (req) => {
 
     if (profileError) throw profileError;
 
+    // Check if plan is scholar
     if (profile.plan_type !== 'scholar') {
       return new Response(
         JSON.stringify({ error: 'Scholar plan required' }),
@@ -53,24 +54,39 @@ serve(async (req) => {
     let paidCredits = profile.paid_credits || 0;
     const creditsExpiryDate = profile.credits_expiry_date;
 
-    // Check if paid credits have expired
+    // Check if subscription has expired
     const paidCreditsExpired = creditsExpiryDate ? new Date(creditsExpiryDate) < new Date() : true;
+    
+    // Check if user has an active subscription
+    const isActiveSubscriber = !paidCreditsExpired;
 
     // Enhanced logging - before state
     console.log(`[CREDIT] PPT - User: ${user.id}, Plan: ${profile.plan_type}`);
     console.log(`[CREDIT] Before - Daily: ${profile.daily_credits}, Paid: ${profile.paid_credits}`);
     console.log(`[CREDIT] Daily Reset Date: ${profile.daily_reset_date}, Today: ${today}, Needs Reset: ${needsDailyReset}`);
-    console.log(`[CREDIT] Expiry: ${creditsExpiryDate}, Expired: ${paidCreditsExpired}`);
+    console.log(`[CREDIT] Expiry: ${creditsExpiryDate}, Expired: ${paidCreditsExpired}, Active: ${isActiveSubscriber}`);
 
-    // Reset daily credits if needed (all users get 8 free daily credits)
+    // If subscription expired, deny access to Scholar features
+    if (!isActiveSubscriber) {
+      console.log(`[CREDIT] Subscription expired - denying access to PPT generator`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Your Scholar subscription has expired. Please renew to access the PPT generator feature.',
+          subscription_expired: true
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Reset daily credits if needed (active subscribers get 8 fresh daily credits)
     if (needsDailyReset) {
       dailyCredits = 8;
       console.log(`[CREDIT] Daily credits reset to 8`);
     }
 
-    // Credit deduction logic for Scholar users:
+    // Credit deduction logic for active Scholar users:
     // 1. Use daily credits first (free bonus)
-    // 2. Then use paid credits (if not expired)
+    // 2. Then use paid credits
     
     let canProceed = false;
     let creditSource = '';
@@ -79,20 +95,16 @@ serve(async (req) => {
       dailyCredits -= 1;
       canProceed = true;
       creditSource = 'daily';
-    } else if (paidCredits > 0 && !paidCreditsExpired) {
+    } else if (paidCredits > 0) {
       paidCredits -= 1;
       canProceed = true;
       creditSource = 'paid';
     }
 
     if (!canProceed) {
-      const errorMessage = paidCreditsExpired 
-        ? 'Your paid credits have expired. Please purchase more credits.'
-        : 'Insufficient credits. Please purchase more credits.';
-      
-      console.log(`[CREDIT] Insufficient credits - Expired: ${paidCreditsExpired}`);
+      console.log(`[CREDIT] Insufficient credits`);
       return new Response(
-        JSON.stringify({ error: errorMessage }),
+        JSON.stringify({ error: 'Insufficient credits. Please purchase more credits.' }),
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

@@ -49,65 +49,84 @@ serve(async (req) => {
     let paidCredits = profile.paid_credits || 0;
     const creditsExpiryDate = profile.credits_expiry_date;
 
-    // Check if paid credits have expired
+    // Check if paid credits have expired (subscription expired)
     const paidCreditsExpired = creditsExpiryDate ? new Date(creditsExpiryDate) < new Date() : true;
+    
+    // Determine if user has an active subscription
+    // Active subscriber = non-free plan AND subscription not expired
+    const isActiveSubscriber = profile.plan_type !== 'free' && !paidCreditsExpired;
 
     // Enhanced logging - before state
     console.log(`[CREDIT] User: ${user.id}, Plan: ${profile.plan_type}`);
     console.log(`[CREDIT] Before - Daily: ${profile.daily_credits}, Monthly: ${profile.monthly_credits}, Paid: ${profile.paid_credits}`);
     console.log(`[CREDIT] Daily Reset Date: ${profile.daily_reset_date}, Today: ${today}, Needs Reset: ${needsDailyReset}`);
-    console.log(`[CREDIT] Expiry: ${creditsExpiryDate}, Expired: ${paidCreditsExpired}`);
+    console.log(`[CREDIT] Expiry: ${creditsExpiryDate}, Expired: ${paidCreditsExpired}, Active Subscriber: ${isActiveSubscriber}`);
 
-    // Reset daily credits if needed (all users get 8 free daily credits)
+    // Handle daily and monthly resets based on user type
     if (needsDailyReset) {
-      dailyCredits = 8;
-      console.log(`[CREDIT] Daily credits reset to 8`);
-      
-      // For free users only: check monthly credit reset
-      if (profile.plan_type === 'free') {
+      if (isActiveSubscriber) {
+        // Active subscribers get 8 fresh daily credits every day (no monthly cap)
+        dailyCredits = 8;
+        console.log(`[CREDIT] Active subscriber - Daily credits reset to 8 (no monthly cap)`);
+      } else {
+        // Free users OR expired subscribers: daily credits with 40/month cap
         const lastResetMonth = profile.daily_reset_date ? new Date(profile.daily_reset_date).getMonth() : -1;
         const currentMonth = new Date().getMonth();
         
         if (lastResetMonth !== currentMonth) {
-          // New month - reset monthly credits to 40 for free users
+          // New month - reset monthly credits to 40
           monthlyCredits = 40;
-          console.log(`[CREDIT] Monthly credits reset to 40 for free user`);
+          console.log(`[CREDIT] New month - Monthly credits reset to 40`);
+        }
+        
+        // Only reset daily credits if we still have monthly credits remaining
+        if (monthlyCredits > 0) {
+          // Daily credits are limited by remaining monthly credits (max 8)
+          dailyCredits = Math.min(8, monthlyCredits);
+          console.log(`[CREDIT] Free/Expired user - Daily credits set to ${dailyCredits} (monthly remaining: ${monthlyCredits})`);
+        } else {
+          dailyCredits = 0;
+          console.log(`[CREDIT] Free/Expired user - No monthly credits remaining, daily credits: 0`);
         }
       }
     }
 
-    // Credit deduction logic:
-    // 1. Use daily credits first (free bonus for all users)
-    // 2. For Free users: then use monthly credits (capped at 40)
-    // 3. For Pro/Scholar users: then use paid credits (if not expired)
-    
+    // Credit deduction logic based on user type
     let canProceed = false;
     let creditSource = '';
 
-    if (dailyCredits > 0) {
-      dailyCredits -= 1;
-      canProceed = true;
-      creditSource = 'daily';
-    } else if (profile.plan_type === 'free' && monthlyCredits > 0) {
-      // Free users use monthly credits after daily
-      monthlyCredits -= 1;
-      canProceed = true;
-      creditSource = 'monthly';
-    } else if (profile.plan_type !== 'free' && paidCredits > 0 && !paidCreditsExpired) {
-      // Pro/Scholar users use paid credits after daily (if not expired)
-      paidCredits -= 1;
-      canProceed = true;
-      creditSource = 'paid';
+    if (isActiveSubscriber) {
+      // Active subscribers: daily credits → paid credits (no monthly cap)
+      if (dailyCredits > 0) {
+        dailyCredits -= 1;
+        canProceed = true;
+        creditSource = 'daily';
+      } else if (paidCredits > 0) {
+        paidCredits -= 1;
+        canProceed = true;
+        creditSource = 'paid';
+      }
+    } else {
+      // Free users OR expired subscribers: use daily credits (from monthly pool)
+      if (dailyCredits > 0 && monthlyCredits > 0) {
+        dailyCredits -= 1;
+        monthlyCredits -= 1; // Deduct from monthly cap as well
+        canProceed = true;
+        creditSource = 'daily (from monthly pool)';
+      }
     }
 
     if (!canProceed) {
-      const errorMessage = profile.plan_type === 'free' 
-        ? 'Insufficient credits. Upgrade to Pro or Scholar for more credits!'
-        : paidCreditsExpired 
-          ? 'Your paid credits have expired. Please purchase more credits.'
-          : 'Insufficient credits. Please purchase more credits.';
+      let errorMessage: string;
+      if (isActiveSubscriber) {
+        errorMessage = 'Insufficient credits. Please purchase more credits.';
+      } else if (profile.plan_type !== 'free' && paidCreditsExpired) {
+        errorMessage = 'Your subscription has expired. You are now on the free plan with limited credits. Upgrade to continue!';
+      } else {
+        errorMessage = 'You have used all your monthly credits. Upgrade to Pro or Scholar for unlimited daily credits!';
+      }
       
-      console.log(`[CREDIT] Insufficient credits - Plan: ${profile.plan_type}, Expired: ${paidCreditsExpired}`);
+      console.log(`[CREDIT] Insufficient credits - Plan: ${profile.plan_type}, Active: ${isActiveSubscriber}, Expired: ${paidCreditsExpired}`);
       return new Response(
         JSON.stringify({ error: errorMessage }),
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
