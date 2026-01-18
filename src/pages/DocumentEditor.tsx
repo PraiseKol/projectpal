@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Document, Packer, Paragraph, TextRun } from "docx";
 import jsPDF from "jspdf";
+import mammoth from "mammoth";
 
 type RewriteType = "grammar" | "clarity" | "academic" | "expand" | "summarize";
 
@@ -160,25 +161,26 @@ const DocumentEditor = () => {
       
       if (file.type === "text/plain") {
         extractedContent = await file.text();
-      } else {
-        // For PDF and DOCX, we'll use a simplified approach
-        // In a real scenario, you'd use a proper parsing library or edge function
-        toast.info("Processing document...");
-        
-        // For now, let the user paste content manually for complex files
-        if (file.type === "application/pdf") {
-          toast.info("PDF detected. Please paste the text content below for analysis.");
-          extractedContent = "";
-        } else {
-          // Try to read DOCX as text (simplified)
-          try {
-            const text = await file.text();
-            // Extract readable text from DOCX XML
-            extractedContent = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-          } catch {
-            extractedContent = "";
+      } else if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+        // Parse DOCX using mammoth
+        toast.info("Processing DOCX document...");
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const result = await mammoth.extractRawText({ arrayBuffer });
+          extractedContent = result.value;
+          
+          if (result.messages.length > 0) {
+            console.log("Mammoth warnings:", result.messages);
           }
+        } catch (err) {
+          console.error("DOCX parsing error:", err);
+          toast.error("Failed to extract text from DOCX. Please try pasting the content manually.");
+          extractedContent = "";
         }
+      } else if (file.type === "application/pdf") {
+        // PDF text extraction requires more complex handling
+        toast.info("PDF detected. Please paste the text content below for analysis.");
+        extractedContent = "";
       }
 
       // Save document to database
