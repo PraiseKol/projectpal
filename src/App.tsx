@@ -15,6 +15,7 @@ import Pricing from "./pages/Pricing";
 import Settings from "./pages/Settings";
 import Paraphraser from "./pages/Paraphraser";
 import Documents from "./pages/Documents";
+import DocumentEditor from "./pages/DocumentEditor";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
 import TransactionHistory from "./pages/TransactionHistory";
 import Admin from "./pages/Admin";
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/paraphraser" element={<ProtectedRoute><Paraphraser /></ProtectedRoute>} />
               <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
+              <Route path="/document-editor" element={<ProtectedRoute><DocumentEditor /></ProtectedRoute>} />
               <Route path="/checkout-success" element={<ProtectedRoute><CheckoutSuccess /></ProtectedRoute>} />
               <Route path="/transactions" element={<ProtectedRoute><TransactionHistory /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />

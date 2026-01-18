@@ -194,7 +194,7 @@ const Pricing = () => {
   const scholarFeatures = [
     "PowerPoint presentation generator",
     "Advanced paraphraser tool",
-    "Document upload & editing",
+    "AI Document Editor",
   ];
 
   const getBillingLabel = () => {
