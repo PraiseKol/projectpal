@@ -8,8 +8,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { AnalysisPanel } from "@/components/DocumentEditor/AnalysisPanel";
-import { SuggestionCard } from "@/components/DocumentEditor/SuggestionCard";
+import { SuggestionsPanel, DiffSuggestion } from "@/components/DocumentEditor/SuggestionsPanel";
+import { AIInstructionInput } from "@/components/DocumentEditor/AIInstructionInput";
 import { 
   ArrowLeft, 
   Upload, 
@@ -24,38 +24,11 @@ import { Document, Packer, Paragraph, TextRun } from "docx";
 import jsPDF from "jspdf";
 import mammoth from "mammoth";
 
-type RewriteType = "grammar" | "clarity" | "academic" | "expand" | "summarize";
-
-interface AnalysisResult {
-  overallScore: number;
-  summary: string;
-  categories: {
-    grammar: {
-      score: number;
-      issues: Array<{ original: string; suggested: string; explanation: string }>;
-    };
-    structure: {
-      score: number;
-      suggestions: string[];
-    };
-    academic_style: {
-      score: number;
-      issues: Array<{ original: string; suggested: string; explanation: string }>;
-    };
-    citations: {
-      score: number;
-      issues: string[];
-    };
-  };
-  improvedText: string;
-}
-
 interface DocumentData {
   id: string;
   file_name: string;
   file_url: string;
   extracted_content: string | null;
-  ai_analysis: AnalysisResult | null;
   edited_content: string | null;
 }
 
@@ -64,15 +37,12 @@ const DocumentEditor = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [isLoading, setIsLoading] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isRewriting, setIsRewriting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   
   const [currentDocument, setCurrentDocument] = useState<DocumentData | null>(null);
   const [editableContent, setEditableContent] = useState("");
-  const [selectedText, setSelectedText] = useState("");
-  const [rewriteResult, setRewriteResult] = useState<{ rewrittenText: string; explanation: string } | null>(null);
-  const [selectionRange, setSelectionRange] = useState<{ start: number; end: number } | null>(null);
+  const [suggestions, setSuggestions] = useState<DiffSuggestion[]>([]);
 
   const [userProfile, setUserProfile] = useState<{
     plan_type: string;
@@ -203,10 +173,10 @@ const DocumentEditor = () => {
         file_name: docData.file_name,
         file_url: docData.file_url,
         extracted_content: extractedContent,
-        ai_analysis: null,
         edited_content: null,
       });
       setEditableContent(extractedContent);
+      setSuggestions([]);
 
       toast.success("Document uploaded successfully!");
 
@@ -225,127 +195,83 @@ const DocumentEditor = () => {
     }
   };
 
-  const handleAnalyze = async () => {
+  const handleAIRequest = async (instruction: string) => {
     if (!currentDocument || !editableContent.trim()) {
-      toast.error("Please add content to analyze");
+      toast.error("Please add content first");
       return;
     }
 
-    setIsAnalyzing(true);
+    setIsProcessing(true);
+    setSuggestions([]);
 
     try {
-      // Update extracted content if user pasted/edited
-      if (editableContent !== currentDocument.extracted_content) {
-        await supabase
-          .from("documents")
-          .update({ extracted_content: editableContent })
-          .eq("id", currentDocument.id);
-      }
-
-      const { data, error } = await supabase.functions.invoke("analyze-document", {
+      const { data, error } = await supabase.functions.invoke("document-ai-chat", {
         body: {
+          instruction,
           documentContent: editableContent,
-          documentId: currentDocument.id,
         },
       });
 
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
-      setCurrentDocument(prev => prev ? {
-        ...prev,
-        ai_analysis: data.analysis,
-      } : null);
-
-      toast.success("Analysis complete!");
+      setSuggestions(data.suggestions || []);
       
-      // Refresh user profile for updated credits
-      checkUserAccess();
-
-    } catch (error: any) {
-      console.error("Analysis error:", error);
-      toast.error(error.message || "Failed to analyze document");
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const handleApplyImproved = () => {
-    if (!currentDocument?.ai_analysis?.improvedText) return;
-    
-    setEditableContent(currentDocument.ai_analysis.improvedText);
-    toast.success("AI improvements applied!");
-  };
-
-  const handleTextSelection = () => {
-    const selection = window.getSelection();
-    if (selection && selection.toString().trim().length > 0) {
-      const text = selection.toString().trim();
-      setSelectedText(text);
-      
-      // Get selection range in textarea
-      const textarea = document.querySelector('textarea');
-      if (textarea) {
-        setSelectionRange({
-          start: textarea.selectionStart,
-          end: textarea.selectionEnd
-        });
+      if (data.suggestions?.length === 0) {
+        toast.info("No suggestions for this instruction. Try a different request.");
+      } else {
+        toast.success(`Found ${data.suggestions?.length || 0} suggestions`);
       }
-    }
-  };
-
-  const handleRewrite = async (type: RewriteType) => {
-    if (!selectedText) return;
-
-    setIsRewriting(true);
-    setRewriteResult(null);
-
-    try {
-      const { data, error } = await supabase.functions.invoke("rewrite-section", {
-        body: {
-          selectedText,
-          rewriteType: type,
-        },
-      });
-
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
-
-      setRewriteResult({
-        rewrittenText: data.rewrittenText,
-        explanation: data.explanation,
-      });
-
+      
       // Refresh user profile for updated credits
       checkUserAccess();
 
     } catch (error: any) {
-      console.error("Rewrite error:", error);
-      toast.error(error.message || "Failed to rewrite section");
+      console.error("AI request error:", error);
+      toast.error(error.message || "Failed to process request");
     } finally {
-      setIsRewriting(false);
+      setIsProcessing(false);
     }
   };
 
-  const handleApplyRewrite = () => {
-    if (!rewriteResult || !selectionRange) return;
+  const handleApplySuggestion = (id: string) => {
+    const suggestion = suggestions.find(s => s.id === id);
+    if (!suggestion) return;
 
-    const newContent = 
-      editableContent.substring(0, selectionRange.start) + 
-      rewriteResult.rewrittenText + 
-      editableContent.substring(selectionRange.end);
+    // Find and replace the original text with the replacement
+    const newContent = editableContent.replace(suggestion.original, suggestion.replacement);
+    
+    if (newContent === editableContent) {
+      toast.error("Could not find the text to replace. It may have already been changed.");
+      // Remove the suggestion anyway
+      setSuggestions(prev => prev.filter(s => s.id !== id));
+      return;
+    }
 
     setEditableContent(newContent);
-    setSelectedText("");
-    setRewriteResult(null);
-    setSelectionRange(null);
-    toast.success("Rewrite applied!");
+    setSuggestions(prev => prev.filter(s => s.id !== id));
+    toast.success("Suggestion applied!");
   };
 
-  const handleCancelRewrite = () => {
-    setSelectedText("");
-    setRewriteResult(null);
-    setSelectionRange(null);
+  const handleDismissSuggestion = (id: string) => {
+    setSuggestions(prev => prev.filter(s => s.id !== id));
+  };
+
+  const handleApplyAll = () => {
+    let newContent = editableContent;
+    let appliedCount = 0;
+
+    for (const suggestion of suggestions) {
+      const updated = newContent.replace(suggestion.original, suggestion.replacement);
+      if (updated !== newContent) {
+        newContent = updated;
+        appliedCount++;
+      }
+    }
+
+    setEditableContent(newContent);
+    setSuggestions([]);
+    toast.success(`Applied ${appliedCount} suggestions!`);
   };
 
   const exportAsDocx = async () => {
@@ -422,9 +348,7 @@ const DocumentEditor = () => {
   const handleClear = () => {
     setCurrentDocument(null);
     setEditableContent("");
-    setSelectedText("");
-    setRewriteResult(null);
-    setSelectionRange(null);
+    setSuggestions([]);
   };
 
   const hasCredits = userProfile && (userProfile.daily_credits > 0 || userProfile.paid_credits > 0);
@@ -474,7 +398,7 @@ const DocumentEditor = () => {
                   AI Document Editor
                 </CardTitle>
                 <CardDescription>
-                  Upload your academic document for AI-powered analysis and editing suggestions
+                  Upload your academic document and instruct the AI to make specific improvements
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -544,9 +468,9 @@ const DocumentEditor = () => {
                           file_name: "Pasted Document",
                           file_url: "",
                           extracted_content: editableContent,
-                          ai_analysis: null,
                           edited_content: null,
                         });
+                        setSuggestions([]);
                       }
                     }}
                     className="w-full"
@@ -572,7 +496,7 @@ const DocumentEditor = () => {
                         {currentDocument.file_name}
                       </CardTitle>
                       <CardDescription>
-                        Select text to get AI rewriting suggestions
+                        Use the AI to improve your document
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
@@ -590,31 +514,17 @@ const DocumentEditor = () => {
                   <Textarea
                     value={editableContent}
                     onChange={(e) => setEditableContent(e.target.value)}
-                    onMouseUp={handleTextSelection}
-                    onKeyUp={handleTextSelection}
-                    className="min-h-[400px] font-mono text-sm"
+                    className="min-h-[350px] font-mono text-sm"
                     placeholder="Your document content will appear here..."
                   />
 
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      onClick={handleAnalyze}
-                      disabled={isAnalyzing || !editableContent.trim() || !hasCredits}
-                      className="flex-1"
-                    >
-                      {isAnalyzing ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Analyzing...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          Analyze Document (1 credit)
-                        </>
-                      )}
-                    </Button>
+                  <AIInstructionInput
+                    onSubmit={handleAIRequest}
+                    isLoading={isProcessing}
+                    disabled={!hasCredits}
+                  />
 
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
                       onClick={exportAsDocx}
@@ -637,26 +547,18 @@ const DocumentEditor = () => {
               </Card>
             </div>
 
-            {/* Right: Analysis Panel */}
+            {/* Right: Suggestions Panel */}
             <div className="lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)]">
-              <AnalysisPanel
-                analysis={currentDocument.ai_analysis}
-                onApplyImproved={handleApplyImproved}
-                isLoading={isAnalyzing}
+              <SuggestionsPanel
+                suggestions={suggestions}
+                onApply={handleApplySuggestion}
+                onDismiss={handleDismissSuggestion}
+                onApplyAll={handleApplyAll}
+                isLoading={isProcessing}
               />
             </div>
           </div>
         )}
-
-        {/* Floating Rewrite Card */}
-        <SuggestionCard
-          selectedText={selectedText}
-          onRewrite={handleRewrite}
-          isLoading={isRewriting}
-          rewriteResult={rewriteResult}
-          onApply={handleApplyRewrite}
-          onCancel={handleCancelRewrite}
-        />
       </main>
     </div>
   );
