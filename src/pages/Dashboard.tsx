@@ -466,6 +466,16 @@ const Dashboard = () => {
                   </CardDescription>
                 </CardHeader>
               </Card>
+
+              <Card variant="glass" className="hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in" onClick={() => navigate("/document-editor")}>
+                <CardHeader>
+                  <FileText className="h-12 w-12 mb-4 text-secondary" />
+                  <CardTitle>Document Editor</CardTitle>
+                  <CardDescription>
+                    AI-powered document analysis and editing
+                  </CardDescription>
+                </CardHeader>
+              </Card>
             </>
           )}
         </div>

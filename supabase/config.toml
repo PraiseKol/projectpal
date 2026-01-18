@@ -1,1 +1,22 @@
 project_id = "mpjhpdlevqcwfsbacozj"
+
+[functions.chat-ai]
+verify_jwt = false
+
+[functions.generate-ppt]
+verify_jwt = false
+
+[functions.paraphrase-ai]
+verify_jwt = false
+
+[functions.paystack-webhook]
+verify_jwt = false
+
+[functions.verify-payment]
+verify_jwt = false
+
+[functions.analyze-document]
+verify_jwt = false
+
+[functions.rewrite-section]
+verify_jwt = false

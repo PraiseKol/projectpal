@@ -64,24 +64,39 @@ export type Database = {
       }
       documents: {
         Row: {
+          ai_analysis: Json | null
           created_at: string
+          document_type: string | null
+          edited_content: string | null
+          extracted_content: string | null
           file_name: string
           file_url: string
           id: string
+          last_edited_at: string | null
           user_id: string
         }
         Insert: {
+          ai_analysis?: Json | null
           created_at?: string
+          document_type?: string | null
+          edited_content?: string | null
+          extracted_content?: string | null
           file_name: string
           file_url: string
           id?: string
+          last_edited_at?: string | null
           user_id: string
         }
         Update: {
+          ai_analysis?: Json | null
           created_at?: string
+          document_type?: string | null
+          edited_content?: string | null
+          extracted_content?: string | null
           file_name?: string
           file_url?: string
           id?: string
+          last_edited_at?: string | null
           user_id?: string
         }
         Relationships: []
