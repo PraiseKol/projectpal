@@ -220,7 +220,7 @@ const Dashboard = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 xs:grid-cols-2">
               <div className="p-4 bg-accent/50 rounded-2xl border border-border/50">
                 <div className="text-sm text-muted-foreground">
                   Daily Credits {isActiveSubscriber() ? '(Unlimited)' : '(From Monthly Pool)'}

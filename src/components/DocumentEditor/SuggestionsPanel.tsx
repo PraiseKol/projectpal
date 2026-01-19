@@ -46,15 +46,15 @@ export function SuggestionsPanel({
   if (isLoading) {
     return (
       <Card className="h-full">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Sparkles className="h-5 w-5" />
+        <CardHeader className="pb-3 sm:pb-6">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
             AI Suggestions
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col items-center justify-center h-64 gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground text-center">
+        <CardContent className="flex flex-col items-center justify-center h-48 sm:h-64 gap-4">
+          <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-primary" />
+          <p className="text-sm sm:text-base text-muted-foreground text-center">
             Analyzing your document...
           </p>
         </CardContent>
@@ -65,14 +65,14 @@ export function SuggestionsPanel({
   if (suggestions.length === 0) {
     return (
       <Card className="h-full">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Sparkles className="h-5 w-5" />
+        <CardHeader className="pb-3 sm:pb-6">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
             AI Suggestions
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground text-center">
+        <CardContent className="flex items-center justify-center h-48 sm:h-64">
+          <p className="text-sm sm:text-base text-muted-foreground text-center px-4">
             Type an instruction below to get AI suggestions for your document.
           </p>
         </CardContent>
@@ -84,21 +84,21 @@ export function SuggestionsPanel({
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Sparkles className="h-5 w-5" />
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
             AI Suggestions
           </CardTitle>
-          <Badge variant="secondary">{suggestions.length} changes</Badge>
+          <Badge variant="secondary" className="text-xs">{suggestions.length} changes</Badge>
         </div>
       </CardHeader>
       
-      <CardContent className="flex-1 overflow-hidden flex flex-col gap-4">
-        <ScrollArea className="flex-1 pr-4">
-          <div className="space-y-4">
+      <CardContent className="flex-1 overflow-hidden flex flex-col gap-3 sm:gap-4">
+        <ScrollArea className="flex-1 pr-2 sm:pr-4">
+          <div className="space-y-3 sm:space-y-4">
             {suggestions.map((suggestion) => (
               <div
                 key={suggestion.id}
-                className="p-4 border border-border rounded-lg space-y-3 bg-card"
+                className="p-3 sm:p-4 border border-border rounded-lg space-y-2 sm:space-y-3 bg-card"
               >
                 <div className="flex items-start justify-between gap-2">
                   <Badge 
@@ -111,24 +111,24 @@ export function SuggestionsPanel({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6"
+                      className="h-8 w-8"
                       onClick={() => onDismiss(suggestion.id)}
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5 sm:space-y-2">
                   <div className="flex items-start gap-2">
-                    <span className="text-destructive font-mono text-sm shrink-0">−</span>
-                    <span className="text-sm line-through text-muted-foreground break-words">
+                    <span className="text-destructive font-mono text-xs sm:text-sm shrink-0">−</span>
+                    <span className="text-xs sm:text-sm line-through text-muted-foreground break-words">
                       {suggestion.original}
                     </span>
                   </div>
                   <div className="flex items-start gap-2">
-                    <span className="text-green-600 dark:text-green-400 font-mono text-sm shrink-0">+</span>
-                    <span className="text-sm text-green-600 dark:text-green-400 break-words">
+                    <span className="text-green-600 dark:text-green-400 font-mono text-xs sm:text-sm shrink-0">+</span>
+                    <span className="text-xs sm:text-sm text-green-600 dark:text-green-400 break-words">
                       {suggestion.replacement}
                     </span>
                   </div>
@@ -139,11 +139,11 @@ export function SuggestionsPanel({
                 </p>
 
                 <Button
-                  size="sm"
+                  size="default"
                   onClick={() => onApply(suggestion.id)}
-                  className="w-full"
+                  className="w-full h-10"
                 >
-                  <CheckCircle className="h-3 w-3 mr-2" />
+                  <CheckCircle className="h-4 w-4 mr-2" />
                   Apply
                 </Button>
               </div>
@@ -152,7 +152,7 @@ export function SuggestionsPanel({
         </ScrollArea>
 
         {suggestions.length > 1 && (
-          <Button onClick={onApplyAll} className="w-full">
+          <Button onClick={onApplyAll} className="w-full h-10 sm:h-11">
             <CheckCircle className="h-4 w-4 mr-2" />
             Apply All ({suggestions.length})
           </Button>
