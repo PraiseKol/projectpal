@@ -41,7 +41,8 @@ export function AIInstructionInput({ onSubmit, isLoading, disabled }: AIInstruct
   return (
     <Card>
       <CardContent className="pt-4 space-y-3">
-        <div className="flex flex-wrap gap-2">
+        {/* Horizontally scrollable quick actions on mobile */}
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 scrollbar-hide sm:flex-wrap sm:overflow-x-visible sm:pb-0 sm:mx-0 sm:px-0">
           {quickActions.map((action) => (
             <Button
               key={action.label}
@@ -49,7 +50,7 @@ export function AIInstructionInput({ onSubmit, isLoading, disabled }: AIInstruct
               size="sm"
               onClick={() => handleQuickAction(action.instruction)}
               disabled={isLoading || disabled}
-              className="text-xs"
+              className="text-xs whitespace-nowrap shrink-0 sm:shrink"
             >
               <Wand2 className="h-3 w-3 mr-1" />
               {action.label}
@@ -57,24 +58,28 @@ export function AIInstructionInput({ onSubmit, isLoading, disabled }: AIInstruct
           ))}
         </div>
 
-        <div className="flex gap-2">
+        {/* Stack on mobile, side by side on larger screens */}
+        <div className="flex flex-col sm:flex-row gap-2">
           <Textarea
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Tell the AI what to do with your document... (Ctrl+Enter to send)"
-            className="min-h-[60px] resize-none"
+            placeholder="Tell the AI what to do... (Ctrl+Enter to send)"
+            className="min-h-[80px] sm:min-h-[60px] resize-none flex-1"
             disabled={isLoading || disabled}
           />
           <Button
             onClick={handleSubmit}
             disabled={!instruction.trim() || isLoading || disabled}
-            className="shrink-0"
+            className="shrink-0 w-full sm:w-auto h-10 sm:h-auto"
           >
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+              <>
+                <Send className="h-4 w-4 sm:mr-0 mr-2" />
+                <span className="sm:hidden">Send</span>
+              </>
             )}
           </Button>
         </div>

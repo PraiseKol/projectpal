@@ -128,32 +128,35 @@ const Paraphraser = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
+    <div className="min-h-screen bg-background p-3 sm:p-4">
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <Button variant="ghost" onClick={() => navigate("/dashboard")}>
+        {/* Header - stacks on mobile */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <Button variant="ghost" onClick={() => navigate("/dashboard")} className="self-start">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
+            <span className="hidden xs:inline">Back to Dashboard</span>
+            <span className="xs:hidden">Back</span>
           </Button>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <h1 className="text-2xl font-bold">AI Paraphraser</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">AI Paraphraser</h1>
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Input Text</h2>
+        {/* Main content - stacks on mobile */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Input Text</h2>
             <Textarea
               placeholder="Enter text to paraphrase..."
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              className="min-h-[400px] mb-4"
+              className="min-h-[250px] sm:min-h-[400px] mb-3 sm:mb-4"
             />
             <Button
               onClick={handleParaphrase}
               disabled={isLoading || !inputText.trim()}
-              className="w-full"
+              className="w-full h-10 sm:h-11"
             >
               {isLoading ? (
                 <>
@@ -166,15 +169,15 @@ const Paraphraser = () => {
             </Button>
           </Card>
 
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Paraphrased Output</h2>
+          <Card className="p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h2 className="text-base sm:text-lg font-semibold">Paraphrased Output</h2>
               {outputText && (
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleCopy}>
+                  <Button variant="outline" size="icon" onClick={handleCopy} className="h-8 w-8 sm:h-9 sm:w-9">
                     <Copy className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleDownload}>
+                  <Button variant="outline" size="icon" onClick={handleDownload} className="h-8 w-8 sm:h-9 sm:w-9">
                     <Download className="h-4 w-4" />
                   </Button>
                 </div>
@@ -184,7 +187,7 @@ const Paraphraser = () => {
               value={outputText}
               readOnly
               placeholder="Paraphrased text will appear here..."
-              className="min-h-[400px]"
+              className="min-h-[250px] sm:min-h-[400px]"
             />
           </Card>
         </div>

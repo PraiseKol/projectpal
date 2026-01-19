@@ -395,23 +395,23 @@ const DocumentEditor = () => {
 
       {/* Header */}
       <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur z-40">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button onClick={() => navigate("/dashboard")} variant="ghost" size="sm">
+        <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Button onClick={() => navigate("/dashboard")} variant="ghost" size="sm" className="h-8 w-8 sm:h-9 sm:w-auto p-0 sm:px-3">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-gradient-to-br from-primary to-secondary rounded-xl">
-                <GraduationCap className="h-5 w-5 text-white" />
+              <div className="p-1.5 sm:p-2 bg-gradient-to-br from-primary to-secondary rounded-lg sm:rounded-xl">
+                <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
               </div>
-              <span className="text-lg font-semibold">Document Editor</span>
-              <Badge variant="secondary" className="ml-2">Scholar</Badge>
+              <span className="text-base sm:text-lg font-semibold hidden xs:inline">Document Editor</span>
+              <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs hidden sm:inline-flex">Scholar</Badge>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             {userProfile && (
-              <Badge variant="outline" className="text-sm">
-                {userProfile.daily_credits + userProfile.paid_credits} credits
+              <Badge variant="outline" className="text-xs sm:text-sm">
+                {userProfile.daily_credits + userProfile.paid_credits} cr
               </Badge>
             )}
             <ThemeToggle />
@@ -419,7 +419,7 @@ const DocumentEditor = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {!currentDocument ? (
           /* Upload Section */
           <div className="max-w-2xl mx-auto">
@@ -435,7 +435,7 @@ const DocumentEditor = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div 
-                  className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                  className="border-2 border-dashed border-border rounded-lg p-4 sm:p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   {isLoading ? (
@@ -516,7 +516,7 @@ const DocumentEditor = () => {
           </div>
         ) : (
           /* Editor Section */
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
             {/* Left: Editor */}
             <div className="space-y-4">
               <Card>
@@ -546,7 +546,7 @@ const DocumentEditor = () => {
                   <Textarea
                     value={editableContent}
                     onChange={(e) => setEditableContent(e.target.value)}
-                    className="min-h-[350px] font-mono text-sm"
+                    className="min-h-[250px] sm:min-h-[350px] font-mono text-sm"
                     placeholder="Your document content will appear here..."
                   />
 

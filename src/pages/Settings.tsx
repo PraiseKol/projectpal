@@ -94,23 +94,23 @@ const Settings = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border/50 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button onClick={() => navigate("/dashboard")} variant="outline" size="sm">
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Button onClick={() => navigate("/dashboard")} variant="outline" size="sm" className="h-8 w-8 sm:h-9 sm:w-auto p-0 sm:px-3">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-primary rounded-xl">
-                <GraduationCap className="h-6 w-6 text-primary-foreground" />
+              <div className="p-1.5 sm:p-2 bg-primary rounded-lg sm:rounded-xl">
+                <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold">Settings</span>
+              <span className="text-lg sm:text-xl font-bold">Settings</span>
             </div>
           </div>
           <ThemeToggle />
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-3xl">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-3xl">
         {/* Quick Links */}
         <Card className="mb-6 shadow-lg rounded-2xl">
           <CardHeader>
@@ -166,7 +166,7 @@ const Settings = () => {
               </Button>
             </div>
 
-            <div className="grid gap-4 grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 xs:grid-cols-2">
               <div className="p-4 bg-accent rounded-xl shadow-sm">
                 <div className="text-sm text-muted-foreground">
                   Daily Credits {isActiveSubscriber() ? '(Unlimited)' : '(From Monthly Pool)'}
