@@ -16,7 +16,9 @@ const Index = () => {
   }, []);
 
   const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (user) {
       setIsAuthenticated(true);
       navigate("/dashboard");
@@ -33,8 +35,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO 
-        title="ScholarAI Hub - AI-Powered Academic Project Assistant"
+      <SEO
+        title="ScholarAI Hub - AI Powered Academic Project Assistant"
         description="Complete your academic projects faster with ScholarAI Hub. Generate topics, write proposals, create chapters, and get AI-powered assistance for your research."
         keywords="academic writing, AI assistant, research projects, thesis writing, proposal generator, chapter writing, academic references"
       />
@@ -48,11 +50,10 @@ const Index = () => {
         <div className="inline-block p-4 bg-gradient-to-br from-primary to-secondary rounded-2xl mb-8 animate-scale-in">
           <GraduationCap className="h-16 w-16 text-white" />
         </div>
-        <h1 className="text-5xl md:text-6xl font-bold mb-6 animate-fade-in">
-          ScholarAI Hub
-        </h1>
+        <h1 className="text-5xl md:text-6xl font-bold mb-6 animate-fade-in">ScholarAI Hub</h1>
         <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-fade-in">
-          Your AI-powered academic project assistant. Complete your research projects faster with intelligent writing assistance.
+          Your AI-powered academic project assistant. Complete your research projects faster with intelligent writing
+          assistance.
         </p>
         <div className="flex gap-4 justify-center animate-fade-in">
           <Button size="lg" variant="gradient" onClick={() => navigate("/auth")}>
@@ -88,7 +89,10 @@ const Index = () => {
           <h2 className="text-3xl font-bold text-center mb-8">What You Can Do</h2>
           <div className="space-y-4">
             {features.map((feature) => (
-              <div key={feature} className="flex items-start gap-3 p-4 bg-accent/50 rounded-2xl border border-border/50 hover:bg-accent/70 transition-colors">
+              <div
+                key={feature}
+                className="flex items-start gap-3 p-4 bg-accent/50 rounded-2xl border border-border/50 hover:bg-accent/70 transition-colors"
+              >
                 <CheckCircle className="h-6 w-6 flex-shrink-0 mt-0.5 text-secondary" />
                 <span className="text-lg">{feature}</span>
               </div>
