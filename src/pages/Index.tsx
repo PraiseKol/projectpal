@@ -31,6 +31,8 @@ const Index = () => {
     "Create chapters 1-5 with AI assistance",
     "Get accurate academic references",
     "Edit and improve your work",
+    "Get access to Paragraph Paraphraser",
+    "Instantly generate POWERPOINT presentation from your uploded files",
   ];
 
   return (
