@@ -52,7 +52,7 @@ const Index = () => {
         </div>
         <h1 className="text-5xl md:text-6xl font-bold mb-6 animate-fade-in">ScholarAI Hub</h1>
         <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-fade-in">
-          Your AI-powered academic project assistant. Complete your research projects faster with intelligent writing
+          Your AI powered academic project assistant. Complete your research projects faster with intelligent writing
           assistance.
         </p>
         <div className="flex gap-4 justify-center animate-fade-in">
