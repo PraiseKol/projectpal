@@ -13,10 +13,42 @@ import jsPDF from "jspdf";
 
 interface ExportOptionsProps {
   content: string;
+  chatTitle?: string;
   onOpenViewer?: () => void;
 }
 
-export function ExportOptions({ content, onOpenViewer }: ExportOptionsProps) {
+const generateFileName = (content: string, chatTitle?: string): string => {
+  const contentPatterns = [
+    { pattern: /chapter\s*1|chapter\s*one|introduction/i, name: 'Chapter-1-Introduction' },
+    { pattern: /chapter\s*2|chapter\s*two|literature\s*review/i, name: 'Chapter-2-Literature-Review' },
+    { pattern: /chapter\s*3|chapter\s*three|methodology/i, name: 'Chapter-3-Methodology' },
+    { pattern: /chapter\s*4|chapter\s*four|results|findings/i, name: 'Chapter-4-Results' },
+    { pattern: /chapter\s*5|chapter\s*five|conclusion|recommendation/i, name: 'Chapter-5-Conclusion' },
+    { pattern: /abstract/i, name: 'Abstract' },
+    { pattern: /proposal/i, name: 'Project-Proposal' },
+    { pattern: /references|bibliography/i, name: 'References' },
+    { pattern: /project\s*topic/i, name: 'Project-Topics' },
+  ];
+
+  for (const { pattern, name } of contentPatterns) {
+    if (pattern.test(content)) {
+      return name;
+    }
+  }
+
+  if (chatTitle) {
+    const sanitized = chatTitle
+      .replace(/[^a-zA-Z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .substring(0, 50);
+    return sanitized || 'ScholarAI-Response';
+  }
+
+  return 'ScholarAI-Response';
+};
+
+export function ExportOptions({ content, chatTitle, onOpenViewer }: ExportOptionsProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -111,9 +143,10 @@ export function ExportOptions({ content, onOpenViewer }: ExportOptionsProps) {
 
       const blob = await Packer.toBlob(doc);
       const url = URL.createObjectURL(blob);
+      const fileName = generateFileName(content, chatTitle);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `document-${Date.now()}.docx`;
+      a.download = `${fileName}.docx`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Downloaded as .docx");
@@ -173,7 +206,8 @@ export function ExportOptions({ content, onOpenViewer }: ExportOptionsProps) {
         y += 2; // Line spacing
       });
 
-      pdf.save(`document-${Date.now()}.pdf`);
+      const fileName = generateFileName(content, chatTitle);
+      pdf.save(`${fileName}.pdf`);
       toast.success("Downloaded as .pdf");
     } catch (error) {
       console.error("PDF generation error:", error);
@@ -184,8 +218,9 @@ export function ExportOptions({ content, onOpenViewer }: ExportOptionsProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-8 px-2">
+        <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3 gap-1.5">
           <FileDown className="h-4 w-4" />
+          <span className="hidden sm:inline text-xs">Download</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
