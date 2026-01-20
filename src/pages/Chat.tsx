@@ -612,9 +612,10 @@ const Chat = () => {
                                 <Copy className="h-4 w-4" />
                               )}
                             </Button>
-                            {isDocumentContent(msg.content) && (
-                              <ExportOptions content={msg.content} />
-                            )}
+                            <ExportOptions 
+                              content={msg.content} 
+                              chatTitle={chatSessions.find(s => s.id === sessionId)?.title}
+                            />
                           </div>
                         </>
                       )}
