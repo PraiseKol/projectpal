@@ -445,22 +445,39 @@ const Dashboard = () => {
             </CardHeader>
           </Card>
 
+          {/* Paraphraser - Available to all users with different limits */}
+          <Card 
+            variant={profile?.plan_type === "scholar" || profile?.plan_type === "pro" ? "glass" : "default"} 
+            className="hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in relative" 
+            onClick={() => navigate("/paraphraser")}
+          >
+            <CardHeader>
+              <FileText className="h-12 w-12 mb-4 text-secondary" />
+              <div className="flex items-center gap-2">
+                <CardTitle>Paraphraser</CardTitle>
+                {profile?.plan_type === "free" && (
+                  <Badge variant="secondary" className="text-xs">1 Free/Day</Badge>
+                )}
+              </div>
+              <CardDescription>
+                {profile?.plan_type === "free" 
+                  ? "Try it free! 1 paraphrase per day (120 words max)"
+                  : "Rephrase and improve your academic text"
+                }
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          {/* PPT Generator - Scholar Only */}
           {profile?.plan_type === "scholar" && (
             <>
-              <Card variant="glass" className="hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in" onClick={() => navigate("/paraphraser")}>
-                <CardHeader>
-                  <FileText className="h-12 w-12 mb-4 text-secondary" />
-                  <CardTitle>Paraphraser</CardTitle>
-                  <CardDescription>
-                    Rephrase and improve your academic text
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-
               <Card variant="glass" className="hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in" onClick={() => navigate("/documents")}>
                 <CardHeader>
                   <Sparkles className="h-12 w-12 mb-4 text-secondary" />
-                  <CardTitle>PPT Generator</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <CardTitle>PPT Generator</CardTitle>
+                    <Badge variant="secondary" className="text-xs">6 Credits</Badge>
+                  </div>
                   <CardDescription>
                     Upload documents and generate PowerPoint presentations
                   </CardDescription>
