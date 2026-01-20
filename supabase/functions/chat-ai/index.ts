@@ -6,6 +6,88 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Credit cost detection based on user request type
+function determineCreditCost(message: string): { cost: number; actionType: string } {
+  const msgLower = message.toLowerCase();
+  
+  // Full chapter request (6 credits) - most expensive
+  const fullChapterPattern = /\b(full\s+chapter|complete\s+chapter|write\s+chapter\s*\d+|generate\s+chapter|chapter\s+\d+\b(?!.*(?:background|problem|objective|scope|significance|section)))/i;
+  if (fullChapterPattern.test(msgLower)) {
+    return { cost: 6, actionType: 'full_chapter' };
+  }
+  
+  // Full proposal draft (5 credits)
+  if (/\b(full\s+proposal|complete\s+proposal|write.*proposal|draft.*proposal|generate.*proposal)\b/i.test(msgLower)) {
+    return { cost: 5, actionType: 'full_proposal' };
+  }
+  
+  // Continue/expand chapter (4 credits)
+  if (/\b(continue|expand|elaborate|extend|add\s+more|continue\s+writing|expand\s+on)\b/i.test(msgLower) && 
+      /\b(chapter|section|content)\b/i.test(msgLower)) {
+    return { cost: 4, actionType: 'continue_expand' };
+  }
+  
+  // Proposal outline (3 credits)
+  if (/\b(proposal\s+outline|outline.*proposal|structure.*proposal|proposal\s+structure)\b/i.test(msgLower)) {
+    return { cost: 3, actionType: 'proposal_outline' };
+  }
+  
+  // Chapter section requests (2 credits each)
+  // background, problem statement, objectives, scope, significance, delimitation
+  const chapterSectionPattern = /\b(background\s+(to\s+the\s+study|of\s+study|section)|problem\s+statement|statement\s+of\s+(the\s+)?problem|research\s+objectives|objectives\s+of|scope\s+(of|and)|significance\s+of|delimitation)/i;
+  if (chapterSectionPattern.test(msgLower)) {
+    return { cost: 2, actionType: 'chapter_section' };
+  }
+  
+  // Topic generation (2 credits)
+  if (/\b(suggest.*topic|generate.*topic|project\s+topic|topic.*list|research\s+topic|give\s+me.*topics|list.*topics)\b/i.test(msgLower)) {
+    return { cost: 2, actionType: 'topic_generation' };
+  }
+  
+  // Default: short answer/explanation (1 credit)
+  return { cost: 1, actionType: 'short_answer' };
+}
+
+// Deduct credits with multi-credit support
+function deductCredits(
+  creditCost: number,
+  dailyCredits: number,
+  monthlyCredits: number,
+  paidCredits: number,
+  isActiveSubscriber: boolean
+): { success: boolean; dailyCredits: number; monthlyCredits: number; paidCredits: number; creditSource: string } {
+  let remaining = creditCost;
+  let source = '';
+
+  if (isActiveSubscriber) {
+    // Active subscribers: daily credits → paid credits (no monthly cap)
+    if (dailyCredits >= remaining) {
+      dailyCredits -= remaining;
+      return { success: true, dailyCredits, monthlyCredits, paidCredits, creditSource: 'daily' };
+    } else if (dailyCredits > 0) {
+      remaining -= dailyCredits;
+      source = 'daily+paid';
+      dailyCredits = 0;
+    }
+    
+    if (paidCredits >= remaining) {
+      paidCredits -= remaining;
+      return { success: true, dailyCredits, monthlyCredits, paidCredits, creditSource: source || 'paid' };
+    }
+    
+    return { success: false, dailyCredits, monthlyCredits, paidCredits, creditSource: '' };
+  } else {
+    // Free users OR expired subscribers: use daily credits (from monthly pool)
+    if (dailyCredits >= remaining && monthlyCredits >= remaining) {
+      dailyCredits -= remaining;
+      monthlyCredits -= remaining;
+      return { success: true, dailyCredits, monthlyCredits, paidCredits, creditSource: 'daily (from monthly pool)' };
+    }
+    
+    return { success: false, dailyCredits, monthlyCredits, paidCredits, creditSource: '' };
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -39,6 +121,10 @@ serve(async (req) => {
       .single();
 
     if (profileError) throw profileError;
+
+    // Determine credit cost based on message
+    const { cost: creditCost, actionType } = determineCreditCost(message);
+    console.log(`[CREDIT] Action detected: ${actionType}, Cost: ${creditCost} credits`);
 
     // Check credits and handle resets
     const today = new Date().toISOString().split('T')[0];
@@ -91,49 +177,27 @@ serve(async (req) => {
       }
     }
 
-    // Credit deduction logic based on user type
-    let canProceed = false;
-    let creditSource = '';
-
-    if (isActiveSubscriber) {
-      // Active subscribers: daily credits → paid credits (no monthly cap)
-      if (dailyCredits > 0) {
-        dailyCredits -= 1;
-        canProceed = true;
-        creditSource = 'daily';
-      } else if (paidCredits > 0) {
-        paidCredits -= 1;
-        canProceed = true;
-        creditSource = 'paid';
-      }
-    } else {
-      // Free users OR expired subscribers: use daily credits (from monthly pool)
-      if (dailyCredits > 0 && monthlyCredits > 0) {
-        dailyCredits -= 1;
-        monthlyCredits -= 1; // Deduct from monthly cap as well
-        canProceed = true;
-        creditSource = 'daily (from monthly pool)';
-      }
-    }
-
-    if (!canProceed) {
+    // Check if user has enough credits BEFORE calling AI
+    const totalAvailable = isActiveSubscriber 
+      ? dailyCredits + paidCredits 
+      : Math.min(dailyCredits, monthlyCredits);
+    
+    if (totalAvailable < creditCost) {
       let errorMessage: string;
       if (isActiveSubscriber) {
-        errorMessage = 'Insufficient credits. Please purchase more credits.';
+        errorMessage = `This action requires ${creditCost} credits. You have ${totalAvailable} credits remaining. Please purchase more credits.`;
       } else if (profile.plan_type !== 'free' && paidCreditsExpired) {
-        errorMessage = 'Your subscription has expired. You are now on the free plan with limited credits. Upgrade to continue!';
+        errorMessage = `Your subscription has expired. This action requires ${creditCost} credits. Upgrade to continue!`;
       } else {
-        errorMessage = 'You have used all your monthly credits. Upgrade to Pro or Scholar for unlimited daily credits!';
+        errorMessage = `This action requires ${creditCost} credits. You have ${totalAvailable} credits remaining. Upgrade to Pro or Scholar for more credits!`;
       }
       
-      console.log(`[CREDIT] Insufficient credits - Plan: ${profile.plan_type}, Active: ${isActiveSubscriber}, Expired: ${paidCreditsExpired}`);
+      console.log(`[CREDIT] Insufficient credits for ${actionType} (need ${creditCost}, have ${totalAvailable})`);
       return new Response(
-        JSON.stringify({ error: errorMessage }),
+        JSON.stringify({ error: errorMessage, credits_required: creditCost, credits_available: totalAvailable }),
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log(`[CREDIT] Deducted from: ${creditSource}. After - Daily: ${dailyCredits}, Monthly: ${monthlyCredits}, Paid: ${paidCredits}`);
 
     // Fetch conversation history
     const { data: previousMessages, error: messagesError } = await supabaseClient
@@ -281,6 +345,14 @@ serve(async (req) => {
       content: aiMessage,
     });
 
+    // Deduct credits after successful AI response
+    const deductResult = deductCredits(creditCost, dailyCredits, monthlyCredits, paidCredits, isActiveSubscriber);
+    dailyCredits = deductResult.dailyCredits;
+    monthlyCredits = deductResult.monthlyCredits;
+    paidCredits = deductResult.paidCredits;
+
+    console.log(`[CREDIT] Deducted ${creditCost} credits from: ${deductResult.creditSource}. After - Daily: ${dailyCredits}, Monthly: ${monthlyCredits}, Paid: ${paidCredits}`);
+
     // Update user profile with new credits
     const { error: updateError } = await supabaseClient
       .from('profiles')
@@ -300,6 +372,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         response: aiMessage,
+        credits_used: creditCost,
+        action_type: actionType,
         profile: {
           daily_credits: dailyCredits,
           monthly_credits: monthlyCredits,

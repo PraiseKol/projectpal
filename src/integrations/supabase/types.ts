@@ -162,6 +162,7 @@ export type Database = {
           created_at: string
           credits_expiry_date: string | null
           daily_credits: number
+          daily_paraphrase_count: number | null
           daily_reset_date: string
           first_name: string | null
           id: string
@@ -175,6 +176,7 @@ export type Database = {
           created_at?: string
           credits_expiry_date?: string | null
           daily_credits?: number
+          daily_paraphrase_count?: number | null
           daily_reset_date?: string
           first_name?: string | null
           id: string
@@ -188,6 +190,7 @@ export type Database = {
           created_at?: string
           credits_expiry_date?: string | null
           daily_credits?: number
+          daily_paraphrase_count?: number | null
           daily_reset_date?: string
           first_name?: string | null
           id?: string

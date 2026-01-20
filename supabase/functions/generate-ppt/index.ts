@@ -7,6 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const PPT_CREDIT_COST = 6;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -38,10 +40,10 @@ serve(async (req) => {
 
     if (profileError) throw profileError;
 
-    // Check if plan is scholar
+    // Check if plan is scholar (PPT is Scholar-only)
     if (profile.plan_type !== 'scholar') {
       return new Response(
-        JSON.stringify({ error: 'Scholar plan required' }),
+        JSON.stringify({ error: 'Scholar plan required. PPT Generator is an exclusive Scholar feature.' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -65,6 +67,7 @@ serve(async (req) => {
     console.log(`[CREDIT] Before - Daily: ${profile.daily_credits}, Paid: ${profile.paid_credits}`);
     console.log(`[CREDIT] Daily Reset Date: ${profile.daily_reset_date}, Today: ${today}, Needs Reset: ${needsDailyReset}`);
     console.log(`[CREDIT] Expiry: ${creditsExpiryDate}, Expired: ${paidCreditsExpired}, Active: ${isActiveSubscriber}`);
+    console.log(`[CREDIT] PPT requires ${PPT_CREDIT_COST} credits`);
 
     // If subscription expired, deny access to Scholar features
     if (!isActiveSubscriber) {
@@ -84,32 +87,49 @@ serve(async (req) => {
       console.log(`[CREDIT] Daily credits reset to 8`);
     }
 
-    // Credit deduction logic for active Scholar users:
-    // 1. Use daily credits first (free bonus)
-    // 2. Then use paid credits
+    // Credit deduction logic for PPT (6 credits)
+    // 1. Use daily credits first
+    // 2. Split between daily and paid if needed
+    // 3. Use paid credits if daily is insufficient
     
     let canProceed = false;
     let creditSource = '';
+    let creditsToDeduct = PPT_CREDIT_COST;
 
-    if (dailyCredits > 0) {
-      dailyCredits -= 1;
+    if (dailyCredits >= creditsToDeduct) {
+      // Enough daily credits
+      dailyCredits -= creditsToDeduct;
       canProceed = true;
       creditSource = 'daily';
-    } else if (paidCredits > 0) {
-      paidCredits -= 1;
+    } else if (dailyCredits > 0 && (dailyCredits + paidCredits) >= creditsToDeduct) {
+      // Split between daily and paid credits
+      const fromDaily = dailyCredits;
+      const fromPaid = creditsToDeduct - dailyCredits;
+      dailyCredits = 0;
+      paidCredits -= fromPaid;
+      canProceed = true;
+      creditSource = `daily (${fromDaily}) + paid (${fromPaid})`;
+    } else if (paidCredits >= creditsToDeduct) {
+      // Use paid credits only
+      paidCredits -= creditsToDeduct;
       canProceed = true;
       creditSource = 'paid';
     }
 
     if (!canProceed) {
-      console.log(`[CREDIT] Insufficient credits`);
+      const totalAvailable = dailyCredits + paidCredits;
+      console.log(`[CREDIT] Insufficient credits for PPT: need ${PPT_CREDIT_COST}, have ${totalAvailable}`);
       return new Response(
-        JSON.stringify({ error: 'Insufficient credits. Please purchase more credits.' }),
+        JSON.stringify({ 
+          error: `Insufficient credits. PPT generation requires ${PPT_CREDIT_COST} credits. You have ${totalAvailable} credits remaining.`,
+          credits_required: PPT_CREDIT_COST,
+          credits_available: totalAvailable
+        }),
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[CREDIT] PPT deducted from: ${creditSource}. After - Daily: ${dailyCredits}, Paid: ${paidCredits}`);
+    console.log(`[CREDIT] PPT - Deducted ${PPT_CREDIT_COST} credits from: ${creditSource}. After - Daily: ${dailyCredits}, Paid: ${paidCredits}`);
 
     const docResponse = await fetch(document_url);
     const docText = await docResponse.text();
@@ -258,7 +278,7 @@ Create 5-8 slides maximum. Document:\n\n${docText.substring(0, 10000)}`
       .from('documents')
       .getPublicUrl(fileName);
 
-    // Update credits with new logic
+    // Update credits
     const { error: updateError } = await supabaseClient
       .from('profiles')
       .update({
@@ -275,6 +295,7 @@ Create 5-8 slides maximum. Document:\n\n${docText.substring(0, 10000)}`
     return new Response(
       JSON.stringify({
         ppt_url: urlData.publicUrl,
+        credits_used: PPT_CREDIT_COST,
         profile: {
           daily_credits: dailyCredits,
           paid_credits: paidCredits,

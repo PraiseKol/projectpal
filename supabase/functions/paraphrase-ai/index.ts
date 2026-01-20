@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const FREE_USER_WORD_LIMIT = 120;
+const FREE_USER_DAILY_LIMIT = 1;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -37,77 +40,116 @@ serve(async (req) => {
 
     if (profileError) throw profileError;
 
-    // Check if plan is scholar
-    if (profile.plan_type !== 'scholar') {
-      return new Response(
-        JSON.stringify({ error: 'Scholar plan required' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const today = new Date().toISOString().split('T')[0];
     const needsDailyReset = profile.daily_reset_date !== today;
 
     let dailyCredits = profile.daily_credits;
+    let monthlyCredits = profile.monthly_credits;
     let paidCredits = profile.paid_credits || 0;
+    let dailyParaphraseCount = profile.daily_paraphrase_count || 0;
     const creditsExpiryDate = profile.credits_expiry_date;
 
     // Check if subscription has expired
     const paidCreditsExpired = creditsExpiryDate ? new Date(creditsExpiryDate) < new Date() : true;
     
-    // Check if user has an active subscription
-    const isActiveSubscriber = !paidCreditsExpired;
+    // Determine user type
+    const isActiveSubscriber = profile.plan_type !== 'free' && !paidCreditsExpired;
+    const isFreeUser = profile.plan_type === 'free' || paidCreditsExpired;
 
-    // Enhanced logging - before state
-    console.log(`[CREDIT] Paraphrase - User: ${user.id}, Plan: ${profile.plan_type}`);
-    console.log(`[CREDIT] Before - Daily: ${profile.daily_credits}, Paid: ${profile.paid_credits}`);
-    console.log(`[CREDIT] Daily Reset Date: ${profile.daily_reset_date}, Today: ${today}, Needs Reset: ${needsDailyReset}`);
-    console.log(`[CREDIT] Expiry: ${creditsExpiryDate}, Expired: ${paidCreditsExpired}, Active: ${isActiveSubscriber}`);
+    // Enhanced logging
+    console.log(`[PARAPHRASE] User: ${user.id}, Plan: ${profile.plan_type}`);
+    console.log(`[PARAPHRASE] Before - Daily: ${profile.daily_credits}, Monthly: ${profile.monthly_credits}, Paid: ${profile.paid_credits}`);
+    console.log(`[PARAPHRASE] Daily Paraphrase Count: ${dailyParaphraseCount}, Needs Reset: ${needsDailyReset}`);
+    console.log(`[PARAPHRASE] Is Free User: ${isFreeUser}, Active Subscriber: ${isActiveSubscriber}`);
 
-    // If subscription expired, deny access to Scholar features
-    if (!isActiveSubscriber) {
-      console.log(`[CREDIT] Subscription expired - denying access to paraphraser`);
+    // Reset daily counts if new day
+    if (needsDailyReset) {
+      dailyParaphraseCount = 0;
+      
+      if (isActiveSubscriber) {
+        dailyCredits = 8;
+        console.log(`[PARAPHRASE] Daily credits reset to 8`);
+      } else {
+        // Free/expired users
+        const lastResetMonth = profile.daily_reset_date ? new Date(profile.daily_reset_date).getMonth() : -1;
+        const currentMonth = new Date().getMonth();
+        
+        if (lastResetMonth !== currentMonth) {
+          monthlyCredits = 40;
+          console.log(`[PARAPHRASE] New month - Monthly credits reset to 40`);
+        }
+        
+        if (monthlyCredits > 0) {
+          dailyCredits = Math.min(8, monthlyCredits);
+        } else {
+          dailyCredits = 0;
+        }
+      }
+    }
+
+    // Word count check for free users
+    const wordCount = text.trim().split(/\s+/).length;
+    if (isFreeUser && wordCount > FREE_USER_WORD_LIMIT) {
+      console.log(`[PARAPHRASE] Free user exceeded word limit: ${wordCount} > ${FREE_USER_WORD_LIMIT}`);
       return new Response(
         JSON.stringify({ 
-          error: 'Your Scholar subscription has expired. Please renew to access the paraphraser feature.',
-          subscription_expired: true
+          error: `Free users are limited to ${FREE_USER_WORD_LIMIT} words. Your text has ${wordCount} words. Please upgrade for unlimited paraphrasing.`,
+          word_limit_exceeded: true,
+          word_count: wordCount,
+          word_limit: FREE_USER_WORD_LIMIT
         }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Reset daily credits if needed (active subscribers get 8 fresh daily credits)
-    if (needsDailyReset) {
-      dailyCredits = 8;
-      console.log(`[CREDIT] Daily credits reset to 8`);
+    // Daily limit check for free users
+    if (isFreeUser && dailyParaphraseCount >= FREE_USER_DAILY_LIMIT) {
+      console.log(`[PARAPHRASE] Free user hit daily limit: ${dailyParaphraseCount} >= ${FREE_USER_DAILY_LIMIT}`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Free users can only paraphrase once per day. Come back tomorrow or upgrade for unlimited access!',
+          daily_limit_reached: true,
+          daily_count: dailyParaphraseCount,
+          daily_limit: FREE_USER_DAILY_LIMIT
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Credit deduction logic for active Scholar users:
-    // 1. Use daily credits first (free bonus)
-    // 2. Then use paid credits
-    
+    // Credit deduction logic - 1 credit per paraphrase
     let canProceed = false;
     let creditSource = '';
 
-    if (dailyCredits > 0) {
-      dailyCredits -= 1;
-      canProceed = true;
-      creditSource = 'daily';
-    } else if (paidCredits > 0) {
-      paidCredits -= 1;
-      canProceed = true;
-      creditSource = 'paid';
+    if (isActiveSubscriber) {
+      // Active subscribers: daily credits → paid credits
+      if (dailyCredits > 0) {
+        dailyCredits -= 1;
+        canProceed = true;
+        creditSource = 'daily';
+      } else if (paidCredits > 0) {
+        paidCredits -= 1;
+        canProceed = true;
+        creditSource = 'paid';
+      }
+    } else {
+      // Free users: use daily credits from monthly pool
+      if (dailyCredits > 0 && monthlyCredits > 0) {
+        dailyCredits -= 1;
+        monthlyCredits -= 1;
+        canProceed = true;
+        creditSource = 'daily (from monthly pool)';
+      }
     }
 
     if (!canProceed) {
-      console.log(`[CREDIT] Insufficient credits`);
+      console.log(`[PARAPHRASE] Insufficient credits`);
       return new Response(
-        JSON.stringify({ error: 'Insufficient credits. Please purchase more credits.' }),
+        JSON.stringify({ error: 'Insufficient credits. Please purchase more credits or upgrade your plan.' }),
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[CREDIT] Paraphrase deducted from: ${creditSource}. After - Daily: ${dailyCredits}, Paid: ${paidCredits}`);
+    console.log(`[PARAPHRASE] Deducted 1 credit from: ${creditSource}. After - Daily: ${dailyCredits}, Monthly: ${monthlyCredits}, Paid: ${paidCredits}`);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -147,12 +189,15 @@ serve(async (req) => {
       output_text: paraphrasedText,
     });
 
+    // Update profile with new credits and paraphrase count
     const { error: updateError } = await supabaseClient
       .from('profiles')
       .update({
         daily_credits: dailyCredits,
+        monthly_credits: monthlyCredits,
         paid_credits: paidCredits,
         daily_reset_date: today,
+        daily_paraphrase_count: isFreeUser ? dailyParaphraseCount + 1 : profile.daily_paraphrase_count,
       })
       .eq('id', user.id);
 
@@ -163,10 +208,14 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         paraphrased_text: paraphrasedText,
+        can_export: !isFreeUser, // Free users cannot export
+        word_count: wordCount,
         profile: {
           daily_credits: dailyCredits,
+          monthly_credits: monthlyCredits,
           paid_credits: paidCredits,
           credits_expiry_date: creditsExpiryDate,
+          daily_paraphrase_count: isFreeUser ? dailyParaphraseCount + 1 : profile.daily_paraphrase_count,
         },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
