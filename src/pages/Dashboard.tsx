@@ -4,12 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, FileText, Sparkles, LogOut, CreditCard, GraduationCap, Settings as SettingsIcon, Receipt, AlertTriangle, Clock, RefreshCw } from "lucide-react";
+import { MessageSquare, FileText, Sparkles, LogOut, CreditCard, GraduationCap, Settings as SettingsIcon, Receipt, AlertTriangle, Clock, RefreshCw, Lock } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { MobileNav } from "@/components/MobileNav";
 import { SEO } from "@/components/SEO";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { UpgradeDialog } from "@/components/UpgradeDialog";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -18,6 +20,12 @@ const Dashboard = () => {
   const [recentChats, setRecentChats] = useState<any[]>([]);
   const [recentParaphrases, setRecentParaphrases] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [upgradeDialog, setUpgradeDialog] = useState<{
+    open: boolean;
+    feature: string;
+    description: string;
+    requiredPlan: 'pro' | 'scholar';
+  } | null>(null);
 
   useEffect(() => {
     checkAuth();
@@ -61,17 +69,15 @@ const Dashboard = () => {
 
       setRecentChats(chatsData || []);
 
-      // Fetch recent paraphrase logs if Scholar user
-      if (profileData?.plan_type === "scholar") {
-        const { data: paraphrasesData } = await supabase
-          .from("paraphrase_logs")
-          .select("id, input_text, output_text, created_at")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(5);
+      // Fetch recent paraphrase logs for all users
+      const { data: paraphrasesData } = await supabase
+        .from("paraphrase_logs")
+        .select("id, input_text, output_text, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
 
-        setRecentParaphrases(paraphrasesData || []);
-      }
+      setRecentParaphrases(paraphrasesData || []);
     } catch (error) {
       console.error("Error fetching profile:", error);
       toast.error("Failed to load profile");
@@ -142,6 +148,37 @@ const Dashboard = () => {
   };
 
   const expiryInfo = getCreditsExpiryInfo();
+
+  // Access control helpers
+  const planHierarchy: Record<string, number> = { free: 0, pro: 1, scholar: 2 };
+  
+  const canAccessFeature = (requiredPlan: 'pro' | 'scholar') => {
+    const userPlanLevel = planHierarchy[profile?.plan_type || 'free'];
+    const requiredLevel = planHierarchy[requiredPlan];
+    // Also check if subscription is expired
+    if (profile?.plan_type !== 'free' && expiryInfo?.isExpired) {
+      return false;
+    }
+    return userPlanLevel >= requiredLevel;
+  };
+
+  const handleFeatureClick = (
+    feature: string,
+    route: string,
+    requiredPlan?: 'pro' | 'scholar',
+    description?: string
+  ) => {
+    if (!requiredPlan || canAccessFeature(requiredPlan)) {
+      navigate(route);
+    } else {
+      setUpgradeDialog({
+        open: true,
+        feature,
+        description: description || `This feature requires a ${requiredPlan} plan.`,
+        requiredPlan,
+      });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -269,52 +306,68 @@ const Dashboard = () => {
                   </div>
                   
                   {expiryInfo && !expiryInfo.isExpired && (
-                    <div className="mt-3 space-y-2">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Clock className={`h-4 w-4 ${
-                          expiryInfo.isExpiringSoon 
-                            ? 'text-destructive' 
-                            : expiryInfo.isWarning 
-                              ? 'text-yellow-500' 
-                              : 'text-primary'
-                        }`} />
-                        <span className={`font-medium ${
-                          expiryInfo.isExpiringSoon 
-                            ? 'text-destructive' 
-                            : expiryInfo.isWarning 
-                              ? 'text-yellow-600 dark:text-yellow-400' 
-                              : ''
-                        }`}>
-                          {expiryInfo.daysRemaining} days left
-                        </span>
-                      </div>
-                      <Progress 
-                        value={expiryInfo.percentage} 
-                        className={`h-2 ${
-                          expiryInfo.isExpiringSoon 
-                            ? '[&>div]:bg-destructive' 
-                            : expiryInfo.isWarning 
-                              ? '[&>div]:bg-yellow-500' 
-                              : '[&>div]:bg-primary'
-                        }`}
-                      />
-                      <div className="flex items-center justify-between">
-                        <div className="text-xs text-muted-foreground">
-                          Expires: {formatExpiryDate(profile.credits_expiry_date)}
-                        </div>
-                        {(expiryInfo.isExpiringSoon || expiryInfo.isWarning) && (
-                          <Button 
-                            size="sm" 
-                            variant={expiryInfo.isExpiringSoon ? "destructive" : "outline"}
-                            className="h-7 text-xs gap-1"
-                            onClick={() => navigate(`/pricing?plan=${profile.plan_type}&billing=monthly`)}
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                            Renew
-                          </Button>
-                        )}
-                      </div>
-                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="mt-3 space-y-2 cursor-help">
+                            <div className="flex items-center gap-2 text-sm">
+                              <Clock className={`h-4 w-4 ${
+                                expiryInfo.isExpiringSoon 
+                                  ? 'text-destructive' 
+                                  : expiryInfo.isWarning 
+                                    ? 'text-yellow-500' 
+                                    : 'text-primary'
+                              }`} />
+                              <span className={`font-medium ${
+                                expiryInfo.isExpiringSoon 
+                                  ? 'text-destructive' 
+                                  : expiryInfo.isWarning 
+                                    ? 'text-yellow-600 dark:text-yellow-400' 
+                                    : ''
+                              }`}>
+                                {expiryInfo.daysRemaining} days left
+                              </span>
+                            </div>
+                            <Progress 
+                              value={expiryInfo.percentage} 
+                              className={`h-2 ${
+                                expiryInfo.isExpiringSoon 
+                                  ? '[&>div]:bg-destructive' 
+                                  : expiryInfo.isWarning 
+                                    ? '[&>div]:bg-yellow-500' 
+                                    : '[&>div]:bg-primary'
+                              }`}
+                            />
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs text-muted-foreground">
+                                Expires: {formatExpiryDate(profile.credits_expiry_date)}
+                              </div>
+                              {(expiryInfo.isExpiringSoon || expiryInfo.isWarning) && (
+                                <Button 
+                                  size="sm" 
+                                  variant={expiryInfo.isExpiringSoon ? "destructive" : "outline"}
+                                  className="h-7 text-xs gap-1"
+                                  onClick={() => navigate(`/pricing?plan=${profile.plan_type}&billing=monthly`)}
+                                >
+                                  <RefreshCw className="h-3 w-3" />
+                                  Renew
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-xs p-3">
+                          <div className="space-y-1.5">
+                            <p className="font-medium text-sm">Subscription Status</p>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              You have <span className="font-medium text-foreground">{profile?.paid_credits || 0} credits</span> remaining. 
+                              Your subscription expires on <span className="font-medium text-foreground">{formatExpiryDate(profile.credits_expiry_date)}</span>.
+                              Daily credits (8/day) are used first, then paid credits.
+                            </p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   )}
                   
                   {expiryInfo?.isExpired && (
@@ -381,7 +434,7 @@ const Dashboard = () => {
               </div>
             )}
 
-            {profile?.plan_type === "scholar" && recentParaphrases.length > 0 && (
+            {recentParaphrases.length > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-semibold">Recent Paraphrases</h3>
@@ -468,34 +521,80 @@ const Dashboard = () => {
             </CardHeader>
           </Card>
 
-          {/* PPT Generator - Scholar Only */}
-          {profile?.plan_type === "scholar" && (
-            <>
-              <Card variant="glass" className="hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in" onClick={() => navigate("/documents")}>
-                <CardHeader>
-                  <Sparkles className="h-12 w-12 mb-4 text-secondary" />
-                  <div className="flex items-center gap-2">
-                    <CardTitle>PPT Generator</CardTitle>
-                    <Badge variant="secondary" className="text-xs">6 Credits</Badge>
-                  </div>
-                  <CardDescription>
-                    Upload documents and generate PowerPoint presentations
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+          {/* PPT Generator - Visible to all, Scholar Only access */}
+          <Card 
+            variant={canAccessFeature('scholar') ? "glass" : "default"} 
+            className={`hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in ${
+              !canAccessFeature('scholar') ? 'opacity-80' : ''
+            }`}
+            onClick={() => handleFeatureClick(
+              'PPT Generator',
+              '/documents',
+              'scholar',
+              'Create professional PowerPoint presentations from your documents with AI. This premium feature is exclusively available for Scholar plan users.'
+            )}
+          >
+            <CardHeader>
+              <Sparkles className="h-12 w-12 mb-4 text-secondary" />
+              <div className="flex items-center gap-2">
+                <CardTitle>PPT Generator</CardTitle>
+                {canAccessFeature('scholar') ? (
+                  <Badge variant="secondary" className="text-xs">6 Credits</Badge>
+                ) : (
+                  <Badge variant="outline" className="text-xs gap-1">
+                    <Lock className="h-3 w-3" />
+                    Scholar Only
+                  </Badge>
+                )}
+              </div>
+              <CardDescription>
+                Upload documents and generate PowerPoint presentations
+              </CardDescription>
+            </CardHeader>
+          </Card>
 
-              <Card variant="glass" className="hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in" onClick={() => navigate("/document-editor")}>
-                <CardHeader>
-                  <FileText className="h-12 w-12 mb-4 text-secondary" />
-                  <CardTitle>Document Editor</CardTitle>
-                  <CardDescription>
-                    AI-powered document analysis and editing
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </>
-          )}
+          {/* Document Editor - Visible to all, Scholar Only access */}
+          <Card 
+            variant={canAccessFeature('scholar') ? "glass" : "default"} 
+            className={`hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in ${
+              !canAccessFeature('scholar') ? 'opacity-80' : ''
+            }`}
+            onClick={() => handleFeatureClick(
+              'Document Editor',
+              '/document-editor',
+              'scholar',
+              'AI-powered document analysis with grammar, tone, and style suggestions. This premium feature is exclusively available for Scholar plan users.'
+            )}
+          >
+            <CardHeader>
+              <FileText className="h-12 w-12 mb-4 text-secondary" />
+              <div className="flex items-center gap-2">
+                <CardTitle>Document Editor</CardTitle>
+                {!canAccessFeature('scholar') && (
+                  <Badge variant="outline" className="text-xs gap-1">
+                    <Lock className="h-3 w-3" />
+                    Scholar Only
+                  </Badge>
+                )}
+              </div>
+              <CardDescription>
+                AI-powered document analysis and editing
+              </CardDescription>
+            </CardHeader>
+          </Card>
         </div>
+
+        {/* Upgrade Dialog */}
+        {upgradeDialog && (
+          <UpgradeDialog
+            open={upgradeDialog.open}
+            onOpenChange={(open) => setUpgradeDialog(open ? upgradeDialog : null)}
+            featureName={upgradeDialog.feature}
+            featureDescription={upgradeDialog.description}
+            requiredPlan={upgradeDialog.requiredPlan}
+            currentPlan={profile?.plan_type || 'free'}
+          />
+        )}
 
         {/* Feature Notice */}
         {profile?.plan_type === "free" && (
