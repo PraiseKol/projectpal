@@ -6,6 +6,29 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Define plan hierarchy (higher number = better plan)
+const PLAN_HIERARCHY: Record<string, number> = {
+  'free': 1,
+  'pro': 2,
+  'scholar': 3
+};
+
+function shouldUpdatePlan(currentPlan: string, newPlan: string, currentExpiry: string | null): boolean {
+  const now = new Date();
+  const expiryDate = currentExpiry ? new Date(currentExpiry) : null;
+  
+  // If no current subscription or expired, always update to new plan
+  if (!expiryDate || expiryDate < now) {
+    return true;
+  }
+  
+  // If current subscription is active, only upgrade (never downgrade)
+  const currentRank = PLAN_HIERARCHY[currentPlan] || 1;
+  const newRank = PLAN_HIERARCHY[newPlan] || 1;
+  
+  return newRank >= currentRank;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -98,13 +121,23 @@ serve(async (req) => {
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + durationDays);
 
+    // Determine if we should update the plan type (prevent downgrades)
+    const shouldUpdatePlanType = shouldUpdatePlan(
+      profile.plan_type, 
+      planType, 
+      profile.credits_expiry_date
+    );
+
+    const finalPlanType = shouldUpdatePlanType ? planType : profile.plan_type;
+
+    console.log(`Plan decision: current=${profile.plan_type}, requested=${planType}, final=${finalPlanType}, shouldUpdate=${shouldUpdatePlanType}`);
     console.log(`Payment verified. Adding ${creditsToAdd} credits. New total: ${newPaidCredits}. Expiry: ${expiryDate.toISOString()}`);
 
     // Update profile with new paid credits and plan
     const { error: updateError } = await supabaseClient
       .from('profiles')
       .update({
-        plan_type: planType,
+        plan_type: finalPlanType,
         paid_credits: newPaidCredits,
         credits_expiry_date: expiryDate.toISOString(),
       })
@@ -144,7 +177,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         credits_added: creditsToAdd,
-        new_plan: planType,
+        new_plan: finalPlanType,
         new_paid_credits: newPaidCredits,
         credits_expiry_date: expiryDate.toISOString(),
       }),
