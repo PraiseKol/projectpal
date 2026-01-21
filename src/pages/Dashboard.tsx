@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, FileText, Sparkles, LogOut, CreditCard, GraduationCap, Settings as SettingsIcon, Receipt, AlertTriangle, Clock, RefreshCw, Lock } from "lucide-react";
+import { MessageSquare, FileText, Sparkles, LogOut, CreditCard, GraduationCap, Settings as SettingsIcon, Receipt, AlertTriangle, Clock, RefreshCw, Lock, BarChart3 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -579,6 +579,25 @@ const Dashboard = () => {
               </div>
               <CardDescription>
                 AI-powered document analysis and editing
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          {/* Data Analysis - Available to all with different limits */}
+          <Card 
+            className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in"
+            onClick={() => navigate("/data-analysis")}
+          >
+            <CardHeader>
+              <BarChart3 className="h-12 w-12 mb-4 text-primary" />
+              <div className="flex items-center gap-2">
+                <CardTitle>Data Analysis</CardTitle>
+                {profile?.plan_type === 'free' && (
+                  <Badge variant="secondary" className="text-xs">1 Free/Month</Badge>
+                )}
+              </div>
+              <CardDescription>
+                Analyze survey data with statistical methods for Chapter 4
               </CardDescription>
             </CardHeader>
           </Card>
