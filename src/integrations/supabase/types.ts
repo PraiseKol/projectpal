@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      analysis_sessions: {
+        Row: {
+          analyses_run: Json | null
+          column_config: Json | null
+          created_at: string
+          credits_used: number | null
+          file_name: string
+          file_url: string | null
+          id: string
+          raw_data: Json | null
+          results: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analyses_run?: Json | null
+          column_config?: Json | null
+          created_at?: string
+          credits_used?: number | null
+          file_name: string
+          file_url?: string | null
+          id?: string
+          raw_data?: Json | null
+          results?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analyses_run?: Json | null
+          column_config?: Json | null
+          created_at?: string
+          credits_used?: number | null
+          file_name?: string
+          file_url?: string | null
+          id?: string
+          raw_data?: Json | null
+          results?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           created_at: string
@@ -167,6 +209,8 @@ export type Database = {
           first_name: string | null
           id: string
           last_name: string | null
+          monthly_analysis_count: number | null
+          monthly_analysis_reset_date: string | null
           monthly_credits: number
           paid_credits: number
           plan_type: Database["public"]["Enums"]["plan_type"]
@@ -181,6 +225,8 @@ export type Database = {
           first_name?: string | null
           id: string
           last_name?: string | null
+          monthly_analysis_count?: number | null
+          monthly_analysis_reset_date?: string | null
           monthly_credits?: number
           paid_credits?: number
           plan_type?: Database["public"]["Enums"]["plan_type"]
@@ -195,6 +241,8 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          monthly_analysis_count?: number | null
+          monthly_analysis_reset_date?: string | null
           monthly_credits?: number
           paid_credits?: number
           plan_type?: Database["public"]["Enums"]["plan_type"]
