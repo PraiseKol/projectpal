@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Upload, Loader2, FileText, Download, Eye, Palette } from "lucide-react";
+import { ArrowLeft, Upload, Loader2, FileText, Download, Eye, Palette, ImageIcon } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -27,6 +28,7 @@ const Documents = () => {
   const [generatedPptUrl, setGeneratedPptUrl] = useState("");
   const [showViewer, setShowViewer] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState("random");
+  const [includeImages, setIncludeImages] = useState(true);
 
   useEffect(() => {
     checkUserPlan();
@@ -139,7 +141,11 @@ const Documents = () => {
     setIsGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-ppt", {
-        body: { document_url: uploadedDocUrl, theme: selectedTheme },
+        body: { 
+          document_url: uploadedDocUrl, 
+          theme: selectedTheme,
+          include_images: includeImages 
+        },
       });
 
       if (error) throw error;
@@ -246,6 +252,27 @@ const Documents = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                  
+                  <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
+                    <Checkbox 
+                      id="include-images" 
+                      checked={includeImages}
+                      onCheckedChange={(checked) => setIncludeImages(checked as boolean)}
+                    />
+                    <div className="flex items-center gap-2">
+                      <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                      <label htmlFor="include-images" className="text-sm font-medium cursor-pointer">
+                        Include AI-generated images
+                      </label>
+                    </div>
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      {includeImages ? "+2 credits" : ""}
+                    </span>
+                  </div>
+                  
+                  <p className="text-xs text-muted-foreground">
+                    Credit cost: <span className="font-semibold">{includeImages ? 8 : 6} credits</span>
+                  </p>
                   <Button
                     onClick={handleGeneratePPT}
                     disabled={isGenerating}

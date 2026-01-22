@@ -7,7 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const PPT_CREDIT_COST = 6;
+const BASE_CREDIT_COST = 6;
+const IMAGE_CREDIT_COST = 2;
 
 // Theme definitions based on professional presentation styles
 interface Theme {
@@ -434,7 +435,7 @@ serve(async (req) => {
   }
 
   try {
-    const { document_url, theme: requestedTheme } = await req.json();
+    const { document_url, theme: requestedTheme, include_images = true } = await req.json();
     
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -496,10 +497,10 @@ serve(async (req) => {
       dailyCredits = 8;
     }
 
-    // Credit deduction logic
+    // Credit deduction logic - variable based on image option
+    const creditsToDeduct = include_images ? (BASE_CREDIT_COST + IMAGE_CREDIT_COST) : BASE_CREDIT_COST;
     let canProceed = false;
     let creditSource = '';
-    const creditsToDeduct = PPT_CREDIT_COST;
 
     if (dailyCredits >= creditsToDeduct) {
       dailyCredits -= creditsToDeduct;
@@ -522,15 +523,15 @@ serve(async (req) => {
       const totalAvailable = dailyCredits + paidCredits;
       return new Response(
         JSON.stringify({ 
-          error: `Insufficient credits. PPT generation requires ${PPT_CREDIT_COST} credits. You have ${totalAvailable} credits remaining.`,
-          credits_required: PPT_CREDIT_COST,
+          error: `Insufficient credits. PPT generation requires ${creditsToDeduct} credits. You have ${totalAvailable} credits remaining.`,
+          credits_required: creditsToDeduct,
           credits_available: totalAvailable
         }),
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[CREDIT] PPT - Deducted ${PPT_CREDIT_COST} credits from: ${creditSource}`);
+    console.log(`[CREDIT] PPT - Deducted ${creditsToDeduct} credits from: ${creditSource}, images: ${include_images}`);
 
     // Select theme
     let selectedTheme: Theme;
@@ -661,20 +662,26 @@ GUIDELINES:
 
     console.log(`[PPT] Generated ${presentationData.slides?.length || 0} slides`);
 
-    // Generate images for select slides (max 3 to save time)
+    // Generate images for select slides (max 3) - only if enabled
     const slideImages: Map<number, string> = new Map();
-    const slidesWithImagePrompts = presentationData.slides
-      .map((s, i) => ({ index: i, prompt: s.imagePrompt }))
-      .filter(s => s.prompt)
-      .slice(0, 3);
+    
+    if (include_images) {
+      const slidesWithImagePrompts = presentationData.slides
+        .map((s, i) => ({ index: i, prompt: s.imagePrompt }))
+        .filter(s => s.prompt)
+        .slice(0, 3);
 
-    for (const { index, prompt } of slidesWithImagePrompts) {
-      if (prompt) {
-        const imageUrl = await generateSlideImage(prompt, selectedTheme, LOVABLE_API_KEY, supabaseClient, user.id);
-        if (imageUrl) {
-          slideImages.set(index, imageUrl);
+      for (const { index, prompt } of slidesWithImagePrompts) {
+        if (prompt) {
+          const imageUrl = await generateSlideImage(prompt, selectedTheme, LOVABLE_API_KEY, supabaseClient, user.id);
+          if (imageUrl) {
+            slideImages.set(index, imageUrl);
+          }
         }
       }
+      console.log(`[PPT] Generated ${slideImages.size} images`);
+    } else {
+      console.log(`[PPT] Image generation skipped (disabled by user)`);
     }
 
     // Create PowerPoint
@@ -752,7 +759,8 @@ GUIDELINES:
     return new Response(
       JSON.stringify({
         ppt_url: urlData.publicUrl,
-        credits_used: PPT_CREDIT_COST,
+        credits_used: creditsToDeduct,
+        images_enabled: include_images,
         theme_used: selectedTheme.name,
         slides_generated: presentationData.slides.length + (hasThankYou ? 0 : 1),
         images_generated: slideImages.size,
