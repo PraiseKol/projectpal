@@ -21,8 +21,10 @@ export interface ColumnConfig {
   included: boolean;
   sampleValues: any[];
   isGrouping?: boolean;
+  isSecondaryGrouping?: boolean;
   isDependentVariable?: boolean;
   isIndependentVariable?: boolean;
+  isCovariate?: boolean;
   isPre?: boolean;
   isPost?: boolean;
 }
