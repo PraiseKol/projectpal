@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ArrowLeft, Loader2, Lock, Info, Coins, Sparkles } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Loader2, Lock, Info, Coins, Sparkles, Settings2 } from "lucide-react";
 import type { ColumnConfig } from "@/pages/DataAnalysis";
 
 interface AnalysisSelectionStepProps {
@@ -17,6 +19,7 @@ interface AnalysisSelectionStepProps {
   onBack: () => void;
   onRunAnalysis: () => void;
   isAnalyzing: boolean;
+  onColumnsUpdate?: (columns: ColumnConfig[]) => void;
 }
 
 interface AnalysisMethod {
@@ -33,7 +36,7 @@ interface AnalysisMethod {
     minSampleSize?: number;
   };
   freeAccess: boolean;
-  needsConfig?: 'grouping' | 'dv' | 'iv' | 'paired';
+  needsConfig?: 'grouping' | 'dv' | 'iv' | 'paired' | 'twoway' | 'ancova' | 'chi';
 }
 
 const ANALYSIS_METHODS: AnalysisMethod[] = [
@@ -95,6 +98,16 @@ const ANALYSIS_METHODS: AnalysisMethod[] = [
     freeAccess: false,
     needsConfig: 'iv',
   },
+  {
+    id: 'regression_logistic',
+    name: 'Logistic Regression',
+    description: 'Predict binary outcomes (Yes/No, Pass/Fail)',
+    credits: 60,
+    category: 'relationship',
+    requirements: { minCategorical: 1, minNumeric: 1 },
+    freeAccess: false,
+    needsConfig: 'iv',
+  },
   
   // Comparison
   {
@@ -130,11 +143,32 @@ const ANALYSIS_METHODS: AnalysisMethod[] = [
   {
     id: 'anova_twoway',
     name: 'Two-Way ANOVA',
-    description: 'Compare means with two independent variables',
+    description: 'Compare means with two independent variables + interaction',
     credits: 60,
     category: 'comparison',
     requirements: { minCategorical: 2, minNumeric: 1 },
     freeAccess: false,
+    needsConfig: 'twoway',
+  },
+  {
+    id: 'ancova',
+    name: 'ANCOVA',
+    description: 'Compare groups while controlling for a covariate',
+    credits: 60,
+    category: 'comparison',
+    requirements: { minCategorical: 1, minNumeric: 2 },
+    freeAccess: false,
+    needsConfig: 'ancova',
+  },
+  {
+    id: 'chi_square',
+    name: 'Chi-Square Test',
+    description: 'Test independence between categorical variables',
+    credits: 30,
+    category: 'comparison',
+    requirements: { minCategorical: 2 },
+    freeAccess: false,
+    needsConfig: 'chi',
   },
   
   // Validation
@@ -165,25 +199,25 @@ export const AnalysisSelectionStep = ({
   onBack,
   onRunAnalysis,
   isAnalyzing,
+  onColumnsUpdate,
 }: AnalysisSelectionStepProps) => {
-  const [columnConfig, setColumnConfig] = useState<{
-    grouping?: number;
-    dv?: number;
-    ivs?: number[];
-    pre?: number;
-    post?: number;
-  }>({});
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [configType, setConfigType] = useState<string | null>(null);
+  const [configAnalysisId, setConfigAnalysisId] = useState<string | null>(null);
+
+  // Local column state for configuration
+  const [localColumns, setLocalColumns] = useState(columns);
 
   // Count column types
   const columnCounts = useMemo(() => {
-    const included = columns.filter(c => c.included);
+    const included = localColumns.filter(c => c.included);
     return {
       numeric: included.filter(c => c.type === 'numeric').length,
       likert: included.filter(c => c.type === 'likert').length,
       categorical: included.filter(c => c.type === 'categorical').length,
       total: included.length,
     };
-  }, [columns]);
+  }, [localColumns]);
 
   // Check if analysis is compatible
   const isCompatible = (method: AnalysisMethod): boolean => {
@@ -203,12 +237,81 @@ export const AnalysisSelectionStep = ({
     return isCompatible(method);
   };
 
+  // Check if analysis needs configuration
+  const needsConfiguration = (method: AnalysisMethod): boolean => {
+    return !!method.needsConfig;
+  };
+
+  // Check if configuration is complete
+  const isConfigured = (method: AnalysisMethod): boolean => {
+    if (!method.needsConfig) return true;
+    
+    switch (method.needsConfig) {
+      case 'grouping':
+        return localColumns.some(c => c.isGrouping) && localColumns.some(c => c.isDependentVariable);
+      case 'dv':
+        return localColumns.some(c => c.isDependentVariable);
+      case 'iv':
+        return localColumns.some(c => c.isDependentVariable) && localColumns.some(c => c.isIndependentVariable);
+      case 'paired':
+        return localColumns.some(c => c.isPre) && localColumns.some(c => c.isPost);
+      case 'twoway':
+        return localColumns.some(c => c.isGrouping) && localColumns.some(c => c.isSecondaryGrouping) && localColumns.some(c => c.isDependentVariable);
+      case 'ancova':
+        return localColumns.some(c => c.isGrouping) && localColumns.some(c => c.isCovariate) && localColumns.some(c => c.isDependentVariable);
+      case 'chi':
+        return localColumns.some(c => c.isGrouping) && localColumns.some(c => c.isSecondaryGrouping);
+      default:
+        return true;
+    }
+  };
+
+  // Open config dialog
+  const openConfigDialog = (method: AnalysisMethod) => {
+    setConfigType(method.needsConfig || null);
+    setConfigAnalysisId(method.id);
+    setConfigDialogOpen(true);
+  };
+
+  // Update column configuration
+  const updateColumnConfig = (index: number, field: string, value: boolean) => {
+    setLocalColumns(prev => prev.map((col, i) => {
+      if (i === index) {
+        return { ...col, [field]: value };
+      }
+      // For single-selection fields, clear others
+      if (value && ['isDependentVariable', 'isGrouping', 'isSecondaryGrouping', 'isCovariate', 'isPre', 'isPost'].includes(field)) {
+        if (field === 'isIndependentVariable') return col; // Allow multiple IVs
+        return { ...col, [field]: false };
+      }
+      return col;
+    }));
+  };
+
+  // Save configuration
+  const saveConfig = () => {
+    if (onColumnsUpdate) {
+      onColumnsUpdate(localColumns);
+    }
+    setConfigDialogOpen(false);
+    
+    // Auto-select the analysis if not already selected
+    if (configAnalysisId && !selectedAnalyses.includes(configAnalysisId)) {
+      onSelectionChange([...selectedAnalyses, configAnalysisId]);
+    }
+  };
+
   // Toggle analysis selection
-  const toggleAnalysis = (id: string) => {
+  const toggleAnalysis = (method: AnalysisMethod) => {
+    const id = method.id;
     if (selectedAnalyses.includes(id)) {
       onSelectionChange(selectedAnalyses.filter(a => a !== id));
     } else {
-      onSelectionChange([...selectedAnalyses, id]);
+      if (method.needsConfig && !isConfigured(method)) {
+        openConfigDialog(method);
+      } else {
+        onSelectionChange([...selectedAnalyses, id]);
+      }
     }
   };
 
@@ -236,6 +339,23 @@ export const AnalysisSelectionStep = ({
     });
     return groups;
   }, []);
+
+  // Get config dialog title
+  const getConfigTitle = (): string => {
+    switch (configType) {
+      case 'grouping': return 'Configure Grouping & Dependent Variable';
+      case 'iv': return 'Configure Variables for Regression';
+      case 'paired': return 'Configure Pre/Post Variables';
+      case 'twoway': return 'Configure Two-Way ANOVA Variables';
+      case 'ancova': return 'Configure ANCOVA Variables';
+      case 'chi': return 'Configure Chi-Square Variables';
+      default: return 'Configure Analysis';
+    }
+  };
+
+  // Helper functions for select components
+  const numericColumns = localColumns.filter(c => c.type === 'numeric' || c.type === 'likert');
+  const categoricalColumns = localColumns.filter(c => c.type === 'categorical');
 
   return (
     <div className="space-y-6">
@@ -279,6 +399,8 @@ export const AnalysisSelectionStep = ({
               const accessible = isAccessible(method);
               const selected = selectedAnalyses.includes(method.id);
               const locked = isFreeUser && !method.freeAccess;
+              const configured = isConfigured(method);
+              const hasConfig = needsConfiguration(method);
 
               return (
                 <div
@@ -290,13 +412,13 @@ export const AnalysisSelectionStep = ({
                       selected ? 'border-primary bg-primary/5' : 
                       'hover:border-primary/50 cursor-pointer'}
                   `}
-                  onClick={() => accessible && toggleAnalysis(method.id)}
+                  onClick={() => accessible && toggleAnalysis(method)}
                 >
                   <div className="flex items-start gap-3">
                     <Checkbox
                       checked={selected}
                       disabled={!accessible}
-                      onCheckedChange={() => accessible && toggleAnalysis(method.id)}
+                      onCheckedChange={() => accessible && toggleAnalysis(method)}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -316,6 +438,16 @@ export const AnalysisSelectionStep = ({
                             Free
                           </Badge>
                         )}
+                        {hasConfig && selected && configured && (
+                          <Badge variant="outline" className="text-xs text-green-600">
+                            Configured
+                          </Badge>
+                        )}
+                        {hasConfig && selected && !configured && (
+                          <Badge variant="outline" className="text-xs text-amber-600">
+                            Needs Setup
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">{method.description}</p>
                       
@@ -326,6 +458,19 @@ export const AnalysisSelectionStep = ({
                         </p>
                       )}
                     </div>
+                    
+                    {hasConfig && accessible && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openConfigDialog(method);
+                        }}
+                      >
+                        <Settings2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               );
@@ -341,7 +486,10 @@ export const AnalysisSelectionStep = ({
           Back
         </Button>
         <Button
-          onClick={onRunAnalysis}
+          onClick={() => {
+            if (onColumnsUpdate) onColumnsUpdate(localColumns);
+            onRunAnalysis();
+          }}
           disabled={selectedAnalyses.length === 0 || !hasEnoughCredits || isAnalyzing}
           className="gap-2"
         >
@@ -364,6 +512,207 @@ export const AnalysisSelectionStep = ({
           Insufficient credits. You need {finalCredits} credits but have {availableCredits}.
         </p>
       )}
+
+      {/* Configuration Dialog */}
+      <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{getConfigTitle()}</DialogTitle>
+            <DialogDescription>
+              Select the variables for this analysis
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {(configType === 'grouping' || configType === 'twoway' || configType === 'ancova' || configType === 'chi') && (
+              <div className="space-y-2">
+                <Label>Grouping Variable (Factor 1)</Label>
+                <Select
+                  value={localColumns.find(c => c.isGrouping)?.index.toString() || ''}
+                  onValueChange={(val) => {
+                    const idx = parseInt(val);
+                    setLocalColumns(prev => prev.map((col, i) => ({
+                      ...col,
+                      isGrouping: i === idx
+                    })));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select grouping variable" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoricalColumns.map(col => (
+                      <SelectItem key={col.index} value={col.index.toString()}>
+                        {col.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {(configType === 'twoway' || configType === 'chi') && (
+              <div className="space-y-2">
+                <Label>Second Grouping Variable (Factor 2)</Label>
+                <Select
+                  value={localColumns.find(c => c.isSecondaryGrouping)?.index.toString() || ''}
+                  onValueChange={(val) => {
+                    const idx = parseInt(val);
+                    setLocalColumns(prev => prev.map((col, i) => ({
+                      ...col,
+                      isSecondaryGrouping: i === idx
+                    })));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select second factor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoricalColumns.filter(c => !c.isGrouping).map(col => (
+                      <SelectItem key={col.index} value={col.index.toString()}>
+                        {col.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {(configType === 'grouping' || configType === 'iv' || configType === 'twoway' || configType === 'ancova') && (
+              <div className="space-y-2">
+                <Label>Dependent Variable (Outcome)</Label>
+                <Select
+                  value={localColumns.find(c => c.isDependentVariable)?.index.toString() || ''}
+                  onValueChange={(val) => {
+                    const idx = parseInt(val);
+                    setLocalColumns(prev => prev.map((col, i) => ({
+                      ...col,
+                      isDependentVariable: i === idx
+                    })));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select dependent variable" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {numericColumns.map(col => (
+                      <SelectItem key={col.index} value={col.index.toString()}>
+                        {col.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {configType === 'iv' && (
+              <div className="space-y-2">
+                <Label>Independent Variables (Predictors)</Label>
+                <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
+                  {numericColumns.filter(c => !c.isDependentVariable).map(col => (
+                    <div key={col.index} className="flex items-center gap-2">
+                      <Checkbox
+                        checked={col.isIndependentVariable || false}
+                        onCheckedChange={(checked) => updateColumnConfig(col.index, 'isIndependentVariable', !!checked)}
+                      />
+                      <span className="text-sm">{col.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {configType === 'ancova' && (
+              <div className="space-y-2">
+                <Label>Covariate (Control Variable)</Label>
+                <Select
+                  value={localColumns.find(c => c.isCovariate)?.index.toString() || ''}
+                  onValueChange={(val) => {
+                    const idx = parseInt(val);
+                    setLocalColumns(prev => prev.map((col, i) => ({
+                      ...col,
+                      isCovariate: i === idx
+                    })));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select covariate" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {numericColumns.filter(c => !c.isDependentVariable).map(col => (
+                      <SelectItem key={col.index} value={col.index.toString()}>
+                        {col.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {configType === 'paired' && (
+              <>
+                <div className="space-y-2">
+                  <Label>Pre-Test Variable</Label>
+                  <Select
+                    value={localColumns.find(c => c.isPre)?.index.toString() || ''}
+                    onValueChange={(val) => {
+                      const idx = parseInt(val);
+                      setLocalColumns(prev => prev.map((col, i) => ({
+                        ...col,
+                        isPre: i === idx
+                      })));
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select pre-test variable" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {numericColumns.map(col => (
+                        <SelectItem key={col.index} value={col.index.toString()}>
+                          {col.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Post-Test Variable</Label>
+                  <Select
+                    value={localColumns.find(c => c.isPost)?.index.toString() || ''}
+                    onValueChange={(val) => {
+                      const idx = parseInt(val);
+                      setLocalColumns(prev => prev.map((col, i) => ({
+                        ...col,
+                        isPost: i === idx
+                      })));
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select post-test variable" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {numericColumns.filter(c => !c.isPre).map(col => (
+                        <SelectItem key={col.index} value={col.index.toString()}>
+                          {col.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfigDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveConfig}>
+              Save & Select Analysis
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

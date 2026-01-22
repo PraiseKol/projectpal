@@ -534,10 +534,13 @@ const Pricing = () => {
                           { label: "Document Upload", value: plan.features.documents },
                           { label: "PowerPoint Generator", value: plan.features.ppt },
                           { label: "Advanced Paraphraser", value: plan.features.paraphraser },
+                          { label: "Data Analysis", value: plan.name === "Free" ? "1/month" : true },
                         ].map((feature) => (
                           <div key={feature.label} className="flex items-center justify-between text-sm">
                             <span>{feature.label}</span>
-                            {feature.value ? (
+                            {typeof feature.value === 'string' ? (
+                              <Badge variant="outline" className="text-xs">{feature.value}</Badge>
+                            ) : feature.value ? (
                               <Check className="h-4 w-4 text-secondary" />
                             ) : (
                               <X className="h-4 w-4 text-muted-foreground" />
@@ -709,6 +712,26 @@ const Pricing = () => {
                     <TableCell>Advanced Paraphraser</TableCell>
                     <TableCell className="text-center"><X className="h-4 w-4 text-muted-foreground mx-auto" /></TableCell>
                     <TableCell className="text-center"><X className="h-4 w-4 text-muted-foreground mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        Data Analysis Tool
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Info className="h-3 w-3 text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Upload survey data and run statistical analyses for Chapter 4</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center text-muted-foreground">1/month (Basic)</TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
                     <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
                   </TableRow>
 
