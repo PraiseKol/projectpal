@@ -9,13 +9,432 @@ const corsHeaders = {
 
 const PPT_CREDIT_COST = 6;
 
+// Theme definitions based on professional presentation styles
+interface Theme {
+  name: string;
+  primary: string;
+  secondary: string;
+  background: string;
+  headerBg: string;
+  text: string;
+  accent: string;
+  bulletColor: string;
+}
+
+const THEMES: Theme[] = [
+  {
+    name: "Academic Blue",
+    primary: "1A365D",
+    secondary: "F5A962",
+    background: "0F172A",
+    headerBg: "1E3A5F",
+    text: "FFFFFF",
+    accent: "F97316",
+    bulletColor: "F5A962"
+  },
+  {
+    name: "Professional Teal",
+    primary: "0D9488",
+    secondary: "14B8A6",
+    background: "042F2E",
+    headerBg: "115E59",
+    text: "FFFFFF",
+    accent: "2DD4BF",
+    bulletColor: "5EEAD4"
+  },
+  {
+    name: "Classic Red-Orange",
+    primary: "DC2626",
+    secondary: "F97316",
+    background: "7F1D1D",
+    headerBg: "991B1B",
+    text: "FFFFFF",
+    accent: "FCD34D",
+    bulletColor: "FBBF24"
+  },
+  {
+    name: "Warm Gradient",
+    primary: "92400E",
+    secondary: "F59E0B",
+    background: "FFFBEB",
+    headerBg: "F59E0B",
+    text: "1F2937",
+    accent: "7C3AED",
+    bulletColor: "D97706"
+  },
+  {
+    name: "Formal Green",
+    primary: "166534",
+    secondary: "F59E0B",
+    background: "F0FDF4",
+    headerBg: "166534",
+    text: "1F2937",
+    accent: "15803D",
+    bulletColor: "166534"
+  },
+  {
+    name: "Modern Purple",
+    primary: "7C3AED",
+    secondary: "A78BFA",
+    background: "1E1B4B",
+    headerBg: "4C1D95",
+    text: "FFFFFF",
+    accent: "C4B5FD",
+    bulletColor: "A78BFA"
+  }
+];
+
+interface SlideData {
+  type: "title" | "content" | "section" | "table" | "conclusion" | "references" | "thankyou";
+  title: string;
+  subtitle?: string;
+  bullets?: string[];
+  imagePrompt?: string;
+  tableData?: { headers: string[]; rows: string[][] };
+}
+
+interface PresentationData {
+  title: string;
+  author?: string;
+  institution?: string;
+  slides: SlideData[];
+}
+
+// Generate AI image for slides
+async function generateSlideImage(
+  prompt: string, 
+  theme: Theme, 
+  apiKey: string,
+  supabaseClient: any,
+  userId: string
+): Promise<string | null> {
+  try {
+    console.log('[IMAGE] Generating image for prompt:', prompt.substring(0, 50));
+    
+    const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-image-preview',
+        messages: [{
+          role: 'user',
+          content: `Create a professional, clean illustration for a presentation slide about: ${prompt}. 
+Style: Modern, minimalist, professional, suitable for academic presentations.
+Color scheme: Use shades of #${theme.primary} and #${theme.secondary}.
+No text in the image. High quality, clean vector-style illustration. Simple and elegant.`
+        }],
+        modalities: ['image', 'text']
+      }),
+    });
+
+    if (!imageResponse.ok) {
+      console.error('[IMAGE] Generation failed:', imageResponse.status);
+      return null;
+    }
+
+    const imageData = await imageResponse.json();
+    const base64Image = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    
+    if (base64Image && base64Image.includes('base64,')) {
+      const base64Data = base64Image.split(',')[1];
+      const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+      const imageBlob = new Blob([imageBuffer], { type: 'image/png' });
+      const imageName = `${userId}/ppt-images/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.png`;
+      
+      const { error: uploadError } = await supabaseClient.storage
+        .from('documents')
+        .upload(imageName, imageBlob, { contentType: 'image/png' });
+      
+      if (uploadError) {
+        console.error('[IMAGE] Upload failed:', uploadError);
+        return null;
+      }
+      
+      const { data: imgUrl } = supabaseClient.storage.from('documents').getPublicUrl(imageName);
+      console.log('[IMAGE] Generated and uploaded successfully');
+      return imgUrl.publicUrl;
+    }
+  } catch (e) {
+    console.error('[IMAGE] Generation error:', e);
+  }
+  return null;
+}
+
+// Build title slide
+function buildTitleSlide(pptx: PptxGenJS, data: SlideData, theme: Theme, presentationData: PresentationData) {
+  const slide = pptx.addSlide();
+  slide.background = { color: theme.background };
+  
+  // Add decorative header bar
+  slide.addShape(pptx.ShapeType.rect, { 
+    x: 0, y: 0, w: '100%', h: 0.8, 
+    fill: { color: theme.primary } 
+  });
+  
+  // Add accent line
+  slide.addShape(pptx.ShapeType.rect, { 
+    x: 0, y: 0.8, w: '100%', h: 0.05, 
+    fill: { color: theme.secondary } 
+  });
+  
+  // Main title
+  slide.addText(data.title || presentationData.title, {
+    x: 0.5, y: 2.2, w: 9, h: 1.2,
+    fontSize: 40, bold: true, color: theme.text, align: 'center',
+    fontFace: 'Arial'
+  });
+  
+  // Subtitle/Author
+  const subtitle = data.subtitle || presentationData.author || '';
+  if (subtitle) {
+    slide.addText(subtitle, {
+      x: 0.5, y: 3.5, w: 9, h: 0.6,
+      fontSize: 20, color: theme.accent, align: 'center',
+      fontFace: 'Arial'
+    });
+  }
+  
+  // Institution
+  if (presentationData.institution) {
+    slide.addText(presentationData.institution, {
+      x: 0.5, y: 4.2, w: 9, h: 0.5,
+      fontSize: 16, color: theme.secondary, align: 'center',
+      fontFace: 'Arial'
+    });
+  }
+  
+  // Bottom decorative element
+  slide.addShape(pptx.ShapeType.rect, { 
+    x: 3.5, y: 4.9, w: 3, h: 0.04, 
+    fill: { color: theme.secondary } 
+  });
+}
+
+// Build content slide with optional image
+function buildContentSlide(pptx: PptxGenJS, data: SlideData, theme: Theme, imageUrl?: string) {
+  const slide = pptx.addSlide();
+  slide.background = { color: theme.background };
+  
+  // Header bar with title
+  slide.addShape(pptx.ShapeType.rect, { 
+    x: 0, y: 0, w: '100%', h: 1, 
+    fill: { color: theme.headerBg } 
+  });
+  
+  // Accent line under header
+  slide.addShape(pptx.ShapeType.rect, { 
+    x: 0, y: 1, w: '100%', h: 0.03, 
+    fill: { color: theme.secondary } 
+  });
+  
+  slide.addText(data.title, {
+    x: 0.4, y: 0.25, w: 9.2, h: 0.6,
+    fontSize: 26, bold: true, color: 'FFFFFF',
+    fontFace: 'Arial'
+  });
+  
+  // Content area - adjust width if image present
+  const contentWidth = imageUrl ? 5.5 : 9;
+  const bullets = data.bullets || [];
+  
+  bullets.forEach((bullet, i) => {
+    if (i < 7) { // Max 7 bullets per slide
+      slide.addText(`• ${bullet}`, {
+        x: 0.5, y: 1.3 + (i * 0.65), w: contentWidth, h: 0.6,
+        fontSize: 15, color: theme.text,
+        fontFace: 'Arial',
+        valign: 'top'
+      });
+    }
+  });
+  
+  // Add image if available (right side)
+  if (imageUrl) {
+    try {
+      slide.addImage({
+        path: imageUrl,
+        x: 6.0, y: 1.3, w: 3.5, h: 3.5
+      });
+    } catch (e) {
+      console.error('Failed to add image to slide:', e);
+    }
+  }
+}
+
+// Build section header slide
+function buildSectionSlide(pptx: PptxGenJS, data: SlideData, theme: Theme) {
+  const slide = pptx.addSlide();
+  slide.background = { color: theme.primary };
+  
+  // Large centered title
+  slide.addText(data.title, {
+    x: 0.5, y: 2.3, w: 9, h: 1,
+    fontSize: 44, bold: true, color: 'FFFFFF', align: 'center',
+    fontFace: 'Arial'
+  });
+  
+  // Decorative line
+  slide.addShape(pptx.ShapeType.rect, { 
+    x: 3, y: 3.5, w: 4, h: 0.05, 
+    fill: { color: theme.secondary } 
+  });
+  
+  if (data.subtitle) {
+    slide.addText(data.subtitle, {
+      x: 0.5, y: 3.8, w: 9, h: 0.5,
+      fontSize: 18, color: theme.accent, align: 'center',
+      fontFace: 'Arial'
+    });
+  }
+}
+
+// Build table slide
+function buildTableSlide(pptx: PptxGenJS, data: SlideData, theme: Theme) {
+  const slide = pptx.addSlide();
+  slide.background = { color: theme.background };
+  
+  // Header
+  slide.addShape(pptx.ShapeType.rect, { 
+    x: 0, y: 0, w: '100%', h: 1, 
+    fill: { color: theme.headerBg } 
+  });
+  
+  slide.addText(data.title, {
+    x: 0.4, y: 0.25, w: 9.2, h: 0.6,
+    fontSize: 26, bold: true, color: 'FFFFFF',
+    fontFace: 'Arial'
+  });
+  
+  if (data.tableData && data.tableData.headers && data.tableData.rows) {
+    const tableRows: any[] = [];
+    
+    // Header row
+    tableRows.push(data.tableData.headers.map(h => ({
+      text: h, options: { bold: true, fill: { color: theme.primary }, color: 'FFFFFF', fontSize: 12 }
+    })));
+    
+    // Data rows
+    data.tableData.rows.forEach((row, i) => {
+      tableRows.push(row.map(cell => ({
+        text: cell, options: { fill: { color: i % 2 === 0 ? 'F3F4F6' : 'FFFFFF' }, color: '374151', fontSize: 11 }
+      })));
+    });
+    
+    slide.addTable(tableRows, {
+      x: 0.5, y: 1.3, w: 9,
+      border: { pt: 0.5, color: 'E5E7EB' },
+      fontFace: 'Arial'
+    });
+  }
+}
+
+// Build conclusion slide
+function buildConclusionSlide(pptx: PptxGenJS, data: SlideData, theme: Theme) {
+  const slide = pptx.addSlide();
+  slide.background = { color: theme.background };
+  
+  // Header with different style for conclusion
+  slide.addShape(pptx.ShapeType.rect, { 
+    x: 0, y: 0, w: '100%', h: 1.2, 
+    fill: { color: theme.primary } 
+  });
+  
+  slide.addText(data.title, {
+    x: 0.4, y: 0.35, w: 9.2, h: 0.6,
+    fontSize: 28, bold: true, color: 'FFFFFF',
+    fontFace: 'Arial'
+  });
+  
+  const bullets = data.bullets || [];
+  bullets.forEach((bullet, i) => {
+    if (i < 6) {
+      slide.addText(`✓ ${bullet}`, {
+        x: 0.5, y: 1.5 + (i * 0.7), w: 9, h: 0.6,
+        fontSize: 16, color: theme.text,
+        fontFace: 'Arial'
+      });
+    }
+  });
+}
+
+// Build references slide
+function buildReferencesSlide(pptx: PptxGenJS, data: SlideData, theme: Theme) {
+  const slide = pptx.addSlide();
+  slide.background = { color: theme.background };
+  
+  slide.addShape(pptx.ShapeType.rect, { 
+    x: 0, y: 0, w: '100%', h: 1, 
+    fill: { color: theme.headerBg } 
+  });
+  
+  slide.addText("References", {
+    x: 0.4, y: 0.25, w: 9.2, h: 0.6,
+    fontSize: 26, bold: true, color: 'FFFFFF',
+    fontFace: 'Arial'
+  });
+  
+  const refs = data.bullets || [];
+  refs.forEach((ref, i) => {
+    if (i < 8) {
+      slide.addText(`[${i + 1}] ${ref}`, {
+        x: 0.5, y: 1.3 + (i * 0.55), w: 9, h: 0.5,
+        fontSize: 12, color: theme.text,
+        fontFace: 'Arial'
+      });
+    }
+  });
+}
+
+// Build thank you slide
+function buildThankYouSlide(pptx: PptxGenJS, theme: Theme, author?: string, institution?: string) {
+  const slide = pptx.addSlide();
+  slide.background = { color: theme.primary };
+  
+  slide.addText("Thank You!", {
+    x: 0.5, y: 1.8, w: 9, h: 1.2,
+    fontSize: 52, bold: true, color: 'FFFFFF', align: 'center',
+    fontFace: 'Arial'
+  });
+  
+  slide.addText("Questions & Discussion", {
+    x: 0.5, y: 3.2, w: 9, h: 0.6,
+    fontSize: 22, color: theme.secondary, align: 'center',
+    fontFace: 'Arial'
+  });
+  
+  // Decorative line
+  slide.addShape(pptx.ShapeType.rect, { 
+    x: 3.5, y: 4, w: 3, h: 0.04, 
+    fill: { color: theme.secondary } 
+  });
+  
+  if (author) {
+    slide.addText(author, {
+      x: 0.5, y: 4.3, w: 9, h: 0.5,
+      fontSize: 16, color: 'FFFFFF', align: 'center',
+      fontFace: 'Arial'
+    });
+  }
+  
+  if (institution) {
+    slide.addText(institution, {
+      x: 0.5, y: 4.8, w: 9, h: 0.4,
+      fontSize: 14, color: theme.accent, align: 'center',
+      fontFace: 'Arial'
+    });
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { document_url } = await req.json();
+    const { document_url, theme: requestedTheme } = await req.json();
     
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -58,20 +477,12 @@ serve(async (req) => {
 
     // Check if subscription has expired
     const paidCreditsExpired = creditsExpiryDate ? new Date(creditsExpiryDate) < new Date() : true;
-    
-    // Check if user has an active subscription
     const isActiveSubscriber = !paidCreditsExpired;
 
-    // Enhanced logging - before state
     console.log(`[CREDIT] PPT - User: ${user.id}, Plan: ${profile.plan_type}`);
     console.log(`[CREDIT] Before - Daily: ${profile.daily_credits}, Paid: ${profile.paid_credits}`);
-    console.log(`[CREDIT] Daily Reset Date: ${profile.daily_reset_date}, Today: ${today}, Needs Reset: ${needsDailyReset}`);
-    console.log(`[CREDIT] Expiry: ${creditsExpiryDate}, Expired: ${paidCreditsExpired}, Active: ${isActiveSubscriber}`);
-    console.log(`[CREDIT] PPT requires ${PPT_CREDIT_COST} credits`);
 
-    // If subscription expired, deny access to Scholar features
     if (!isActiveSubscriber) {
-      console.log(`[CREDIT] Subscription expired - denying access to PPT generator`);
       return new Response(
         JSON.stringify({ 
           error: 'Your Scholar subscription has expired. Please renew to access the PPT generator feature.',
@@ -81,28 +492,20 @@ serve(async (req) => {
       );
     }
 
-    // Reset daily credits if needed (active subscribers get 8 fresh daily credits)
     if (needsDailyReset) {
       dailyCredits = 8;
-      console.log(`[CREDIT] Daily credits reset to 8`);
     }
 
-    // Credit deduction logic for PPT (6 credits)
-    // 1. Use daily credits first
-    // 2. Split between daily and paid if needed
-    // 3. Use paid credits if daily is insufficient
-    
+    // Credit deduction logic
     let canProceed = false;
     let creditSource = '';
-    let creditsToDeduct = PPT_CREDIT_COST;
+    const creditsToDeduct = PPT_CREDIT_COST;
 
     if (dailyCredits >= creditsToDeduct) {
-      // Enough daily credits
       dailyCredits -= creditsToDeduct;
       canProceed = true;
       creditSource = 'daily';
     } else if (dailyCredits > 0 && (dailyCredits + paidCredits) >= creditsToDeduct) {
-      // Split between daily and paid credits
       const fromDaily = dailyCredits;
       const fromPaid = creditsToDeduct - dailyCredits;
       dailyCredits = 0;
@@ -110,7 +513,6 @@ serve(async (req) => {
       canProceed = true;
       creditSource = `daily (${fromDaily}) + paid (${fromPaid})`;
     } else if (paidCredits >= creditsToDeduct) {
-      // Use paid credits only
       paidCredits -= creditsToDeduct;
       canProceed = true;
       creditSource = 'paid';
@@ -118,7 +520,6 @@ serve(async (req) => {
 
     if (!canProceed) {
       const totalAvailable = dailyCredits + paidCredits;
-      console.log(`[CREDIT] Insufficient credits for PPT: need ${PPT_CREDIT_COST}, have ${totalAvailable}`);
       return new Response(
         JSON.stringify({ 
           error: `Insufficient credits. PPT generation requires ${PPT_CREDIT_COST} credits. You have ${totalAvailable} credits remaining.`,
@@ -129,15 +530,88 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[CREDIT] PPT - Deducted ${PPT_CREDIT_COST} credits from: ${creditSource}. After - Daily: ${dailyCredits}, Paid: ${paidCredits}`);
+    console.log(`[CREDIT] PPT - Deducted ${PPT_CREDIT_COST} credits from: ${creditSource}`);
 
+    // Select theme
+    let selectedTheme: Theme;
+    if (requestedTheme && requestedTheme !== 'random') {
+      const themeMap: Record<string, number> = {
+        'academic-blue': 0,
+        'professional-teal': 1,
+        'classic-red': 2,
+        'warm-gradient': 3,
+        'formal-green': 4,
+        'modern-purple': 5
+      };
+      selectedTheme = THEMES[themeMap[requestedTheme] ?? Math.floor(Math.random() * THEMES.length)];
+    } else {
+      selectedTheme = THEMES[Math.floor(Math.random() * THEMES.length)];
+    }
+    console.log(`[PPT] Selected theme: ${selectedTheme.name}`);
+
+    // Fetch document content
     const docResponse = await fetch(document_url);
     const docText = await docResponse.text();
+    const docContent = docText.substring(0, 30000); // Increased limit
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY not configured');
     }
+
+    // Enhanced AI prompt for comprehensive academic presentation
+    const systemPrompt = `You are an expert academic presentation designer. Analyze research documents and create comprehensive, professional PowerPoint structures.
+
+Return a JSON with this EXACT structure (no markdown, just pure JSON):
+{
+  "title": "Full Presentation Title",
+  "author": "Author name if found in document",
+  "institution": "University/Institution if found",
+  "slides": [
+    {
+      "type": "title",
+      "title": "Presentation Title",
+      "subtitle": "Author Name"
+    },
+    {
+      "type": "content",
+      "title": "Slide Title",
+      "bullets": ["Point 1 with detail", "Point 2 with detail", "Point 3"],
+      "imagePrompt": "Brief description for illustration (optional)"
+    }
+  ]
+}
+
+SLIDE TYPES:
+- "title" - Opening slide with title and author
+- "section" - Section header (use for major topic transitions)
+- "content" - Regular content with bullets
+- "table" - For data comparison (include tableData: {headers: [...], rows: [[...]]})
+- "conclusion" - Summary points
+- "references" - Citation list
+- "thankyou" - Final slide
+
+REQUIRED STRUCTURE (include ALL that apply based on document):
+1. Title Slide (type: "title") - Extract title, author, institution from document
+2. Introduction/Overview (type: "content") - Context and background
+3. Problem Statement & Objectives (type: "content") - Research problem and goals
+4. Literature Review (type: "content") - Key theories, previous research
+5. Methodology (type: "content") - Research design, methods used
+6. System Design/Implementation (type: "content") - For technical projects
+7. Results/Findings (type: "content" or "table") - Key data and discoveries
+8. Discussion (type: "content") - Interpretation of results
+9. Conclusion (type: "conclusion") - Key takeaways
+10. Future Work/Recommendations (type: "content")
+11. References (type: "references") - Key citations
+12. Thank You (type: "thankyou")
+
+GUIDELINES:
+- Create 10-15 slides for comprehensive coverage
+- Each content slide should have 4-6 detailed bullet points
+- Extract ACTUAL data, statistics, and specific findings from the document
+- Include imagePrompt for 2-3 key slides (methodology, results, system design)
+- Make content substantive and specific, not generic
+- For tables, extract real data from the document when available`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -148,22 +622,10 @@ serve(async (req) => {
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          {
-            role: 'system',
-            content: 'You are an assistant that creates PowerPoint presentations. Return a JSON structure with title and slides array. Each slide has a title and bullets array.',
-          },
+          { role: 'system', content: systemPrompt },
           { 
             role: 'user', 
-            content: `Analyze this document and create a PowerPoint presentation structure in JSON format:
-{
-  "title": "Presentation Title",
-  "slides": [
-    { "title": "Introduction", "bullets": ["Point 1", "Point 2", "Point 3"] },
-    { "title": "Main Topic", "bullets": ["Key insight 1", "Key insight 2"] }
-  ]
-}
-
-Create 5-8 slides maximum. Document:\n\n${docText.substring(0, 10000)}` 
+            content: `Analyze this document thoroughly and create a comprehensive academic presentation structure. Extract all key information including actual data, findings, and citations.\n\nDOCUMENT:\n${docContent}${docText.length > 30000 ? '\n\n[Document truncated - extract all key points from visible content]' : ''}` 
           },
         ],
       }),
@@ -178,8 +640,8 @@ Create 5-8 slides maximum. Document:\n\n${docText.substring(0, 10000)}`
     const aiData = await aiResponse.json();
     const outline = aiData.choices[0].message.content;
 
-    // Parse AI response to extract JSON
-    let presentationData;
+    // Parse AI response
+    let presentationData: PresentationData;
     try {
       const jsonMatch = outline.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -188,74 +650,73 @@ Create 5-8 slides maximum. Document:\n\n${docText.substring(0, 10000)}`
         presentationData = JSON.parse(outline);
       }
     } catch (e) {
-      console.error('Failed to parse AI response as JSON:', e);
+      console.error('Failed to parse AI response:', e);
       presentationData = {
         title: "Generated Presentation",
         slides: [
-          { title: "Overview", bullets: outline.split('\n').filter((l: string) => l.trim()).slice(0, 5) }
+          { type: "content", title: "Overview", bullets: outline.split('\n').filter((l: string) => l.trim()).slice(0, 5) }
         ]
       };
     }
 
-    // Create PowerPoint using pptxgenjs
+    console.log(`[PPT] Generated ${presentationData.slides?.length || 0} slides`);
+
+    // Generate images for select slides (max 3 to save time)
+    const slideImages: Map<number, string> = new Map();
+    const slidesWithImagePrompts = presentationData.slides
+      .map((s, i) => ({ index: i, prompt: s.imagePrompt }))
+      .filter(s => s.prompt)
+      .slice(0, 3);
+
+    for (const { index, prompt } of slidesWithImagePrompts) {
+      if (prompt) {
+        const imageUrl = await generateSlideImage(prompt, selectedTheme, LOVABLE_API_KEY, supabaseClient, user.id);
+        if (imageUrl) {
+          slideImages.set(index, imageUrl);
+        }
+      }
+    }
+
+    // Create PowerPoint
     const pptx = new PptxGenJS();
     pptx.title = presentationData.title;
-    pptx.author = "ScholarAI Hub";
-    pptx.subject = "AI Generated Presentation";
+    pptx.author = presentationData.author || "ScholarAI Hub";
+    pptx.subject = "AI Generated Academic Presentation";
 
-    // Add title slide
-    const titleSlide = pptx.addSlide();
-    titleSlide.background = { color: "FFFFFF" };
-    titleSlide.addText(presentationData.title, {
-      x: 0.5,
-      y: 2.0,
-      w: 9.0,
-      h: 1.5,
-      fontSize: 36,
-      bold: true,
-      color: "363636",
-      align: "center"
-    });
-    titleSlide.addText("Generated by ScholarAI Hub", {
-      x: 0.5,
-      y: 3.5,
-      w: 9.0,
-      h: 0.5,
-      fontSize: 14,
-      color: "666666",
-      align: "center"
-    });
+    // Build slides based on type
+    for (let i = 0; i < presentationData.slides.length; i++) {
+      const slideData = presentationData.slides[i];
+      const imageUrl = slideImages.get(i);
 
-    // Add content slides
-    presentationData.slides.forEach((slideData: any) => {
-      const slide = pptx.addSlide();
-      slide.background = { color: "FFFFFF" };
-      
-      // Add slide title
-      slide.addText(slideData.title, {
-        x: 0.5,
-        y: 0.5,
-        w: 9.0,
-        h: 0.75,
-        fontSize: 28,
-        bold: true,
-        color: "363636"
-      });
+      switch (slideData.type) {
+        case 'title':
+          buildTitleSlide(pptx, slideData, selectedTheme, presentationData);
+          break;
+        case 'section':
+          buildSectionSlide(pptx, slideData, selectedTheme);
+          break;
+        case 'table':
+          buildTableSlide(pptx, slideData, selectedTheme);
+          break;
+        case 'conclusion':
+          buildConclusionSlide(pptx, slideData, selectedTheme);
+          break;
+        case 'references':
+          buildReferencesSlide(pptx, slideData, selectedTheme);
+          break;
+        case 'thankyou':
+          buildThankYouSlide(pptx, selectedTheme, presentationData.author, presentationData.institution);
+          break;
+        default:
+          buildContentSlide(pptx, slideData, selectedTheme, imageUrl);
+      }
+    }
 
-      // Add bullet points
-      const bullets = Array.isArray(slideData.bullets) ? slideData.bullets : [];
-      bullets.forEach((bullet: string, i: number) => {
-        slide.addText(bullet, {
-          x: 0.75,
-          y: 1.5 + (i * 0.6),
-          w: 8.5,
-          h: 0.5,
-          fontSize: 16,
-          color: "444444",
-          bullet: true
-        });
-      });
-    });
+    // Add Thank You slide if not present
+    const hasThankYou = presentationData.slides.some(s => s.type === 'thankyou');
+    if (!hasThankYou) {
+      buildThankYouSlide(pptx, selectedTheme, presentationData.author, presentationData.institution);
+    }
 
     // Generate PPTX file
     const pptxData = await pptx.write({ outputType: "base64" });
@@ -279,7 +740,7 @@ Create 5-8 slides maximum. Document:\n\n${docText.substring(0, 10000)}`
       .getPublicUrl(fileName);
 
     // Update credits
-    const { error: updateError } = await supabaseClient
+    await supabaseClient
       .from('profiles')
       .update({
         daily_credits: dailyCredits,
@@ -288,14 +749,13 @@ Create 5-8 slides maximum. Document:\n\n${docText.substring(0, 10000)}`
       })
       .eq('id', user.id);
 
-    if (updateError) {
-      console.error('Error updating credits:', updateError);
-    }
-
     return new Response(
       JSON.stringify({
         ppt_url: urlData.publicUrl,
         credits_used: PPT_CREDIT_COST,
+        theme_used: selectedTheme.name,
+        slides_generated: presentationData.slides.length + (hasThankYou ? 0 : 1),
+        images_generated: slideImages.size,
         profile: {
           daily_credits: dailyCredits,
           paid_credits: paidCredits,

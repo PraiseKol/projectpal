@@ -4,8 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Upload, Loader2, FileText, Download, Eye } from "lucide-react";
+import { ArrowLeft, Upload, Loader2, FileText, Download, Eye, Palette } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -19,6 +26,7 @@ const Documents = () => {
   const [uploadedDocUrl, setUploadedDocUrl] = useState("");
   const [generatedPptUrl, setGeneratedPptUrl] = useState("");
   const [showViewer, setShowViewer] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState("random");
 
   useEffect(() => {
     checkUserPlan();
@@ -131,7 +139,7 @@ const Documents = () => {
     setIsGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-ppt", {
-        body: { document_url: uploadedDocUrl },
+        body: { document_url: uploadedDocUrl, theme: selectedTheme },
       });
 
       if (error) throw error;
@@ -220,23 +228,42 @@ const Documents = () => {
             {uploadedDocUrl && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Generate Presentation</h2>
-                <Button
-                  onClick={handleGeneratePPT}
-                  disabled={isGenerating}
-                  className="w-full"
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating PowerPoint...
-                    </>
-                  ) : (
-                    <>
-                      <FileText className="mr-2 h-4 w-4" />
-                      Generate PowerPoint
-                    </>
-                  )}
-                </Button>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Palette className="h-5 w-5 text-muted-foreground" />
+                    <Select value={selectedTheme} onValueChange={setSelectedTheme}>
+                      <SelectTrigger className="w-52">
+                        <SelectValue placeholder="Select Theme" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="random">🎲 Random Theme</SelectItem>
+                        <SelectItem value="academic-blue">📘 Academic Blue</SelectItem>
+                        <SelectItem value="professional-teal">🌊 Professional Teal</SelectItem>
+                        <SelectItem value="classic-red">🔴 Classic Red-Orange</SelectItem>
+                        <SelectItem value="warm-gradient">☀️ Warm Gradient</SelectItem>
+                        <SelectItem value="formal-green">🌿 Formal Green</SelectItem>
+                        <SelectItem value="modern-purple">💜 Modern Purple</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={handleGeneratePPT}
+                    disabled={isGenerating}
+                    className="w-full"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating PowerPoint...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Generate PowerPoint
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             )}
 
