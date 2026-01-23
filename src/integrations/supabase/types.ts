@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action_type: string
+          admin_user_id: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          target_user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          admin_user_id: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          target_user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          admin_user_id?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       analysis_sessions: {
         Row: {
           analyses_run: Json | null
@@ -214,6 +241,7 @@ export type Database = {
           monthly_credits: number
           paid_credits: number
           plan_type: Database["public"]["Enums"]["plan_type"]
+          status: string | null
           updated_at: string
         }
         Insert: {
@@ -230,6 +258,7 @@ export type Database = {
           monthly_credits?: number
           paid_credits?: number
           plan_type?: Database["public"]["Enums"]["plan_type"]
+          status?: string | null
           updated_at?: string
         }
         Update: {
@@ -246,6 +275,7 @@ export type Database = {
           monthly_credits?: number
           paid_credits?: number
           plan_type?: Database["public"]["Enums"]["plan_type"]
+          status?: string | null
           updated_at?: string
         }
         Relationships: []
