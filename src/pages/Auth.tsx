@@ -27,7 +27,9 @@ const Auth = () => {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [referralCode, setReferralCode] = useState(searchParams.get("ref") || "");
+  const [referralCode, setReferralCode] = useState(searchParams.get("ref")?.toUpperCase() || "");
+  const [isValidatingCode, setIsValidatingCode] = useState(false);
+  const [codeValidation, setCodeValidation] = useState<'valid' | 'invalid' | null>(null);
   const [resetEmail, setResetEmail] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -122,6 +124,42 @@ const Auth = () => {
       setIsResending(false);
     }
   };
+
+  // Validate referral code
+  const validateReferralCode = async (code: string) => {
+    if (!code.trim()) {
+      setCodeValidation(null);
+      return;
+    }
+    
+    setIsValidatingCode(true);
+    try {
+      const { data, error } = await supabase
+        .from("referral_codes")
+        .select("id")
+        .eq("code", code.toUpperCase())
+        .eq("is_active", true)
+        .maybeSingle();
+      
+      setCodeValidation(data ? 'valid' : 'invalid');
+    } catch (error) {
+      setCodeValidation(null);
+    } finally {
+      setIsValidatingCode(false);
+    }
+  };
+
+  // Debounced validation on referral code change
+  useEffect(() => {
+    if (!referralCode) {
+      setCodeValidation(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      validateReferralCode(referralCode);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [referralCode]);
 
   const handleBackToSignUp = () => {
     setPendingVerification(false);
@@ -635,6 +673,50 @@ const Auth = () => {
                     </p>
                   )}
                   <PasswordStrengthIndicator />
+                </div>
+
+                {/* Referral Code Field */}
+                <div className="space-y-2">
+                  <Label htmlFor="signup-referral" className="flex items-center gap-2">
+                    <Gift className="h-4 w-4 text-primary" />
+                    Referral Code (Optional)
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="signup-referral"
+                      type="text"
+                      placeholder="Enter referral code"
+                      value={referralCode}
+                      onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                      className={`rounded-xl pr-10 ${
+                        codeValidation === 'valid' ? 'border-green-500 focus-visible:ring-green-500' : 
+                        codeValidation === 'invalid' ? 'border-destructive focus-visible:ring-destructive' : ''
+                      }`}
+                      maxLength={12}
+                    />
+                    {isValidatingCode && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                    {!isValidatingCode && codeValidation === 'valid' && (
+                      <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                    )}
+                    {!isValidatingCode && codeValidation === 'invalid' && (
+                      <XCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-destructive" />
+                    )}
+                  </div>
+                  {codeValidation === 'invalid' && (
+                    <p className="text-xs text-destructive">Invalid or inactive referral code</p>
+                  )}
+                  {codeValidation === 'valid' && (
+                    <p className="text-xs text-green-600">Valid referral code!</p>
+                  )}
+                  {!codeValidation && (
+                    <p className="text-xs text-muted-foreground">
+                      Have a referral code? Enter it to support your referrer
+                    </p>
+                  )}
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading} variant="gradient">
                   {isLoading ? "Creating account..." : "Create Account"}
