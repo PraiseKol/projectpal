@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ArrowLeft, Copy, Users, Coins, Wallet, TrendingUp, CheckCircle2, Clock, ExternalLink } from "lucide-react";
+import { ArrowLeft, Copy, Users, Coins, Wallet, TrendingUp, CheckCircle2, Clock, ExternalLink, Percent, CalendarDays, DollarSign } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 interface ReferralCode {
   id: string;
@@ -39,6 +40,7 @@ interface Commission {
   commission_amount: number;
   status: string;
   created_at: string;
+  referred_user_name?: string;
 }
 
 interface Payout {
@@ -50,6 +52,13 @@ interface Payout {
   admin_notes: string | null;
 }
 
+interface MonthlyEarning {
+  month: string;
+  earnings: number;
+  pending: number;
+  paid: number;
+}
+
 interface Stats {
   totalReferrals: number;
   subscribedReferrals: number;
@@ -57,6 +66,12 @@ interface Stats {
   claimedCommission: number;
   paidCommission: number;
   totalEarnings: number;
+  conversionRate: number;
+  averageCommission: number;
+  thisMonthEarnings: number;
+  totalTransactionValue: number;
+  commissionCount: number;
+  monthlyEarnings: MonthlyEarning[];
 }
 
 const Ambassador = () => {
@@ -249,7 +264,7 @@ const Ambassador = () => {
         </Card>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <Card className="shadow-md rounded-2xl">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -257,7 +272,7 @@ const Ambassador = () => {
                   <p className="text-sm text-muted-foreground">Total Referrals</p>
                   <p className="text-3xl font-bold">{stats?.totalReferrals || 0}</p>
                 </div>
-                <Users className="h-10 w-10 text-primary opacity-50" />
+                <Users className="h-8 w-8 text-primary opacity-50" />
               </div>
             </CardContent>
           </Card>
@@ -266,10 +281,10 @@ const Ambassador = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Subscribed Users</p>
+                  <p className="text-sm text-muted-foreground">Subscribed</p>
                   <p className="text-3xl font-bold">{stats?.subscribedReferrals || 0}</p>
                 </div>
-                <TrendingUp className="h-10 w-10 text-green-500 opacity-50" />
+                <TrendingUp className="h-8 w-8 text-green-500 opacity-50" />
               </div>
             </CardContent>
           </Card>
@@ -278,10 +293,34 @@ const Ambassador = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Pending Commission</p>
+                  <p className="text-sm text-muted-foreground">Conversion Rate</p>
+                  <p className="text-3xl font-bold">{(stats?.conversionRate || 0).toFixed(1)}%</p>
+                </div>
+                <Percent className="h-8 w-8 text-blue-500 opacity-50" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-md rounded-2xl">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">This Month</p>
+                  <p className="text-3xl font-bold">₦{(stats?.thisMonthEarnings || 0).toLocaleString()}</p>
+                </div>
+                <CalendarDays className="h-8 w-8 text-purple-500 opacity-50" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-md rounded-2xl">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Pending</p>
                   <p className="text-3xl font-bold">₦{(stats?.pendingCommission || 0).toLocaleString()}</p>
                 </div>
-                <Clock className="h-10 w-10 text-yellow-500 opacity-50" />
+                <Clock className="h-8 w-8 text-yellow-500 opacity-50" />
               </div>
             </CardContent>
           </Card>
@@ -293,7 +332,89 @@ const Ambassador = () => {
                   <p className="text-sm text-muted-foreground">Total Earnings</p>
                   <p className="text-3xl font-bold">₦{(stats?.totalEarnings || 0).toLocaleString()}</p>
                 </div>
-                <Coins className="h-10 w-10 text-primary opacity-50" />
+                <Coins className="h-8 w-8 text-primary opacity-50" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Monthly Earnings Chart & Performance Summary */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Card className="shadow-md rounded-2xl lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Monthly Earnings
+              </CardTitle>
+              <CardDescription>Your commission earnings over the last 6 months</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {stats?.monthlyEarnings && stats.monthlyEarnings.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={stats.monthlyEarnings}>
+                    <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis 
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      tickFormatter={(value) => `₦${value.toLocaleString()}`}
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => [`₦${value.toLocaleString()}`, 'Earnings']}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--background))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Bar dataKey="earnings" radius={[4, 4, 0, 0]}>
+                      {stats.monthlyEarnings.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.earnings > 0 ? 'hsl(var(--primary))' : 'hsl(var(--muted))'}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                  No earnings data yet
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-md rounded-2xl bg-gradient-to-br from-primary/5 to-secondary/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Lifetime Performance
+              </CardTitle>
+              <CardDescription>Your overall ambassador impact</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-muted-foreground">Users Referred</span>
+                <span className="font-bold">{stats?.totalReferrals || 0}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-muted-foreground">Subscriptions Generated</span>
+                <span className="font-bold">{stats?.subscribedReferrals || 0}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-muted-foreground">Total Transactions</span>
+                <span className="font-bold">{stats?.commissionCount || 0}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-muted-foreground">Transaction Value</span>
+                <span className="font-bold">₦{(stats?.totalTransactionValue || 0).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-muted-foreground">Avg. Commission</span>
+                <span className="font-bold">₦{(stats?.averageCommission || 0).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 pt-4 bg-primary/10 -mx-6 px-6 rounded-lg">
+                <span className="font-semibold">Your Earnings (5%)</span>
+                <span className="font-bold text-lg text-primary">₦{(stats?.totalEarnings || 0).toLocaleString()}</span>
               </div>
             </CardContent>
           </Card>
@@ -410,6 +531,7 @@ const Ambassador = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
+                    <TableHead>Referred User</TableHead>
                     <TableHead>Transaction Amount</TableHead>
                     <TableHead>Commission (5%)</TableHead>
                     <TableHead>Status</TableHead>
@@ -420,6 +542,7 @@ const Ambassador = () => {
                     commissions.map((commission) => (
                       <TableRow key={commission.id}>
                         <TableCell>{new Date(commission.created_at).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-muted-foreground">{commission.referred_user_name || "User"}</TableCell>
                         <TableCell>₦{commission.transaction_amount.toLocaleString()}</TableCell>
                         <TableCell className="font-semibold">₦{commission.commission_amount.toLocaleString()}</TableCell>
                         <TableCell>{getStatusBadge(commission.status)}</TableCell>
@@ -427,7 +550,7 @@ const Ambassador = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                         No commissions yet. Commissions are earned when your referrals subscribe.
                       </TableCell>
                     </TableRow>
