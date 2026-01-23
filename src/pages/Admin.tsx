@@ -6,9 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Users, CreditCard, TrendingUp } from "lucide-react";
+import { ArrowLeft, LayoutDashboard, Users, CreditCard, Activity, Shield, Settings, History } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatsOverview } from "@/components/Admin/StatsOverview";
+import { AdminCharts } from "@/components/Admin/AdminCharts";
+import { UserManagement } from "@/components/Admin/UserManagement";
+import { ActivityMonitor } from "@/components/Admin/ActivityMonitor";
+import { RoleManagement } from "@/components/Admin/RoleManagement";
+import { AppSettings } from "@/components/Admin/AppSettings";
+import { AuditLog } from "@/components/Admin/AuditLog";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -16,6 +23,11 @@ const Admin = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [emailMap, setEmailMap] = useState<Record<string, string>>({});
+  const [activityStats, setActivityStats] = useState<any>(null);
+  const [recentActivity, setRecentActivity] = useState<any>(null);
+  const [userGrowthData, setUserGrowthData] = useState<any[]>([]);
+  const [revenueData, setRevenueData] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalUsers: 0,
     freeUsers: 0,
@@ -38,7 +50,6 @@ const Admin = () => {
         return;
       }
 
-      // Check if user is admin
       const { data: roleData, error: roleError } = await supabase
         .from("user_roles")
         .select("role")
@@ -63,9 +74,17 @@ const Admin = () => {
     }
   };
 
+  const callAdminOperation = async (action: string, params: Record<string, any> = {}) => {
+    const response = await supabase.functions.invoke("admin-operations", {
+      body: { action, ...params },
+    });
+    if (response.error) throw response.error;
+    return response.data;
+  };
+
   const loadAdminData = async () => {
     try {
-      // Load all users with their profiles
+      // Load profiles
       const { data: usersData, error: usersError } = await supabase
         .from("profiles")
         .select("*")
@@ -74,7 +93,7 @@ const Admin = () => {
       if (usersError) throw usersError;
       setUsers(usersData || []);
 
-      // Load all transactions
+      // Load transactions
       const { data: transactionsData, error: transactionsError } = await supabase
         .from("transactions")
         .select("*")
@@ -97,6 +116,25 @@ const Admin = () => {
         totalRevenue,
         totalTransactions: transactionsData?.length || 0
       });
+
+      // Load additional data via edge function
+      try {
+        const [emailData, activityData, recentData, growthData, revData] = await Promise.all([
+          callAdminOperation("getUserEmails"),
+          callAdminOperation("getActivityStats"),
+          callAdminOperation("getRecentActivity"),
+          callAdminOperation("getUserGrowthData"),
+          callAdminOperation("getRevenueData"),
+        ]);
+
+        setEmailMap(emailData?.emailMap || {});
+        setActivityStats(activityData);
+        setRecentActivity(recentData);
+        setUserGrowthData(growthData?.growthData || []);
+        setRevenueData(revData?.revenueData || []);
+      } catch (fnError) {
+        console.error("Error loading admin functions data:", fnError);
+      }
     } catch (error) {
       console.error("Error loading admin data:", error);
       toast.error("Failed to load admin data");
@@ -111,13 +149,11 @@ const Admin = () => {
     );
   }
 
-  if (!isAdmin) {
-    return null;
-  }
+  if (!isAdmin) return null;
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
+      <header className="border-b border-border sticky top-0 bg-background z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button onClick={() => navigate("/dashboard")} variant="ghost" size="sm">
@@ -130,100 +166,29 @@ const Admin = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {/* Stats Overview */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <Card className="shadow-md rounded-2xl">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalUsers}</div>
-              <p className="text-xs text-muted-foreground">
-                Free: {stats.freeUsers} | Pro: {stats.proUsers} | Scholar: {stats.scholarUsers}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-md rounded-2xl">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">₦{stats.totalRevenue.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">
-                From {stats.totalTransactions} transactions
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-md rounded-2xl">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Transactions</CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalTransactions}</div>
-              <p className="text-xs text-muted-foreground">
-                Total payment records
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabs for detailed views */}
-        <Tabs defaultValue="users" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="transactions">Transactions</TabsTrigger>
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="flex flex-wrap">
+            <TabsTrigger value="overview"><LayoutDashboard className="h-4 w-4 mr-2" />Overview</TabsTrigger>
+            <TabsTrigger value="users"><Users className="h-4 w-4 mr-2" />Users</TabsTrigger>
+            <TabsTrigger value="transactions"><CreditCard className="h-4 w-4 mr-2" />Transactions</TabsTrigger>
+            <TabsTrigger value="activity"><Activity className="h-4 w-4 mr-2" />Activity</TabsTrigger>
+            <TabsTrigger value="roles"><Shield className="h-4 w-4 mr-2" />Roles</TabsTrigger>
+            <TabsTrigger value="settings"><Settings className="h-4 w-4 mr-2" />Settings</TabsTrigger>
+            <TabsTrigger value="audit"><History className="h-4 w-4 mr-2" />Audit Log</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="overview" className="space-y-6">
+            <StatsOverview stats={stats} activityStats={activityStats} />
+            <AdminCharts 
+              stats={stats} 
+              userGrowthData={userGrowthData} 
+              revenueData={revenueData}
+              activityStats={activityStats}
+            />
+          </TabsContent>
+
           <TabsContent value="users">
-            <Card className="shadow-md rounded-2xl">
-              <CardHeader>
-                <CardTitle>All Users</CardTitle>
-                <CardDescription>Manage user accounts and plans</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>User ID</TableHead>
-                        <TableHead>Plan</TableHead>
-                        <TableHead>Daily Credits</TableHead>
-                        <TableHead>Paid Credits</TableHead>
-                        <TableHead>Credits Expiry</TableHead>
-                        <TableHead>Created</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {users.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-mono text-xs">
-                            {user.id.slice(0, 8)}...
-                          </TableCell>
-                          <TableCell>
-                            <Badge>{user.plan_type.toUpperCase()}</Badge>
-                          </TableCell>
-                          <TableCell>{user.daily_credits}</TableCell>
-                          <TableCell>{user.paid_credits || 0}</TableCell>
-                          <TableCell>
-                            {user.credits_expiry_date 
-                              ? new Date(user.credits_expiry_date).toLocaleDateString()
-                              : 'N/A'}
-                          </TableCell>
-                          <TableCell>
-                            {new Date(user.created_at).toLocaleDateString()}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
+            <UserManagement users={users} emailMap={emailMap} onRefresh={loadAdminData} />
           </TabsContent>
 
           <TabsContent value="transactions">
@@ -238,7 +203,7 @@ const Admin = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Date</TableHead>
-                        <TableHead>User ID</TableHead>
+                        <TableHead>User</TableHead>
                         <TableHead>Reference</TableHead>
                         <TableHead>Amount</TableHead>
                         <TableHead>Plan</TableHead>
@@ -249,23 +214,11 @@ const Admin = () => {
                     <TableBody>
                       {transactions.map((transaction) => (
                         <TableRow key={transaction.id}>
-                          <TableCell>
-                            {new Date(transaction.created_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">
-                            {transaction.user_id.slice(0, 8)}...
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">
-                            {transaction.reference}
-                          </TableCell>
-                          <TableCell className="font-semibold">
-                            ₦{transaction.amount.toLocaleString()}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {transaction.plan_type.toUpperCase()}
-                            </Badge>
-                          </TableCell>
+                          <TableCell>{new Date(transaction.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell className="text-sm">{emailMap[transaction.user_id] || transaction.user_id.slice(0, 8) + "..."}</TableCell>
+                          <TableCell className="font-mono text-xs">{transaction.reference}</TableCell>
+                          <TableCell className="font-semibold">₦{transaction.amount.toLocaleString()}</TableCell>
+                          <TableCell><Badge variant="outline">{transaction.plan_type.toUpperCase()}</Badge></TableCell>
                           <TableCell>{transaction.credits_purchased}</TableCell>
                           <TableCell>
                             <Badge variant={transaction.status === "success" ? "default" : "destructive"}>
@@ -279,6 +232,22 @@ const Admin = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="activity">
+            <ActivityMonitor recentActivity={recentActivity} emailMap={emailMap} />
+          </TabsContent>
+
+          <TabsContent value="roles">
+            <RoleManagement emailMap={emailMap} users={users} />
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <AppSettings />
+          </TabsContent>
+
+          <TabsContent value="audit">
+            <AuditLog emailMap={emailMap} />
           </TabsContent>
         </Tabs>
       </main>
