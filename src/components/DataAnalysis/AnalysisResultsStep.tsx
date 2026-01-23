@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table as DocxTable, TableRow as DocxTableRow, TableCell as DocxTableCell, WidthType, BorderStyle, AlignmentType } from "docx";
 import jsPDF from "jspdf";
@@ -16,7 +17,11 @@ import {
   FileText, 
   CheckCircle2,
   Lock,
-  FileType
+  FileType,
+  ChevronDown,
+  AlertTriangle,
+  Check,
+  X
 } from "lucide-react";
 import { 
   BarChart, 
@@ -29,6 +34,11 @@ import {
   PieChart,
   Pie,
   Cell,
+  LineChart,
+  Line,
+  ScatterChart,
+  Scatter,
+  ReferenceLine,
 } from "recharts";
 import {
   DropdownMenu,
@@ -669,6 +679,152 @@ export const AnalysisResultsStep = ({
                   )}
                 </div>
 
+                {/* Assumption Checks Section for Independent T-Test */}
+                {results.ttest_independent.assumptions && (
+                  <Collapsible className="mt-6">
+                    <CollapsibleTrigger asChild>
+                      <Button variant="outline" className="w-full justify-between">
+                        <span className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4" />
+                          Assumption Checks (Normality & Homogeneity)
+                        </span>
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-4 space-y-6">
+                      
+                      {/* Normality Tests */}
+                      <div className="border rounded-lg p-4">
+                        <h5 className="font-semibold mb-4">Normality Tests (Shapiro-Wilk)</h5>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Group</TableHead>
+                              <TableHead className="text-right">W</TableHead>
+                              <TableHead className="text-right">p-value</TableHead>
+                              <TableHead className="text-right">Skewness</TableHead>
+                              <TableHead className="text-right">Kurtosis</TableHead>
+                              <TableHead className="text-center">Normal?</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {results.ttest_independent.assumptions.normality?.map((norm: any, i: number) => (
+                              <TableRow key={i}>
+                                <TableCell className="font-medium">{norm.group}</TableCell>
+                                <TableCell className="text-right">{norm.W?.toFixed(4)}</TableCell>
+                                <TableCell className="text-right">{norm.pValue?.toFixed(4)}</TableCell>
+                                <TableCell className="text-right">{norm.skewness?.toFixed(3)}</TableCell>
+                                <TableCell className="text-right">{norm.kurtosis?.toFixed(3)}</TableCell>
+                                <TableCell className="text-center">
+                                  {norm.isNormal ? (
+                                    <Check className="h-4 w-4 text-primary mx-auto" />
+                                  ) : (
+                                    <X className="h-4 w-4 text-destructive mx-auto" />
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          p &gt; 0.05 indicates normally distributed data (assumption met)
+                        </p>
+                      </div>
+                      
+                      {/* Levene's Test */}
+                      {results.ttest_independent.assumptions.homogeneity && (
+                        <div className="border rounded-lg p-4">
+                          <h5 className="font-semibold mb-4">Homogeneity of Variance (Levene's Test)</h5>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <Table>
+                              <TableBody>
+                                <TableRow>
+                                  <TableCell className="font-medium">F-value</TableCell>
+                                  <TableCell>{results.ttest_independent.assumptions.homogeneity.F?.toFixed(3)}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">df</TableCell>
+                                  <TableCell>({results.ttest_independent.assumptions.homogeneity.df1}, {results.ttest_independent.assumptions.homogeneity.df2})</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">p-value</TableCell>
+                                  <TableCell>
+                                    {results.ttest_independent.assumptions.homogeneity.pValue?.toFixed(4)}
+                                    {results.ttest_independent.assumptions.homogeneity.isHomogeneous ? (
+                                      <Badge variant="secondary" className="ml-2">Equal Variances</Badge>
+                                    ) : (
+                                      <Badge variant="destructive" className="ml-2">Unequal Variances</Badge>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              </TableBody>
+                            </Table>
+                            
+                            {/* Variance Bar Chart */}
+                            <div className="h-[120px]">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={results.ttest_independent.assumptions.homogeneity.groupVariances}>
+                                  <CartesianGrid strokeDasharray="3 3" />
+                                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                                  <YAxis tick={{ fontSize: 10 }} />
+                                  <Tooltip />
+                                  <Bar dataKey="variance" fill="hsl(var(--accent))" name="Variance" />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Q-Q Plots */}
+                      {results.ttest_independent.assumptions.qqPlotData && (
+                        <div className="border rounded-lg p-4">
+                          <h5 className="font-semibold mb-4">Q-Q Plots (Normality Visualization)</h5>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            {Object.entries(results.ttest_independent.assumptions.qqPlotData).map(([group, data]: [string, any]) => (
+                              <div key={group} className="border rounded p-2">
+                                <h6 className="text-sm font-medium mb-2">{group}</h6>
+                                <div className="h-[150px]">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <ScatterChart margin={{ top: 10, right: 10, bottom: 20, left: 20 }}>
+                                      <CartesianGrid strokeDasharray="3 3" />
+                                      <XAxis 
+                                        dataKey="theoretical" 
+                                        type="number" 
+                                        domain={[-3, 3]}
+                                        tick={{ fontSize: 9 }}
+                                        label={{ value: 'Theoretical', position: 'bottom', fontSize: 9, offset: -5 }}
+                                      />
+                                      <YAxis 
+                                        dataKey="observed" 
+                                        type="number"
+                                        domain={[-3, 3]}
+                                        tick={{ fontSize: 9 }}
+                                        label={{ value: 'Observed', angle: -90, position: 'left', fontSize: 9, offset: 10 }}
+                                      />
+                                      <Tooltip />
+                                      <ReferenceLine 
+                                        segment={[{ x: -3, y: -3 }, { x: 3, y: 3 }]} 
+                                        stroke="hsl(var(--destructive))" 
+                                        strokeDasharray="5 5" 
+                                      />
+                                      <Scatter data={data} fill="hsl(var(--primary))" />
+                                    </ScatterChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Points following the diagonal line indicate normally distributed data
+                          </p>
+                        </div>
+                      )}
+                      
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+
                 {results.ttest_independent.interpretation && (
                   <div className="mt-6 p-4 bg-muted rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
@@ -725,6 +881,55 @@ export const AnalysisResultsStep = ({
                     </TableRow>
                   </TableBody>
                 </Table>
+
+                {/* Assumption Checks for Paired T-Test */}
+                {results.ttest_paired.assumptions && (
+                  <Collapsible className="mt-6">
+                    <CollapsibleTrigger asChild>
+                      <Button variant="outline" className="w-full justify-between">
+                        <span className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4" />
+                          Assumption Checks (Normality of Differences)
+                        </span>
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-4 space-y-4">
+                      <div className="border rounded-lg p-4">
+                        <h5 className="font-semibold mb-4">Normality Tests (Shapiro-Wilk)</h5>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Variable</TableHead>
+                              <TableHead className="text-right">W</TableHead>
+                              <TableHead className="text-right">p-value</TableHead>
+                              <TableHead className="text-center">Normal?</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {results.ttest_paired.assumptions.normality?.map((norm: any, i: number) => (
+                              <TableRow key={i}>
+                                <TableCell className="font-medium">{norm.group}</TableCell>
+                                <TableCell className="text-right">{norm.W?.toFixed(4)}</TableCell>
+                                <TableCell className="text-right">{norm.pValue?.toFixed(4)}</TableCell>
+                                <TableCell className="text-center">
+                                  {norm.isNormal ? (
+                                    <Check className="h-4 w-4 text-primary mx-auto" />
+                                  ) : (
+                                    <X className="h-4 w-4 text-destructive mx-auto" />
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          The normality of differences is the key assumption for paired t-test
+                        </p>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
 
                 {results.ttest_paired.interpretation && (
                   <div className="mt-6 p-4 bg-muted rounded-lg">
@@ -819,6 +1024,250 @@ export const AnalysisResultsStep = ({
                     </div>
                   )}
                 </div>
+
+                {/* Post-Hoc Tests Section */}
+                {results.anova_oneway.postHoc && (
+                  <div className="mt-6 space-y-4">
+                    <h4 className="font-semibold text-lg flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-primary" />
+                      Post-Hoc Comparisons
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      Since the ANOVA was significant, post-hoc tests reveal which specific groups differ.
+                    </p>
+                    
+                    <Tabs defaultValue="tukey" className="w-full">
+                      <TabsList>
+                        <TabsTrigger value="tukey">Tukey HSD</TabsTrigger>
+                        <TabsTrigger value="bonferroni">Bonferroni</TabsTrigger>
+                      </TabsList>
+                      
+                      <TabsContent value="tukey" className="mt-4">
+                        <ScrollArea className="h-[250px]">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Comparison</TableHead>
+                                <TableHead className="text-right">Mean Diff</TableHead>
+                                <TableHead className="text-right">q-value</TableHead>
+                                <TableHead className="text-right">p-value</TableHead>
+                                <TableHead className="text-right">95% CI</TableHead>
+                                <TableHead className="text-center">Sig.</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {results.anova_oneway.postHoc.tukey?.comparisons?.map((comp: any, i: number) => (
+                                <TableRow key={i} className={comp.significant ? "bg-primary/5" : ""}>
+                                  <TableCell className="font-medium">{comp.group1} vs {comp.group2}</TableCell>
+                                  <TableCell className="text-right">{comp.meanDiff?.toFixed(3)}</TableCell>
+                                  <TableCell className="text-right">{comp.qValue?.toFixed(3)}</TableCell>
+                                  <TableCell className="text-right">{comp.pValue?.toFixed(4)}</TableCell>
+                                  <TableCell className="text-right text-xs">[{comp.ci?.[0]?.toFixed(2)}, {comp.ci?.[1]?.toFixed(2)}]</TableCell>
+                                  <TableCell className="text-center">
+                                    {comp.significant ? (
+                                      <Badge variant="default" className="bg-primary">Yes</Badge>
+                                    ) : (
+                                      <Badge variant="outline">No</Badge>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </ScrollArea>
+                      </TabsContent>
+                      
+                      <TabsContent value="bonferroni" className="mt-4">
+                        <ScrollArea className="h-[250px]">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Comparison</TableHead>
+                                <TableHead className="text-right">Mean Diff</TableHead>
+                                <TableHead className="text-right">t-value</TableHead>
+                                <TableHead className="text-right">Raw p</TableHead>
+                                <TableHead className="text-right">Adj. p</TableHead>
+                                <TableHead className="text-center">Sig.</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {results.anova_oneway.postHoc.bonferroni?.comparisons?.map((comp: any, i: number) => (
+                                <TableRow key={i} className={comp.significant ? "bg-primary/5" : ""}>
+                                  <TableCell className="font-medium">{comp.group1} vs {comp.group2}</TableCell>
+                                  <TableCell className="text-right">{comp.meanDiff?.toFixed(3)}</TableCell>
+                                  <TableCell className="text-right">{comp.tValue?.toFixed(3)}</TableCell>
+                                  <TableCell className="text-right">{comp.pValue?.toFixed(4)}</TableCell>
+                                  <TableCell className="text-right">{comp.adjustedP?.toFixed(4)}</TableCell>
+                                  <TableCell className="text-center">
+                                    {comp.significant ? (
+                                      <Badge variant="default" className="bg-primary">Yes</Badge>
+                                    ) : (
+                                      <Badge variant="outline">No</Badge>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </ScrollArea>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Bonferroni correction: α = 0.05 / {results.anova_oneway.postHoc.bonferroni?.correctionFactor} = {(0.05 / (results.anova_oneway.postHoc.bonferroni?.correctionFactor || 1)).toFixed(4)}
+                        </p>
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+                )}
+
+                {/* Assumption Checks Section */}
+                {results.anova_oneway.assumptions && (
+                  <Collapsible className="mt-6">
+                    <CollapsibleTrigger asChild>
+                      <Button variant="outline" className="w-full justify-between">
+                        <span className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4" />
+                          Assumption Checks (Normality & Homogeneity)
+                        </span>
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-4 space-y-6">
+                      
+                      {/* Normality Tests */}
+                      <div className="border rounded-lg p-4">
+                        <h5 className="font-semibold mb-4 flex items-center gap-2">
+                          Normality Tests (Shapiro-Wilk)
+                        </h5>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Group</TableHead>
+                              <TableHead className="text-right">W</TableHead>
+                              <TableHead className="text-right">p-value</TableHead>
+                              <TableHead className="text-right">Skewness</TableHead>
+                              <TableHead className="text-right">Kurtosis</TableHead>
+                              <TableHead className="text-center">Normal?</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {results.anova_oneway.assumptions.normality?.map((norm: any, i: number) => (
+                              <TableRow key={i}>
+                                <TableCell className="font-medium">{norm.group}</TableCell>
+                                <TableCell className="text-right">{norm.W?.toFixed(4)}</TableCell>
+                                <TableCell className="text-right">{norm.pValue?.toFixed(4)}</TableCell>
+                                <TableCell className="text-right">{norm.skewness?.toFixed(3)}</TableCell>
+                                <TableCell className="text-right">{norm.kurtosis?.toFixed(3)}</TableCell>
+                                <TableCell className="text-center">
+                                  {norm.isNormal ? (
+                                    <Check className="h-4 w-4 text-primary mx-auto" />
+                                  ) : (
+                                    <X className="h-4 w-4 text-destructive mx-auto" />
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          p &gt; 0.05 indicates normally distributed data (assumption met)
+                        </p>
+                      </div>
+                      
+                      {/* Levene's Test */}
+                      {results.anova_oneway.assumptions.homogeneity && (
+                        <div className="border rounded-lg p-4">
+                          <h5 className="font-semibold mb-4">Homogeneity of Variance (Levene's Test)</h5>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <Table>
+                              <TableBody>
+                                <TableRow>
+                                  <TableCell className="font-medium">F-value</TableCell>
+                                  <TableCell>{results.anova_oneway.assumptions.homogeneity.F?.toFixed(3)}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">df</TableCell>
+                                  <TableCell>({results.anova_oneway.assumptions.homogeneity.df1}, {results.anova_oneway.assumptions.homogeneity.df2})</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">p-value</TableCell>
+                                  <TableCell>
+                                    {results.anova_oneway.assumptions.homogeneity.pValue?.toFixed(4)}
+                                    {results.anova_oneway.assumptions.homogeneity.isHomogeneous ? (
+                                      <Badge variant="secondary" className="ml-2">Homogeneous</Badge>
+                                    ) : (
+                                      <Badge variant="destructive" className="ml-2">Heterogeneous</Badge>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              </TableBody>
+                            </Table>
+                            
+                            {/* Variance Bar Chart */}
+                            <div className="h-[150px]">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={results.anova_oneway.assumptions.homogeneity.groupVariances}>
+                                  <CartesianGrid strokeDasharray="3 3" />
+                                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                                  <YAxis tick={{ fontSize: 10 }} />
+                                  <Tooltip />
+                                  <Bar dataKey="variance" fill="hsl(var(--accent))" name="Variance" />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            p &gt; 0.05 indicates equal variances across groups (assumption met)
+                          </p>
+                        </div>
+                      )}
+                      
+                      {/* Q-Q Plots */}
+                      {results.anova_oneway.assumptions.qqPlotData && (
+                        <div className="border rounded-lg p-4">
+                          <h5 className="font-semibold mb-4">Q-Q Plots (Normality Visualization)</h5>
+                          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {Object.entries(results.anova_oneway.assumptions.qqPlotData).map(([group, data]: [string, any]) => (
+                              <div key={group} className="border rounded p-2">
+                                <h6 className="text-sm font-medium mb-2 truncate">{group}</h6>
+                                <div className="h-[150px]">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <ScatterChart margin={{ top: 10, right: 10, bottom: 20, left: 20 }}>
+                                      <CartesianGrid strokeDasharray="3 3" />
+                                      <XAxis 
+                                        dataKey="theoretical" 
+                                        type="number" 
+                                        domain={[-3, 3]}
+                                        tick={{ fontSize: 9 }}
+                                        label={{ value: 'Theoretical', position: 'bottom', fontSize: 9, offset: -5 }}
+                                      />
+                                      <YAxis 
+                                        dataKey="observed" 
+                                        type="number"
+                                        domain={[-3, 3]}
+                                        tick={{ fontSize: 9 }}
+                                        label={{ value: 'Observed', angle: -90, position: 'left', fontSize: 9, offset: 10 }}
+                                      />
+                                      <Tooltip />
+                                      <ReferenceLine 
+                                        segment={[{ x: -3, y: -3 }, { x: 3, y: 3 }]} 
+                                        stroke="hsl(var(--destructive))" 
+                                        strokeDasharray="5 5" 
+                                      />
+                                      <Scatter data={data} fill="hsl(var(--primary))" />
+                                    </ScatterChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Points following the diagonal line indicate normally distributed data
+                          </p>
+                        </div>
+                      )}
+                      
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
 
                 {results.anova_oneway.interpretation && (
                   <div className="mt-6 p-4 bg-muted rounded-lg">

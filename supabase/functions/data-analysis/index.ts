@@ -184,10 +184,289 @@ function pairedTTest(before: number[], after: number[]): { tValue: number; df: n
   return { tValue, df, pValue, meanDiff };
 }
 
+// Post-hoc: Tukey HSD test
+function tukeyHSD(
+  groups: Record<string, number[]>,
+  groupNames: string[],
+  msWithin: number,
+  dfWithin: number
+): {
+  comparisons: { group1: string; group2: string; meanDiff: number; se: number; qValue: number; pValue: number; significant: boolean; ci: [number, number] }[];
+} {
+  const comparisons: { group1: string; group2: string; meanDiff: number; se: number; qValue: number; pValue: number; significant: boolean; ci: [number, number] }[] = [];
+  const k = groupNames.length;
+  
+  // Critical q-value approximation for Tukey at alpha=0.05
+  const qCritical = getStudentizedRangeCritical(k, dfWithin);
+  
+  for (let i = 0; i < k; i++) {
+    for (let j = i + 1; j < k; j++) {
+      const g1 = groups[groupNames[i]];
+      const g2 = groups[groupNames[j]];
+      const n1 = g1.length, n2 = g2.length;
+      const mean1 = mean(g1), mean2 = mean(g2);
+      const meanDiff = mean1 - mean2;
+      
+      // Standard error for Tukey (harmonic mean of sample sizes)
+      const nHarmonic = 2 / (1/n1 + 1/n2);
+      const se = Math.sqrt(msWithin / nHarmonic);
+      const qValue = Math.abs(meanDiff) / se;
+      
+      // P-value approximation using studentized range
+      const pValue = getStudentizedRangePValue(qValue, k, dfWithin);
+      const significant = qValue > qCritical;
+      
+      // 95% Confidence Interval
+      const ciMargin = qCritical * se;
+      const ci: [number, number] = [meanDiff - ciMargin, meanDiff + ciMargin];
+      
+      comparisons.push({ group1: groupNames[i], group2: groupNames[j], meanDiff, se, qValue, pValue, significant, ci });
+    }
+  }
+  return { comparisons };
+}
+
+// Get studentized range critical value (approximation for alpha=0.05)
+function getStudentizedRangeCritical(k: number, df: number): number {
+  // Simplified critical values for common cases
+  const criticalTable: Record<number, Record<number, number>> = {
+    3: { 10: 3.88, 20: 3.58, 30: 3.49, 60: 3.40, 120: 3.36 },
+    4: { 10: 4.33, 20: 3.96, 30: 3.85, 60: 3.74, 120: 3.68 },
+    5: { 10: 4.65, 20: 4.23, 30: 4.10, 60: 3.98, 120: 3.92 },
+    6: { 10: 4.91, 20: 4.45, 30: 4.30, 60: 4.16, 120: 4.10 },
+  };
+  
+  const kKey = Math.min(6, Math.max(3, k));
+  let dfKey = 120;
+  if (df <= 10) dfKey = 10;
+  else if (df <= 20) dfKey = 20;
+  else if (df <= 30) dfKey = 30;
+  else if (df <= 60) dfKey = 60;
+  
+  return criticalTable[kKey]?.[dfKey] || 3.5;
+}
+
+// Approximate p-value for studentized range
+function getStudentizedRangePValue(q: number, k: number, df: number): number {
+  // Simple approximation based on the relationship with F-distribution
+  const fApprox = Math.pow(q, 2) / 2;
+  const pValue = 1 - fDistCDF(fApprox, k - 1, df);
+  return Math.max(0, Math.min(1, pValue));
+}
+
+// Post-hoc: Bonferroni correction
+function bonferroniPostHoc(
+  groups: Record<string, number[]>,
+  groupNames: string[],
+  msWithin: number,
+  dfWithin: number
+): {
+  comparisons: { group1: string; group2: string; meanDiff: number; tValue: number; pValue: number; adjustedP: number; significant: boolean }[];
+  correctionFactor: number;
+} {
+  const comparisons: { group1: string; group2: string; meanDiff: number; tValue: number; pValue: number; adjustedP: number; significant: boolean }[] = [];
+  const k = groupNames.length;
+  const numComparisons = k * (k - 1) / 2;
+  
+  for (let i = 0; i < k; i++) {
+    for (let j = i + 1; j < k; j++) {
+      const g1 = groups[groupNames[i]];
+      const g2 = groups[groupNames[j]];
+      const n1 = g1.length, n2 = g2.length;
+      const mean1 = mean(g1), mean2 = mean(g2);
+      const meanDiff = mean1 - mean2;
+      
+      // Pooled standard error
+      const se = Math.sqrt(msWithin * (1/n1 + 1/n2));
+      const tValue = se > 0 ? meanDiff / se : 0;
+      
+      // Two-tailed p-value
+      const pValue = 2 * (1 - tDistCDF(Math.abs(tValue), dfWithin));
+      const adjustedP = Math.min(1, pValue * numComparisons);
+      const significant = adjustedP < 0.05;
+      
+      comparisons.push({ group1: groupNames[i], group2: groupNames[j], meanDiff, tValue, pValue, adjustedP, significant });
+    }
+  }
+  
+  return { comparisons, correctionFactor: numComparisons };
+}
+
+// Shapiro-Wilk normality test (approximation)
+function shapiroWilkTest(data: number[]): { 
+  W: number; 
+  pValue: number; 
+  isNormal: boolean;
+  skewness: number;
+  kurtosis: number;
+} {
+  const n = data.length;
+  if (n < 3 || n > 5000) return { W: 0, pValue: 0, isNormal: false, skewness: 0, kurtosis: 0 };
+  
+  const sorted = [...data].sort((a, b) => a - b);
+  const avg = mean(data);
+  const sd = standardDeviation(data);
+  
+  // Calculate SS (sum of squared deviations)
+  const ss = data.reduce((sum, v) => sum + Math.pow(v - avg, 2), 0);
+  
+  // Simplified Shapiro-Wilk calculation
+  // Calculate b using approximate coefficients
+  let b = 0;
+  const halfN = Math.floor(n / 2);
+  for (let i = 0; i < halfN; i++) {
+    // Approximate Shapiro-Wilk coefficients
+    const m = normalQuantile((i + 1 - 0.375) / (n + 0.25));
+    const a = m / Math.sqrt(2);
+    b += a * (sorted[n - 1 - i] - sorted[i]);
+  }
+  
+  const W = ss > 0 ? Math.pow(b, 2) / ss : 0;
+  
+  // Skewness calculation
+  const skewness = sd > 0 ? data.reduce((sum, v) => sum + Math.pow((v - avg) / sd, 3), 0) / n : 0;
+  
+  // Kurtosis calculation (excess kurtosis)
+  const kurtosis = sd > 0 ? data.reduce((sum, v) => sum + Math.pow((v - avg) / sd, 4), 0) / n - 3 : 0;
+  
+  // P-value approximation using normal transformation
+  const pValue = approximateShapiroPValue(W, n);
+  
+  return { W: Math.min(1, W), pValue, isNormal: pValue > 0.05, skewness, kurtosis };
+}
+
+// Approximate Shapiro-Wilk p-value
+function approximateShapiroPValue(W: number, n: number): number {
+  if (W >= 1) return 1;
+  if (W <= 0) return 0;
+  
+  // Transform W to normal using Royston's algorithm approximation
+  const y = Math.log(1 - W);
+  const mu = -1.2725 + 1.0521 * Math.log(n - 1);
+  const sigma = 1.0308 - 0.26758 * Math.log(n);
+  
+  const z = (y - mu) / sigma;
+  const pValue = 1 - normalCDF(z);
+  
+  return Math.max(0, Math.min(1, pValue));
+}
+
+// Standard normal CDF approximation
+function normalCDF(x: number): number {
+  const t = 1 / (1 + 0.2316419 * Math.abs(x));
+  const d = 0.3989423 * Math.exp(-x * x / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  return x > 0 ? 1 - p : p;
+}
+
+// Inverse normal CDF (quantile function)
+function normalQuantile(p: number): number {
+  if (p <= 0) return -4;
+  if (p >= 1) return 4;
+  
+  const a = [0, -3.969683028665376, 220.9460984245205, -275.9285104469687, 138.3577518672690, -30.66479806614716, 2.506628277459239];
+  const b = [-54.47609879822406, 161.5858368580409, -155.6989798598866, 66.80131188771972, -13.28068155288572];
+  const c = [-0.007784894002430293, -0.3223964580411365, -2.400758277161838, -2.549732539343734, 4.374664141464968, 2.938163982698783];
+  const d = [0.007784695709041462, 0.3224671290700398, 2.445134137142996, 3.754408661907416];
+  
+  const pLow = 0.02425, pHigh = 1 - pLow;
+  let q: number, r: number;
+  
+  if (p < pLow) {
+    q = Math.sqrt(-2 * Math.log(p));
+    return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+  } else if (p <= pHigh) {
+    q = p - 0.5;
+    r = q * q;
+    return (((((a[1]*r+a[2])*r+a[3])*r+a[4])*r+a[5])*r+a[6])*q / (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+  } else {
+    q = Math.sqrt(-2 * Math.log(1 - p));
+    return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+  }
+}
+
+// Levene's test for homogeneity of variance
+function levenesTest(groups: number[][]): {
+  F: number;
+  df1: number;
+  df2: number;
+  pValue: number;
+  isHomogeneous: boolean;
+  groupVariances: { name: string; variance: number }[];
+} {
+  const k = groups.length;
+  const N = groups.flat().length;
+  
+  // Calculate absolute deviations from group medians
+  const deviations: number[][] = groups.map(g => {
+    const med = median(g);
+    return g.map(v => Math.abs(v - med));
+  });
+  
+  // Apply one-way ANOVA to the deviations
+  const grandMean = mean(deviations.flat());
+  const groupMeans = deviations.map(d => mean(d));
+  
+  // Between-group sum of squares
+  let ssBetween = 0;
+  deviations.forEach((d, i) => {
+    ssBetween += d.length * Math.pow(groupMeans[i] - grandMean, 2);
+  });
+  
+  // Within-group sum of squares
+  let ssWithin = 0;
+  deviations.forEach((d, i) => {
+    d.forEach(v => {
+      ssWithin += Math.pow(v - groupMeans[i], 2);
+    });
+  });
+  
+  const df1 = k - 1;
+  const df2 = N - k;
+  
+  const msBetween = df1 > 0 ? ssBetween / df1 : 0;
+  const msWithin = df2 > 0 ? ssWithin / df2 : 1;
+  const F = msWithin > 0 ? msBetween / msWithin : 0;
+  const pValue = df1 > 0 && df2 > 0 ? 1 - fDistCDF(F, df1, df2) : 1;
+  
+  // Calculate variance for each original group
+  const groupVariances = groups.map((g, i) => ({
+    name: `Group ${i + 1}`,
+    variance: variance(g)
+  }));
+  
+  return {
+    F,
+    df1,
+    df2,
+    pValue,
+    isHomogeneous: pValue > 0.05,
+    groupVariances,
+  };
+}
+
+// Generate Q-Q plot data for normality visualization
+function generateQQPlotData(data: number[]): { theoretical: number; observed: number }[] {
+  const n = data.length;
+  if (n < 3) return [];
+  
+  const sorted = [...data].sort((a, b) => a - b);
+  const avg = mean(data);
+  const sd = standardDeviation(data) || 1;
+  
+  // Standardize and compute theoretical quantiles
+  return sorted.map((value, i) => {
+    const p = (i + 0.5) / n; // Plotting position
+    const theoretical = normalQuantile(p); // Z-score from standard normal
+    const observed = (value - avg) / sd; // Standardized observed value
+    return { theoretical, observed };
+  });
+}
+
 // One-way ANOVA
-function oneWayAnova(groups: number[][]): { fValue: number; df1: number; df2: number; pValue: number; groupMeans: number[] } {
+function oneWayAnova(groups: number[][]): { fValue: number; df1: number; df2: number; pValue: number; groupMeans: number[]; msWithin: number; ssWithin: number } {
   const allData = groups.flat();
-  if (allData.length < 3) return { fValue: 0, df1: 0, df2: 0, pValue: 1, groupMeans: [] };
+  if (allData.length < 3) return { fValue: 0, df1: 0, df2: 0, pValue: 1, groupMeans: [], msWithin: 0, ssWithin: 0 };
   
   const grandMean = mean(allData);
   const k = groups.length;
@@ -210,7 +489,7 @@ function oneWayAnova(groups: number[][]): { fValue: number; df1: number; df2: nu
   
   const df1 = k - 1;
   const df2 = N - k;
-  if (df1 <= 0 || df2 <= 0 || ssWithin === 0) return { fValue: 0, df1, df2, pValue: 1, groupMeans };
+  if (df1 <= 0 || df2 <= 0 || ssWithin === 0) return { fValue: 0, df1, df2, pValue: 1, groupMeans, msWithin: 0, ssWithin };
   
   const msBetween = ssBetween / df1;
   const msWithin = ssWithin / df2;
@@ -219,7 +498,7 @@ function oneWayAnova(groups: number[][]): { fValue: number; df1: number; df2: nu
   // Approximate p-value using F-distribution
   const pValue = 1 - fDistCDF(fValue, df1, df2);
   
-  return { fValue, df1, df2, pValue: isNaN(pValue) ? 1 : pValue, groupMeans };
+  return { fValue, df1, df2, pValue: isNaN(pValue) ? 1 : pValue, groupMeans, msWithin, ssWithin };
 }
 
 // Two-way ANOVA
@@ -1358,12 +1637,32 @@ serve(async (req) => {
                   const groupKeys = Object.keys(groups);
                   if (groupKeys.length === 2) {
                     const testResult = independentTTest(groups[groupKeys[0]], groups[groupKeys[1]]);
+                    const groupArrays = groupKeys.map(k => groups[k]);
+                    
                     results.ttest_independent = {
                       ...testResult,
                       groups: groupKeys,
                       groupMeans: { [groupKeys[0]]: mean(groups[groupKeys[0]]), [groupKeys[1]]: mean(groups[groupKeys[1]]) },
                       significance: interpretSignificance(testResult.pValue),
-                      interpretation: await generateAcademicInterpretation('ttest_independent', testResult)
+                      interpretation: await generateAcademicInterpretation('ttest_independent', testResult),
+                      // Add assumption checks for t-test
+                      assumptions: {
+                        normality: groupKeys.map(k => ({
+                          group: k,
+                          ...shapiroWilkTest(groups[k])
+                        })),
+                        homogeneity: {
+                          ...levenesTest(groupArrays),
+                          groupVariances: groupKeys.map(k => ({
+                            name: k,
+                            variance: variance(groups[k])
+                          }))
+                        },
+                        qqPlotData: groupKeys.reduce((acc, k) => {
+                          acc[k] = generateQQPlotData(groups[k]);
+                          return acc;
+                        }, {} as Record<string, any>)
+                      }
                     };
                   }
                 } else {
@@ -1381,13 +1680,30 @@ serve(async (req) => {
                   const after = data.map((r: any) => Number(r[afterCol.index])).filter((v: number) => !isNaN(v));
                   const minLen = Math.min(before.length, after.length);
                   
-                  const testResult = pairedTTest(before.slice(0, minLen), after.slice(0, minLen));
+                  const beforeTrimmed = before.slice(0, minLen);
+                  const afterTrimmed = after.slice(0, minLen);
+                  const differences = beforeTrimmed.map((b: number, i: number) => afterTrimmed[i] - b);
+                  
+                  const testResult = pairedTTest(beforeTrimmed, afterTrimmed);
                   results.ttest_paired = {
                     ...testResult,
-                    preMean: mean(before.slice(0, minLen)),
-                    postMean: mean(after.slice(0, minLen)),
+                    preMean: mean(beforeTrimmed),
+                    postMean: mean(afterTrimmed),
                     significance: interpretSignificance(testResult.pValue),
-                    interpretation: await generateAcademicInterpretation('ttest_paired', testResult)
+                    interpretation: await generateAcademicInterpretation('ttest_paired', testResult),
+                    // Add assumption checks for paired t-test (normality of differences)
+                    assumptions: {
+                      normality: [
+                        { group: 'Pre-test', ...shapiroWilkTest(beforeTrimmed) },
+                        { group: 'Post-test', ...shapiroWilkTest(afterTrimmed) },
+                        { group: 'Differences', ...shapiroWilkTest(differences) }
+                      ],
+                      qqPlotData: {
+                        'Pre-test': generateQQPlotData(beforeTrimmed),
+                        'Post-test': generateQQPlotData(afterTrimmed),
+                        'Differences': generateQQPlotData(differences)
+                      }
+                    }
                   };
                 } else {
                   results.ttest_paired = { error: 'Please configure pre-test and post-test columns' };
@@ -1411,9 +1727,11 @@ serve(async (req) => {
                   });
                   
                   const groupKeys = Object.keys(groups);
-                  if (groupKeys.length >= 3) {
+                  if (groupKeys.length >= 2) {
                     const groupArrays = groupKeys.map(k => groups[k]);
                     const testResult = oneWayAnova(groupArrays);
+                    
+                    // Build base result
                     results.anova_oneway = {
                       ...testResult,
                       groups: groupKeys,
@@ -1424,7 +1742,30 @@ serve(async (req) => {
                         stdDev: standardDeviation(groups[k])
                       })),
                       significance: interpretSignificance(testResult.pValue),
-                      interpretation: await generateAcademicInterpretation('anova_oneway', testResult)
+                      interpretation: await generateAcademicInterpretation('anova_oneway', testResult),
+                      // Add assumption checks
+                      assumptions: {
+                        normality: groupKeys.map(k => ({
+                          group: k,
+                          ...shapiroWilkTest(groups[k])
+                        })),
+                        homogeneity: {
+                          ...levenesTest(groupArrays),
+                          groupVariances: groupKeys.map((k, i) => ({
+                            name: k,
+                            variance: variance(groups[k])
+                          }))
+                        },
+                        qqPlotData: groupKeys.reduce((acc, k) => {
+                          acc[k] = generateQQPlotData(groups[k]);
+                          return acc;
+                        }, {} as Record<string, any>)
+                      },
+                      // Add post-hoc tests if ANOVA is significant and 3+ groups
+                      postHoc: testResult.pValue < 0.05 && groupKeys.length >= 3 ? {
+                        tukey: tukeyHSD(groups, groupKeys, testResult.msWithin, testResult.df2),
+                        bonferroni: bonferroniPostHoc(groups, groupKeys, testResult.msWithin, testResult.df2)
+                      } : null
                     };
                   }
                 } else {
