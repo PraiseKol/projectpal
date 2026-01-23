@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { GraduationCap, Eye, EyeOff, CheckCircle2, XCircle, Mail, ArrowLeft, RefreshCw } from "lucide-react";
+import { GraduationCap, Eye, EyeOff, CheckCircle2, XCircle, Mail, ArrowLeft, RefreshCw, Gift } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { 
   signInSchema, 
@@ -20,12 +20,14 @@ import {
 
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [referralCode, setReferralCode] = useState(searchParams.get("ref") || "");
   const [resetEmail, setResetEmail] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -146,6 +148,7 @@ const Auth = () => {
           data: {
             first_name: firstName.trim(),
             last_name: lastName.trim(),
+            referral_code: referralCode.trim() || undefined,
           },
         },
       });

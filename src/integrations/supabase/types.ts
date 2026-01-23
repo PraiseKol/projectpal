@@ -41,6 +41,56 @@ export type Database = {
         }
         Relationships: []
       }
+      ambassador_commissions: {
+        Row: {
+          ambassador_user_id: string
+          claimed_at: string | null
+          commission_amount: number
+          commission_rate: number | null
+          created_at: string | null
+          id: string
+          paid_at: string | null
+          referred_user_id: string
+          status: string | null
+          transaction_amount: number
+          transaction_id: string
+        }
+        Insert: {
+          ambassador_user_id: string
+          claimed_at?: string | null
+          commission_amount: number
+          commission_rate?: number | null
+          created_at?: string | null
+          id?: string
+          paid_at?: string | null
+          referred_user_id: string
+          status?: string | null
+          transaction_amount: number
+          transaction_id: string
+        }
+        Update: {
+          ambassador_user_id?: string
+          claimed_at?: string | null
+          commission_amount?: number
+          commission_rate?: number | null
+          created_at?: string | null
+          id?: string
+          paid_at?: string | null
+          referred_user_id?: string
+          status?: string | null
+          transaction_amount?: number
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ambassador_commissions_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       analysis_sessions: {
         Row: {
           analyses_run: Json | null
@@ -128,6 +178,45 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      commission_payouts: {
+        Row: {
+          admin_notes: string | null
+          admin_user_id: string | null
+          ambassador_user_id: string
+          amount: number
+          created_at: string | null
+          id: string
+          payment_method: string | null
+          payment_reference: string | null
+          processed_at: string | null
+          status: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          admin_user_id?: string | null
+          ambassador_user_id: string
+          amount: number
+          created_at?: string | null
+          id?: string
+          payment_method?: string | null
+          payment_reference?: string | null
+          processed_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          admin_user_id?: string | null
+          ambassador_user_id?: string
+          amount?: number
+          created_at?: string | null
+          id?: string
+          payment_method?: string | null
+          payment_reference?: string | null
+          processed_at?: string | null
+          status?: string | null
         }
         Relationships: []
       }
@@ -241,6 +330,7 @@ export type Database = {
           monthly_credits: number
           paid_credits: number
           plan_type: Database["public"]["Enums"]["plan_type"]
+          referred_by: string | null
           status: string | null
           updated_at: string
         }
@@ -258,6 +348,7 @@ export type Database = {
           monthly_credits?: number
           paid_credits?: number
           plan_type?: Database["public"]["Enums"]["plan_type"]
+          referred_by?: string | null
           status?: string | null
           updated_at?: string
         }
@@ -275,8 +366,57 @@ export type Database = {
           monthly_credits?: number
           paid_credits?: number
           plan_type?: Database["public"]["Enums"]["plan_type"]
+          referred_by?: string | null
           status?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      referral_codes: {
+        Row: {
+          code: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          ambassador_user_id: string
+          created_at: string | null
+          id: string
+          referral_code_used: string
+          referred_user_id: string
+        }
+        Insert: {
+          ambassador_user_id: string
+          created_at?: string | null
+          id?: string
+          referral_code_used: string
+          referred_user_id: string
+        }
+        Update: {
+          ambassador_user_id?: string
+          created_at?: string | null
+          id?: string
+          referral_code_used?: string
+          referred_user_id?: string
         }
         Relationships: []
       }
@@ -357,7 +497,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      app_role: "admin" | "moderator" | "user" | "super_admin" | "ambassador"
       message_sender: "user" | "ai"
       plan_type: "free" | "pro" | "scholar"
     }
@@ -487,7 +627,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user"],
+      app_role: ["admin", "moderator", "user", "super_admin", "ambassador"],
       message_sender: ["user", "ai"],
       plan_type: ["free", "pro", "scholar"],
     },

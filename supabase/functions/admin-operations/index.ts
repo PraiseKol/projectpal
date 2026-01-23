@@ -40,19 +40,44 @@ serve(async (req) => {
       });
     }
 
-    // Verify admin role
+    // Verify admin or super_admin role
     const { data: roleData, error: roleError } = await supabaseAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
-      .eq("role", "admin")
-      .maybeSingle();
+      .in("role", ["admin", "super_admin"]);
 
-    if (roleError || !roleData) {
+    if (roleError || !roleData || roleData.length === 0) {
       return new Response(JSON.stringify({ error: "Admin access required" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    const userRoles = roleData.map((r: any) => r.role);
+    const isSuperAdmin = userRoles.includes("super_admin");
+
+    // Role hierarchy for permission checks
+    const roleHierarchy: Record<string, number> = {
+      user: 0,
+      ambassador: 1,
+      moderator: 2,
+      admin: 3,
+      super_admin: 4
+    };
+
+    function canAssignRole(targetRole: string): boolean {
+      if (isSuperAdmin) return true;
+      // Admin can assign moderator, ambassador, user
+      return ["moderator", "ambassador", "user"].includes(targetRole);
+    }
+
+    function canRemoveRole(targetRole: string, targetUserId: string): boolean {
+      if (isSuperAdmin) return true;
+      // Prevent removing own admin role
+      if (user && targetUserId === user.id && targetRole === "admin") return false;
+      // Admin can remove moderator, ambassador roles
+      return ["moderator", "ambassador"].includes(targetRole);
     }
 
     const { action, ...params } = await req.json();
@@ -185,6 +210,12 @@ serve(async (req) => {
       case "assignRole": {
         const { targetUserId, role, reason } = params;
         
+        // Check permissions
+        if (!canAssignRole(role)) {
+          result = { success: false, error: `You don't have permission to assign the ${role} role` };
+          break;
+        }
+        
         // Check if role already exists
         const { data: existingRole } = await supabaseAdmin
           .from("user_roles")
@@ -204,6 +235,23 @@ serve(async (req) => {
           .insert({ user_id: targetUserId, role });
         
         if (insertError) throw insertError;
+
+        // If assigning ambassador role, generate referral code
+        if (role === "ambassador") {
+          const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("first_name")
+            .eq("id", targetUserId)
+            .single();
+          
+          const prefix = ((profile?.first_name || "AMB") as string).toUpperCase().slice(0, 4);
+          const suffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+          const code = `${prefix}${suffix}`;
+
+          await supabaseAdmin
+            .from("referral_codes")
+            .upsert({ user_id: targetUserId, code }, { onConflict: "user_id" });
+        }
         
         // Log the action
         await supabaseAdmin.from("admin_audit_log").insert({
@@ -220,9 +268,9 @@ serve(async (req) => {
       case "removeRole": {
         const { targetUserId, role, reason } = params;
         
-        // Prevent removing own admin role
-        if (targetUserId === user.id && role === "admin") {
-          result = { success: false, error: "Cannot remove your own admin role" };
+        // Check permissions
+        if (!canRemoveRole(role, targetUserId)) {
+          result = { success: false, error: `You don't have permission to remove the ${role} role` };
           break;
         }
         
@@ -234,6 +282,14 @@ serve(async (req) => {
           .eq("role", role);
         
         if (deleteError) throw deleteError;
+
+        // If removing ambassador role, deactivate referral code
+        if (role === "ambassador") {
+          await supabaseAdmin
+            .from("referral_codes")
+            .update({ is_active: false })
+            .eq("user_id", targetUserId);
+        }
         
         // Log the action
         await supabaseAdmin.from("admin_audit_log").insert({
@@ -426,6 +482,188 @@ serve(async (req) => {
         });
         
         result = { success: true };
+        break;
+      }
+
+      case "getAmbassadorOverview": {
+        // Get all ambassadors
+        const { data: ambassadorRoles } = await supabaseAdmin
+          .from("user_roles")
+          .select("user_id")
+          .eq("role", "ambassador");
+
+        const ambassadorIds = ambassadorRoles?.map(r => r.user_id) || [];
+        
+        // Get ambassador profiles
+        const { data: profiles } = await supabaseAdmin
+          .from("profiles")
+          .select("id, first_name, last_name")
+          .in("id", ambassadorIds);
+
+        // Get referral codes
+        const { data: codes } = await supabaseAdmin
+          .from("referral_codes")
+          .select("*")
+          .in("user_id", ambassadorIds);
+
+        // Get referral counts
+        const { data: referrals } = await supabaseAdmin
+          .from("referrals")
+          .select("ambassador_user_id");
+
+        const referralCounts: Record<string, number> = {};
+        referrals?.forEach(r => {
+          referralCounts[r.ambassador_user_id] = (referralCounts[r.ambassador_user_id] || 0) + 1;
+        });
+
+        // Get commission totals
+        const { data: commissions } = await supabaseAdmin
+          .from("ambassador_commissions")
+          .select("ambassador_user_id, commission_amount, status");
+
+        const commissionStats: Record<string, { pending: number; claimed: number; paid: number }> = {};
+        commissions?.forEach(c => {
+          if (!commissionStats[c.ambassador_user_id]) {
+            commissionStats[c.ambassador_user_id] = { pending: 0, claimed: 0, paid: 0 };
+          }
+          commissionStats[c.ambassador_user_id][c.status as "pending" | "claimed" | "paid"] += c.commission_amount;
+        });
+
+        // Build ambassador list
+        const ambassadors = ambassadorIds.map(id => {
+          const profile = profiles?.find(p => p.id === id);
+          const code = codes?.find(c => c.user_id === id);
+          const stats = commissionStats[id] || { pending: 0, claimed: 0, paid: 0 };
+          
+          return {
+            id,
+            name: profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "Unknown",
+            email: "",
+            referralCode: code?.code || "",
+            isActive: code?.is_active ?? true,
+            totalReferrals: referralCounts[id] || 0,
+            pendingCommission: stats.pending,
+            claimedCommission: stats.claimed,
+            paidCommission: stats.paid,
+            totalEarnings: stats.pending + stats.claimed + stats.paid
+          };
+        });
+
+        // Get totals
+        const totalAmbassadors = ambassadorIds.length;
+        const totalReferrals = Object.values(referralCounts).reduce((sum, c) => sum + c, 0);
+        const totalCommissions = commissions?.reduce((sum, c) => sum + c.commission_amount, 0) || 0;
+        const pendingPayouts = commissions?.filter(c => c.status === "claimed").reduce((sum, c) => sum + c.commission_amount, 0) || 0;
+
+        result = {
+          ambassadors,
+          summary: {
+            totalAmbassadors,
+            totalReferrals,
+            totalCommissions,
+            pendingPayouts
+          }
+        };
+        break;
+      }
+
+      case "getPayoutRequests": {
+        const { status = "pending" } = params;
+
+        const query = supabaseAdmin
+          .from("commission_payouts")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (status !== "all") {
+          query.eq("status", status);
+        }
+
+        const { data: payouts, error } = await query;
+        if (error) throw error;
+
+        // Get ambassador names
+        const ambassadorIds = [...new Set(payouts?.map(p => p.ambassador_user_id) || [])];
+        const { data: profiles } = await supabaseAdmin
+          .from("profiles")
+          .select("id, first_name, last_name")
+          .in("id", ambassadorIds);
+
+        const payoutsWithNames = payouts?.map(p => {
+          const profile = profiles?.find(pr => pr.id === p.ambassador_user_id);
+          return {
+            ...p,
+            ambassador_name: profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "Unknown"
+          };
+        });
+
+        result = { payouts: payoutsWithNames };
+        break;
+      }
+
+      case "processPayoutRequest": {
+        const { payoutId, newStatus, notes, paymentMethod, paymentReference } = params;
+
+        if (!isSuperAdmin && newStatus === "paid") {
+          result = { success: false, error: "Only super admins can mark payouts as paid" };
+          break;
+        }
+
+        const updateData: Record<string, any> = {
+          status: newStatus,
+          admin_user_id: user.id,
+          processed_at: new Date().toISOString()
+        };
+
+        if (notes) updateData.admin_notes = notes;
+        if (paymentMethod) updateData.payment_method = paymentMethod;
+        if (paymentReference) updateData.payment_reference = paymentReference;
+
+        const { data: payout, error } = await supabaseAdmin
+          .from("commission_payouts")
+          .update(updateData)
+          .eq("id", payoutId)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // If paid, update commission status
+        if (newStatus === "paid") {
+          await supabaseAdmin
+            .from("ambassador_commissions")
+            .update({ status: "paid", paid_at: new Date().toISOString() })
+            .eq("ambassador_user_id", payout.ambassador_user_id)
+            .eq("status", "claimed");
+        }
+
+        // If rejected, revert commissions to pending
+        if (newStatus === "rejected") {
+          await supabaseAdmin
+            .from("ambassador_commissions")
+            .update({ status: "pending", claimed_at: null })
+            .eq("ambassador_user_id", payout.ambassador_user_id)
+            .eq("status", "claimed");
+        }
+
+        // Log the action
+        await supabaseAdmin.from("admin_audit_log").insert({
+          admin_user_id: user.id,
+          action_type: "process_payout",
+          target_user_id: payout.ambassador_user_id,
+          details: { payoutId, newStatus, amount: payout.amount, notes }
+        });
+
+        result = { success: true, payout };
+        break;
+      }
+
+      case "getRoleHierarchy": {
+        result = {
+          hierarchy: roleHierarchy,
+          currentUserRoles: userRoles,
+          isSuperAdmin
+        };
         break;
       }
 

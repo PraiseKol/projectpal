@@ -29,12 +29,23 @@ export const RoleManagement = ({ emailMap, users }: RoleManagementProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
-  const [selectedRole, setSelectedRole] = useState<"admin" | "moderator">("moderator");
+  const [selectedRole, setSelectedRole] = useState<"admin" | "moderator" | "super_admin" | "ambassador">("moderator");
+  const [userRoleHierarchy, setUserRoleHierarchy] = useState<{ isSuperAdmin: boolean }>({ isSuperAdmin: false });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     loadRoles();
+    loadRoleHierarchy();
   }, []);
+
+  const loadRoleHierarchy = async () => {
+    try {
+      const response = await callAdminOperation("getRoleHierarchy", {});
+      setUserRoleHierarchy({ isSuperAdmin: response.isSuperAdmin });
+    } catch (error) {
+      console.error("Error loading role hierarchy:", error);
+    }
+  };
 
   const loadRoles = async () => {
     try {
@@ -123,10 +134,14 @@ export const RoleManagement = ({ emailMap, users }: RoleManagementProps) => {
 
   const getRoleBadge = (role: string) => {
     switch (role) {
+      case "super_admin":
+        return <Badge className="bg-gradient-to-r from-purple-600 to-pink-600">Super Admin</Badge>;
       case "admin":
         return <Badge className="bg-destructive">Admin</Badge>;
       case "moderator":
         return <Badge className="bg-primary">Moderator</Badge>;
+      case "ambassador":
+        return <Badge className="bg-green-600">Ambassador</Badge>;
       default:
         return <Badge variant="secondary">{role}</Badge>;
     }
@@ -169,18 +184,22 @@ export const RoleManagement = ({ emailMap, users }: RoleManagementProps) => {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 pt-4">
-                <div>
+              <div>
                   <Label>Role</Label>
                   <Select 
                     value={selectedRole} 
-                    onValueChange={(v: "admin" | "moderator") => setSelectedRole(v)}
+                    onValueChange={(v: "admin" | "moderator" | "super_admin" | "ambassador") => setSelectedRole(v)}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="ambassador">Ambassador</SelectItem>
                       <SelectItem value="moderator">Moderator</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
+                      {userRoleHierarchy.isSuperAdmin && (
+                        <SelectItem value="super_admin">Super Admin</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

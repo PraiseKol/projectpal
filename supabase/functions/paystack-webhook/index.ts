@@ -238,7 +238,7 @@ async function handleChargeSuccess(supabase: any, data: any) {
   }
 
   // Save transaction record
-  const { error: transactionError } = await supabase
+  const { data: transactionData, error: transactionError } = await supabase
     .from('transactions')
     .insert({
       user_id: userId,
@@ -250,11 +250,42 @@ async function handleChargeSuccess(supabase: any, data: any) {
       status: 'success',
       billing_period: billingPeriod,
       duration_days: durationDays
-    });
+    })
+    .select()
+    .single();
 
   if (transactionError) {
     console.error('Failed to save transaction:', transactionError);
   } else {
     console.log(`Successfully processed payment ${reference} for user ${userId}`);
+
+    // Check if this user was referred by an ambassador
+    const { data: referral } = await supabase
+      .from('referrals')
+      .select('ambassador_user_id')
+      .eq('referred_user_id', userId)
+      .maybeSingle();
+
+    if (referral && transactionData) {
+      // Calculate 5% commission
+      const commissionAmount = Math.floor(amount * 0.05);
+      
+      console.log(`User ${userId} was referred by ambassador ${referral.ambassador_user_id}. Adding commission of ${commissionAmount}`);
+      
+      // Insert commission record
+      const { error: commissionError } = await supabase
+        .from('ambassador_commissions')
+        .insert({
+          ambassador_user_id: referral.ambassador_user_id,
+          transaction_id: transactionData.id,
+          referred_user_id: userId,
+          transaction_amount: Math.round(amount),
+          commission_amount: commissionAmount
+        });
+
+      if (commissionError) {
+        console.error('Failed to create commission record:', commissionError);
+      }
+    }
   }
 }

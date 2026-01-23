@@ -1,0 +1,390 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+// Generate a unique referral code
+function generateReferralCode(firstName: string): string {
+  const prefix = (firstName || "AMB").toUpperCase().slice(0, 4);
+  const suffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `${prefix}${suffix}`;
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "No authorization header" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseUser = createClient(supabaseUrl, supabaseServiceKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { action, ...params } = await req.json();
+    let result;
+
+    switch (action) {
+      case "getMyReferralCode": {
+        // Check if user is an ambassador
+        const { data: roleData } = await supabaseAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "ambassador")
+          .maybeSingle();
+
+        if (!roleData) {
+          return new Response(JSON.stringify({ error: "Ambassador access required" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Get existing code or create new one
+        let { data: codeData, error: codeError } = await supabaseAdmin
+          .from("referral_codes")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (!codeData) {
+          // Get user's first name for code generation
+          const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("first_name")
+            .eq("id", user.id)
+            .single();
+
+          const code = generateReferralCode(profile?.first_name || "");
+
+          const { data: newCode, error: insertError } = await supabaseAdmin
+            .from("referral_codes")
+            .insert({ user_id: user.id, code })
+            .select()
+            .single();
+
+          if (insertError) throw insertError;
+          codeData = newCode;
+        }
+
+        result = { referralCode: codeData };
+        break;
+      }
+
+      case "getMyReferrals": {
+        // Verify ambassador role
+        const { data: roleData } = await supabaseAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "ambassador")
+          .maybeSingle();
+
+        if (!roleData) {
+          return new Response(JSON.stringify({ error: "Ambassador access required" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Get referrals
+        const { data: referrals, error } = await supabaseAdmin
+          .from("referrals")
+          .select("*")
+          .eq("ambassador_user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        // Get profile info for each referred user
+        const referredUserIds = referrals?.map(r => r.referred_user_id) || [];
+        let referralDetails: any[] = [];
+
+        if (referredUserIds.length > 0) {
+          const { data: profiles } = await supabaseAdmin
+            .from("profiles")
+            .select("id, first_name, last_name, plan_type, created_at")
+            .in("id", referredUserIds);
+
+          referralDetails = referrals?.map(ref => {
+            const profile = profiles?.find(p => p.id === ref.referred_user_id);
+            return {
+              ...ref,
+              referred_user_name: profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "User" : "User",
+              referred_user_plan: profile?.plan_type || "free",
+              referred_user_joined: profile?.created_at
+            };
+          }) || [];
+        }
+
+        result = { referrals: referralDetails };
+        break;
+      }
+
+      case "getMyCommissions": {
+        // Verify ambassador role
+        const { data: roleData } = await supabaseAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "ambassador")
+          .maybeSingle();
+
+        if (!roleData) {
+          return new Response(JSON.stringify({ error: "Ambassador access required" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Get all commissions
+        const { data: commissions, error } = await supabaseAdmin
+          .from("ambassador_commissions")
+          .select("*")
+          .eq("ambassador_user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        // Calculate totals
+        const pendingAmount = commissions?.filter(c => c.status === "pending").reduce((sum, c) => sum + c.commission_amount, 0) || 0;
+        const claimedAmount = commissions?.filter(c => c.status === "claimed").reduce((sum, c) => sum + c.commission_amount, 0) || 0;
+        const paidAmount = commissions?.filter(c => c.status === "paid").reduce((sum, c) => sum + c.commission_amount, 0) || 0;
+        const totalEarnings = pendingAmount + claimedAmount + paidAmount;
+
+        result = {
+          commissions,
+          summary: {
+            pendingAmount,
+            claimedAmount,
+            paidAmount,
+            totalEarnings
+          }
+        };
+        break;
+      }
+
+      case "getMyPayouts": {
+        // Verify ambassador role
+        const { data: roleData } = await supabaseAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "ambassador")
+          .maybeSingle();
+
+        if (!roleData) {
+          return new Response(JSON.stringify({ error: "Ambassador access required" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { data: payouts, error } = await supabaseAdmin
+          .from("commission_payouts")
+          .select("*")
+          .eq("ambassador_user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        result = { payouts };
+        break;
+      }
+
+      case "requestPayout": {
+        // Verify ambassador role
+        const { data: roleData } = await supabaseAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "ambassador")
+          .maybeSingle();
+
+        if (!roleData) {
+          return new Response(JSON.stringify({ error: "Ambassador access required" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Check for existing pending payout request
+        const { data: existingPayout } = await supabaseAdmin
+          .from("commission_payouts")
+          .select("id")
+          .eq("ambassador_user_id", user.id)
+          .eq("status", "pending")
+          .maybeSingle();
+
+        if (existingPayout) {
+          return new Response(JSON.stringify({ error: "You already have a pending payout request" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Get pending commissions
+        const { data: pendingCommissions, error: commError } = await supabaseAdmin
+          .from("ambassador_commissions")
+          .select("id, commission_amount")
+          .eq("ambassador_user_id", user.id)
+          .eq("status", "pending");
+
+        if (commError) throw commError;
+
+        const totalPending = pendingCommissions?.reduce((sum, c) => sum + c.commission_amount, 0) || 0;
+
+        if (totalPending === 0) {
+          return new Response(JSON.stringify({ error: "No pending commissions to claim" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Update commissions to claimed status
+        const commissionIds = pendingCommissions?.map(c => c.id) || [];
+        await supabaseAdmin
+          .from("ambassador_commissions")
+          .update({ status: "claimed", claimed_at: new Date().toISOString() })
+          .in("id", commissionIds);
+
+        // Create payout request
+        const { data: payout, error: payoutError } = await supabaseAdmin
+          .from("commission_payouts")
+          .insert({
+            ambassador_user_id: user.id,
+            amount: totalPending,
+            status: "pending"
+          })
+          .select()
+          .single();
+
+        if (payoutError) throw payoutError;
+
+        result = { success: true, payout, amount: totalPending };
+        break;
+      }
+
+      case "getAmbassadorStats": {
+        // Verify ambassador role
+        const { data: roleData } = await supabaseAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "ambassador")
+          .maybeSingle();
+
+        if (!roleData) {
+          return new Response(JSON.stringify({ error: "Ambassador access required" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Get referral count
+        const { count: totalReferrals } = await supabaseAdmin
+          .from("referrals")
+          .select("*", { count: "exact", head: true })
+          .eq("ambassador_user_id", user.id);
+
+        // Get subscribed referral count (users who have paid)
+        const { data: referrals } = await supabaseAdmin
+          .from("referrals")
+          .select("referred_user_id")
+          .eq("ambassador_user_id", user.id);
+
+        const referredUserIds = referrals?.map(r => r.referred_user_id) || [];
+        let subscribedCount = 0;
+
+        if (referredUserIds.length > 0) {
+          const { data: profiles } = await supabaseAdmin
+            .from("profiles")
+            .select("id, plan_type")
+            .in("id", referredUserIds)
+            .neq("plan_type", "free");
+
+          subscribedCount = profiles?.length || 0;
+        }
+
+        // Get commission stats
+        const { data: commissions } = await supabaseAdmin
+          .from("ambassador_commissions")
+          .select("commission_amount, status")
+          .eq("ambassador_user_id", user.id);
+
+        const pendingAmount = commissions?.filter(c => c.status === "pending").reduce((sum, c) => sum + c.commission_amount, 0) || 0;
+        const claimedAmount = commissions?.filter(c => c.status === "claimed").reduce((sum, c) => sum + c.commission_amount, 0) || 0;
+        const paidAmount = commissions?.filter(c => c.status === "paid").reduce((sum, c) => sum + c.commission_amount, 0) || 0;
+
+        result = {
+          totalReferrals: totalReferrals || 0,
+          subscribedReferrals: subscribedCount,
+          pendingCommission: pendingAmount,
+          claimedCommission: claimedAmount,
+          paidCommission: paidAmount,
+          totalEarnings: pendingAmount + claimedAmount + paidAmount
+        };
+        break;
+      }
+
+      case "validateReferralCode": {
+        const { code } = params;
+
+        if (!code) {
+          result = { valid: false };
+          break;
+        }
+
+        const { data: codeData, error } = await supabaseAdmin
+          .from("referral_codes")
+          .select("id, user_id, is_active")
+          .eq("code", code.toUpperCase())
+          .eq("is_active", true)
+          .maybeSingle();
+
+        result = { valid: !!codeData, codeData };
+        break;
+      }
+
+      default:
+        return new Response(JSON.stringify({ error: "Unknown action" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+    }
+
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error: unknown) {
+    console.error("Ambassador operation error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
