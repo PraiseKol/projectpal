@@ -169,6 +169,31 @@ serve(async (req) => {
 
         if (error) throw error;
 
+        // Get referred user names for each commission
+        const referredUserIds = commissions?.map(c => c.referred_user_id) || [];
+        let commissionsWithNames = commissions || [];
+
+        if (referredUserIds.length > 0) {
+          const { data: profiles } = await supabaseAdmin
+            .from("profiles")
+            .select("id, first_name, last_name")
+            .in("id", referredUserIds);
+
+          commissionsWithNames = commissions?.map(commission => {
+            const profile = profiles?.find(p => p.id === commission.referred_user_id);
+            const firstName = profile?.first_name || "";
+            const lastName = profile?.last_name || "";
+            // Mask the name for privacy: "John D***"
+            const maskedName = firstName 
+              ? `${firstName} ${lastName ? lastName.charAt(0) + "***" : ""}`.trim()
+              : "User";
+            return {
+              ...commission,
+              referred_user_name: maskedName
+            };
+          }) || [];
+        }
+
         // Calculate totals
         const pendingAmount = commissions?.filter(c => c.status === "pending").reduce((sum, c) => sum + c.commission_amount, 0) || 0;
         const claimedAmount = commissions?.filter(c => c.status === "claimed").reduce((sum, c) => sum + c.commission_amount, 0) || 0;
@@ -176,7 +201,7 @@ serve(async (req) => {
         const totalEarnings = pendingAmount + claimedAmount + paidAmount;
 
         result = {
-          commissions,
+          commissions: commissionsWithNames,
           summary: {
             pendingAmount,
             claimedAmount,
@@ -329,15 +354,55 @@ serve(async (req) => {
           subscribedCount = profiles?.length || 0;
         }
 
-        // Get commission stats
-        const { data: commissions } = await supabaseAdmin
+        // Get all commission stats with transaction amounts
+        const { data: allCommissions } = await supabaseAdmin
           .from("ambassador_commissions")
-          .select("commission_amount, status")
+          .select("commission_amount, transaction_amount, status, created_at")
           .eq("ambassador_user_id", user.id);
 
-        const pendingAmount = commissions?.filter(c => c.status === "pending").reduce((sum, c) => sum + c.commission_amount, 0) || 0;
-        const claimedAmount = commissions?.filter(c => c.status === "claimed").reduce((sum, c) => sum + c.commission_amount, 0) || 0;
-        const paidAmount = commissions?.filter(c => c.status === "paid").reduce((sum, c) => sum + c.commission_amount, 0) || 0;
+        const pendingAmount = allCommissions?.filter(c => c.status === "pending").reduce((sum, c) => sum + c.commission_amount, 0) || 0;
+        const claimedAmount = allCommissions?.filter(c => c.status === "claimed").reduce((sum, c) => sum + c.commission_amount, 0) || 0;
+        const paidAmount = allCommissions?.filter(c => c.status === "paid").reduce((sum, c) => sum + c.commission_amount, 0) || 0;
+        const totalEarnings = pendingAmount + claimedAmount + paidAmount;
+        const totalTransactionValue = allCommissions?.reduce((sum, c) => sum + c.transaction_amount, 0) || 0;
+        const commissionCount = allCommissions?.length || 0;
+
+        // Calculate conversion rate
+        const conversionRate = (totalReferrals || 0) > 0 
+          ? (subscribedCount / (totalReferrals || 1)) * 100 
+          : 0;
+
+        // Calculate average commission
+        const averageCommission = commissionCount > 0 
+          ? totalEarnings / commissionCount 
+          : 0;
+
+        // Calculate this month's earnings
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const thisMonthEarnings = allCommissions
+          ?.filter(c => new Date(c.created_at) >= startOfMonth)
+          .reduce((sum, c) => sum + c.commission_amount, 0) || 0;
+
+        // Generate monthly earnings for the last 6 months
+        const monthlyEarnings: { month: string; earnings: number; pending: number; paid: number }[] = [];
+        for (let i = 5; i >= 0; i--) {
+          const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
+          const monthName = monthDate.toLocaleString('default', { month: 'short' });
+          
+          const monthCommissions = allCommissions?.filter(c => {
+            const date = new Date(c.created_at);
+            return date >= monthDate && date <= monthEnd;
+          }) || [];
+
+          monthlyEarnings.push({
+            month: monthName,
+            earnings: monthCommissions.reduce((sum, c) => sum + c.commission_amount, 0),
+            pending: monthCommissions.filter(c => c.status === "pending").reduce((sum, c) => sum + c.commission_amount, 0),
+            paid: monthCommissions.filter(c => c.status === "paid" || c.status === "claimed").reduce((sum, c) => sum + c.commission_amount, 0),
+          });
+        }
 
         result = {
           totalReferrals: totalReferrals || 0,
@@ -345,7 +410,13 @@ serve(async (req) => {
           pendingCommission: pendingAmount,
           claimedCommission: claimedAmount,
           paidCommission: paidAmount,
-          totalEarnings: pendingAmount + claimedAmount + paidAmount
+          totalEarnings,
+          conversionRate,
+          averageCommission,
+          thisMonthEarnings,
+          totalTransactionValue,
+          commissionCount,
+          monthlyEarnings
         };
         break;
       }
