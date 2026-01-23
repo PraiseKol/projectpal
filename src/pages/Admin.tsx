@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, LayoutDashboard, Users, CreditCard, Activity, Shield, Settings, History } from "lucide-react";
+import { ArrowLeft, LayoutDashboard, Users, CreditCard, Activity, Shield, Settings, History, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatsOverview } from "@/components/Admin/StatsOverview";
@@ -16,6 +16,7 @@ import { ActivityMonitor } from "@/components/Admin/ActivityMonitor";
 import { RoleManagement } from "@/components/Admin/RoleManagement";
 import { AppSettings } from "@/components/Admin/AppSettings";
 import { AuditLog } from "@/components/Admin/AuditLog";
+import { AmbassadorManagement } from "@/components/Admin/AmbassadorManagement";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -173,6 +174,7 @@ const Admin = () => {
             <TabsTrigger value="transactions"><CreditCard className="h-4 w-4 mr-2" />Transactions</TabsTrigger>
             <TabsTrigger value="activity"><Activity className="h-4 w-4 mr-2" />Activity</TabsTrigger>
             <TabsTrigger value="roles"><Shield className="h-4 w-4 mr-2" />Roles</TabsTrigger>
+            <TabsTrigger value="ambassadors"><UserCheck className="h-4 w-4 mr-2" />Ambassadors</TabsTrigger>
             <TabsTrigger value="settings"><Settings className="h-4 w-4 mr-2" />Settings</TabsTrigger>
             <TabsTrigger value="audit"><History className="h-4 w-4 mr-2" />Audit Log</TabsTrigger>
           </TabsList>
@@ -240,6 +242,10 @@ const Admin = () => {
 
           <TabsContent value="roles">
             <RoleManagement emailMap={emailMap} users={users} />
+          </TabsContent>
+
+          <TabsContent value="ambassadors">
+            <AmbassadorManagement emailMap={emailMap} />
           </TabsContent>
 
           <TabsContent value="settings">

@@ -19,6 +19,7 @@ import DocumentEditor from "./pages/DocumentEditor";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
 import TransactionHistory from "./pages/TransactionHistory";
 import Admin from "./pages/Admin";
+import Ambassador from "./pages/Ambassador";
 import NotFound from "./pages/NotFound";
 import DataAnalysis from "./pages/DataAnalysis";
 
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="/checkout-success" element={<ProtectedRoute><CheckoutSuccess /></ProtectedRoute>} />
               <Route path="/transactions" element={<ProtectedRoute><TransactionHistory /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+              <Route path="/ambassador" element={<ProtectedRoute><Ambassador /></ProtectedRoute>} />
               <Route path="/data-analysis" element={<ProtectedRoute><DataAnalysis /></ProtectedRoute>} />
               
               <Route path="*" element={<NotFound />} />

@@ -154,7 +154,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { error: transactionError } = await supabaseAdmin
+    const { data: transactionData, error: transactionError } = await supabaseAdmin
       .from('transactions')
       .insert({
         user_id: user.id,
@@ -166,11 +166,44 @@ serve(async (req) => {
         status: 'success',
         billing_period: billingPeriod,
         duration_days: durationDays
-      });
+      })
+      .select()
+      .single();
 
     if (transactionError) {
       console.error('Failed to save transaction:', transactionError);
       // Don't fail the request if transaction logging fails
+    }
+
+    // Check if this user was referred by an ambassador
+    if (transactionData && !transactionError) {
+      const { data: referral } = await supabaseAdmin
+        .from('referrals')
+        .select('ambassador_user_id')
+        .eq('referred_user_id', user.id)
+        .maybeSingle();
+
+      if (referral) {
+        // Calculate 5% commission
+        const commissionAmount = Math.floor(amount * 0.05);
+        
+        console.log(`User was referred by ambassador ${referral.ambassador_user_id}. Adding commission of ${commissionAmount}`);
+        
+        // Insert commission record
+        const { error: commissionError } = await supabaseAdmin
+          .from('ambassador_commissions')
+          .insert({
+            ambassador_user_id: referral.ambassador_user_id,
+            transaction_id: transactionData.id,
+            referred_user_id: user.id,
+            transaction_amount: Math.round(amount),
+            commission_amount: commissionAmount
+          });
+
+        if (commissionError) {
+          console.error('Failed to create commission record:', commissionError);
+        }
+      }
     }
 
     return new Response(
