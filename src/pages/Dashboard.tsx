@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, FileText, Sparkles, LogOut, CreditCard, GraduationCap, Settings as SettingsIcon, Receipt, AlertTriangle, Clock, RefreshCw, Lock, BarChart3 } from "lucide-react";
+import { MessageSquare, FileText, Sparkles, LogOut, CreditCard, GraduationCap, Settings as SettingsIcon, Receipt, AlertTriangle, Clock, RefreshCw, Lock, BarChart3, Users } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -20,6 +20,7 @@ const Dashboard = () => {
   const [recentChats, setRecentChats] = useState<any[]>([]);
   const [recentParaphrases, setRecentParaphrases] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isAmbassador, setIsAmbassador] = useState(false);
   const [upgradeDialog, setUpgradeDialog] = useState<{
     open: boolean;
     feature: string;
@@ -49,15 +50,15 @@ const Dashboard = () => {
       if (error) throw error;
       setProfile(profileData);
 
-      // Check if user is admin
+      // Check user roles (admin, super_admin, ambassador)
       const { data: rolesData } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
+        .eq("user_id", user.id);
       
-      setIsAdmin(!!rolesData);
+      const roles = rolesData?.map(r => r.role) || [];
+      setIsAdmin(roles.includes("admin") || roles.includes("super_admin"));
+      setIsAmbassador(roles.includes("ambassador"));
 
       // Fetch recent chat sessions
       const { data: chatsData } = await supabase
@@ -208,6 +209,12 @@ const Dashboard = () => {
             <ThemeToggle />
             {/* Desktop navigation */}
             <div className="hidden md:flex items-center gap-2">
+              {isAmbassador && (
+                <Button onClick={() => navigate("/ambassador")} variant="outline" size="sm">
+                  <Users className="h-4 w-4 mr-2" />
+                  Ambassador
+                </Button>
+              )}
               {isAdmin && (
                 <Button onClick={() => navigate("/admin")} variant="outline" size="sm">
                   <SettingsIcon className="h-4 w-4 mr-2" />
@@ -228,7 +235,7 @@ const Dashboard = () => {
               </Button>
             </div>
             {/* Mobile navigation */}
-            <MobileNav isAdmin={isAdmin} />
+            <MobileNav isAdmin={isAdmin} isAmbassador={isAmbassador} />
           </div>
         </div>
       </header>

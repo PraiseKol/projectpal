@@ -8,15 +8,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, Receipt, Settings, LogOut, Shield } from "lucide-react";
+import { Menu, Receipt, Settings, LogOut, Shield, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface MobileNavProps {
   isAdmin?: boolean;
+  isAmbassador?: boolean;
 }
 
-export const MobileNav = ({ isAdmin }: MobileNavProps) => {
+export const MobileNav = ({ isAdmin, isAmbassador }: MobileNavProps) => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
@@ -34,6 +35,12 @@ export const MobileNav = ({ isAdmin }: MobileNavProps) => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
+        {isAmbassador && (
+          <DropdownMenuItem onClick={() => { navigate("/ambassador"); setOpen(false); }}>
+            <Users className="h-4 w-4 mr-2" />
+            Ambassador
+          </DropdownMenuItem>
+        )}
         {isAdmin && (
           <DropdownMenuItem onClick={() => { navigate("/admin"); setOpen(false); }}>
             <Shield className="h-4 w-4 mr-2" />
