@@ -18,6 +18,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Users, Coins, Wallet, TrendingUp, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { TableRowSkeleton } from "@/components/skeletons/TableRowSkeleton";
 
 interface Ambassador {
   id: string;
@@ -240,9 +241,7 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8">Loading...</TableCell>
-                      </TableRow>
+                      <TableRowSkeleton columns={7} rows={5} />
                     ) : ambassadors.length > 0 ? (
                       ambassadors.map((ambassador) => (
                         <TableRow key={ambassador.id}>
@@ -317,9 +316,7 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">Loading...</TableCell>
-                      </TableRow>
+                      <TableRowSkeleton columns={6} rows={5} />
                     ) : payouts.length > 0 ? (
                       payouts.map((payout) => (
                         <TableRow key={payout.id}>

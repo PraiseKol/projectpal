@@ -8,7 +8,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, LayoutDashboard, Users, CreditCard, Activity, Shield, Settings, History, UserCheck } from "lucide-react";
 import { toast } from "sonner";
-import { Skeleton } from "@/components/ui/skeleton";
 import { StatsOverview } from "@/components/Admin/StatsOverview";
 import { AdminCharts } from "@/components/Admin/AdminCharts";
 import { UserManagement } from "@/components/Admin/UserManagement";
@@ -17,6 +16,7 @@ import { RoleManagement } from "@/components/Admin/RoleManagement";
 import { AppSettings } from "@/components/Admin/AppSettings";
 import { AuditLog } from "@/components/Admin/AuditLog";
 import { AmbassadorManagement } from "@/components/Admin/AmbassadorManagement";
+import { AdminSkeleton } from "@/components/skeletons/AdminSkeleton";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -143,11 +143,7 @@ const Admin = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Skeleton className="h-64 w-64" />
-      </div>
-    );
+    return <AdminSkeleton />;
   }
 
   if (!isAdmin) return null;

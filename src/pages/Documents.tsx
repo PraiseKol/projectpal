@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { DocumentsSkeleton } from "@/components/skeletons/DocumentsSkeleton";
 
 const Documents = () => {
   const navigate = useNavigate();
@@ -183,11 +184,7 @@ const Documents = () => {
   };
 
   if (isCheckingPlan) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <DocumentsSkeleton />;
   }
 
   return (

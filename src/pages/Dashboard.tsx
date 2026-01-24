@@ -12,6 +12,7 @@ import { MobileNav } from "@/components/MobileNav";
 import { SEO } from "@/components/SEO";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
+import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -182,11 +183,7 @@ const Dashboard = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (
