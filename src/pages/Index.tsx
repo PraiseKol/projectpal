@@ -32,7 +32,7 @@ const Index = () => {
     "Get accurate academic references",
     "Edit and improve your work",
     "Get access to Paragraph Paraphraser",
-    "Instantly generate POWERPOINT presentation from your uploded files",
+    "Instantly generate POWERPOINT presentation from your uploaded files",
   ];
 
   return (

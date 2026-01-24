@@ -129,7 +129,12 @@ const TransactionHistory = () => {
                 </Button>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="relative">
+                {/* Mobile scroll indicator */}
+                <div className="md:hidden text-xs text-muted-foreground text-center pb-2">
+                  ← Swipe to see more →
+                </div>
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -178,6 +183,7 @@ const TransactionHistory = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </div>
             )}
           </CardContent>
