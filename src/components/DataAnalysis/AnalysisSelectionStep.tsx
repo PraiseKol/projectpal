@@ -109,11 +109,11 @@ const ANALYSIS_METHODS: AnalysisMethod[] = [
     needsConfig: 'iv',
   },
   
-  // Comparison
+  // Comparison - Parametric
   {
     id: 'ttest_independent',
     name: 'Independent T-Test',
-    description: 'Compare means between two different groups',
+    description: 'Compare means between two different groups (assumes normality)',
     credits: 30,
     category: 'comparison',
     requirements: { minCategorical: 1, minNumeric: 1 },
@@ -123,12 +123,43 @@ const ANALYSIS_METHODS: AnalysisMethod[] = [
   {
     id: 'ttest_paired',
     name: 'Paired T-Test',
-    description: 'Compare means for pre-test/post-test designs',
+    description: 'Compare means for pre-test/post-test designs (assumes normality)',
     credits: 30,
     category: 'comparison',
     requirements: { minNumeric: 2 },
     freeAccess: false,
     needsConfig: 'paired',
+  },
+  // Non-parametric alternatives
+  {
+    id: 'mannwhitney_u',
+    name: 'Mann-Whitney U Test',
+    description: 'Non-parametric alternative to independent t-test for non-normal data',
+    credits: 30,
+    category: 'comparison',
+    requirements: { minCategorical: 1, minNumeric: 1 },
+    freeAccess: false,
+    needsConfig: 'grouping',
+  },
+  {
+    id: 'wilcoxon_signed_rank',
+    name: 'Wilcoxon Signed-Rank Test',
+    description: 'Non-parametric alternative to paired t-test for non-normal data',
+    credits: 30,
+    category: 'comparison',
+    requirements: { minNumeric: 2 },
+    freeAccess: false,
+    needsConfig: 'paired',
+  },
+  {
+    id: 'kruskal_wallis',
+    name: 'Kruskal-Wallis H Test',
+    description: 'Non-parametric alternative to one-way ANOVA for non-normal data',
+    credits: 40,
+    category: 'comparison',
+    requirements: { minCategorical: 1, minNumeric: 1 },
+    freeAccess: false,
+    needsConfig: 'grouping',
   },
   {
     id: 'anova_oneway',
