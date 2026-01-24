@@ -525,7 +525,7 @@ const Chat = () => {
                 <div className="p-2 bg-gradient-to-br from-primary to-secondary rounded-xl">
                   <GraduationCap className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-lg font-semibold hidden sm:inline">ScholarAI Chat</span>
+                <span className="text-lg font-semibold hidden sm:inline">ProjectPal Chat</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -541,7 +541,7 @@ const Chat = () => {
             {messages.length === 0 ? (
               <div className="text-center py-12">
                 <Sparkles className="h-16 w-16 mx-auto mb-4 text-primary" />
-                <h2 className="text-2xl font-bold mb-2">Welcome to ScholarAI</h2>
+                <h2 className="text-2xl font-bold mb-2">Welcome to ProjectPal</h2>
                 <p className="text-muted-foreground mb-6">
                   Your AI assistant for academic projects. Try one of these quick actions:
                 </p>

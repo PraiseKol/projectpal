@@ -38,8 +38,8 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="ScholarAI Hub - AI Powered Academic Project Assistant"
-        description="Complete your academic projects faster with ScholarAI Hub. Generate topics, write proposals, create chapters, and get AI-powered assistance for your research."
+        title="ProjectPal - AI Powered Academic Project Assistant"
+        description="Complete your academic projects faster with ProjectPal. Generate topics, write proposals, create chapters, and get AI-powered assistance for your research."
         keywords="academic writing, AI assistant, research projects, thesis writing, proposal generator, chapter writing, academic references"
       />
       {/* Header */}
@@ -52,7 +52,7 @@ const Index = () => {
         <div className="inline-block p-4 bg-gradient-to-br from-primary to-secondary rounded-2xl mb-8 animate-scale-in">
           <GraduationCap className="h-16 w-16 text-white" />
         </div>
-        <h1 className="text-5xl md:text-6xl font-bold mb-6 animate-fade-in">ScholarAI Hub</h1>
+        <h1 className="text-5xl md:text-6xl font-bold mb-6 animate-fade-in">ProjectPal</h1>
         <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-fade-in">
           Your AI powered academic project assistant. Complete your research projects faster with intelligent writing
           assistance.
@@ -108,7 +108,7 @@ const Index = () => {
         <Card className="p-12 bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20 hover:shadow-xl transition-shadow">
           <h2 className="text-3xl font-bold mb-4">Ready to Start?</h2>
           <p className="text-lg text-muted-foreground mb-8">
-            Join ScholarAI Hub today and transform your academic writing experience.
+            Join ProjectPal today and transform your academic writing experience.
           </p>
           <Button size="lg" variant="gradient" onClick={() => navigate("/auth")}>
             Create Free Account

@@ -687,7 +687,7 @@ GUIDELINES:
     // Create PowerPoint
     const pptx = new PptxGenJS();
     pptx.title = presentationData.title;
-    pptx.author = presentationData.author || "ScholarAI Hub";
+    pptx.author = presentationData.author || "ProjectPal";
     pptx.subject = "AI Generated Academic Presentation";
 
     // Build slides based on type

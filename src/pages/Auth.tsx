@@ -350,7 +350,7 @@ const Auth = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <SEO 
-          title="Verify Your Email | ScholarAI Hub"
+          title="Verify Your Email | ProjectPal"
           description="Please check your email to verify your account."
         />
         <Card className="w-full max-w-md">
@@ -414,7 +414,7 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <SEO 
-        title="Sign In | ScholarAI Hub"
+        title="Sign In | ProjectPal"
         description="Sign in or create an account to access AI-powered academic project assistance. Generate topics, write chapters, and get research help."
         keywords="academic writing login, AI assistant signup, research projects account"
       />
@@ -425,7 +425,7 @@ const Auth = () => {
               <GraduationCap className="h-8 w-8 text-white" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold">ScholarAI Hub</CardTitle>
+          <CardTitle className="text-3xl font-bold">ProjectPal</CardTitle>
           <CardDescription>Your academic project assistant</CardDescription>
         </CardHeader>
         <CardContent>

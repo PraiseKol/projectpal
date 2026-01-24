@@ -179,7 +179,7 @@ const DataAnalysis = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO 
-        title="Data Analysis | ScholarAI Hub"
+        title="Data Analysis | ProjectPal"
         description="Analyze your survey and questionnaire data with professional statistical methods for Chapter 4."
         keywords="data analysis, statistical analysis, SPSS alternative, survey analysis, academic research"
       />

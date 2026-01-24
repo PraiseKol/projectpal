@@ -42,10 +42,10 @@ const generateFileName = (content: string, chatTitle?: string): string => {
       .trim()
       .replace(/\s+/g, '-')
       .substring(0, 50);
-    return sanitized || 'ScholarAI-Response';
+    return sanitized || 'ProjectPal-Response';
   }
 
-  return 'ScholarAI-Response';
+  return 'ProjectPal-Response';
 };
 
 export function ExportOptions({ content, chatTitle, onOpenViewer }: ExportOptionsProps) {
