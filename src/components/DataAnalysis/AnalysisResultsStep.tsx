@@ -46,6 +46,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { TutorialTrigger } from "@/components/Tutorial";
 import type { ColumnConfig, AnalysisResults } from "@/pages/DataAnalysis";
 
 interface AnalysisResultsStepProps {
@@ -335,42 +336,45 @@ export const AnalysisResultsStep = ({
           </Button>
           
           {/* Export Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button disabled={isFreeUser}>
-                {isFreeUser ? (
-                  <>
-                    <Lock className="h-4 w-4 mr-2" />
-                    Export (Paid)
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Chapter 4
-                  </>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={handleExportTxt}>
-                <FileText className="h-4 w-4 mr-2" />
-                Download as .txt
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportDocx}>
-                <FileText className="h-4 w-4 mr-2" />
-                Download as .docx
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportPdf}>
-                <FileType className="h-4 w-4 mr-2" />
-                Download as .pdf
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <TutorialTrigger id="tutorial-export-btn">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button disabled={isFreeUser}>
+                  {isFreeUser ? (
+                    <>
+                      <Lock className="h-4 w-4 mr-2" />
+                      Export (Paid)
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 mr-2" />
+                      Export Chapter 4
+                    </>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleExportTxt}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Download as .txt
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportDocx}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Download as .docx
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportPdf}>
+                  <FileType className="h-4 w-4 mr-2" />
+                  Download as .pdf
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </TutorialTrigger>
         </div>
       </div>
 
       {/* Results Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <TutorialTrigger id="tutorial-results-tabs">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
         <ScrollArea className="w-full">
           <TabsList className="w-full flex-wrap h-auto gap-1 p-1">
             {availableResults.map(([key]) => (
@@ -380,7 +384,9 @@ export const AnalysisResultsStep = ({
             ))}
           </TabsList>
         </ScrollArea>
+      </TutorialTrigger>
 
+      <TutorialTrigger id="tutorial-results-content">
         {/* Descriptive Statistics with Histogram */}
         {results.descriptive && (
           <TabsContent value="descriptive">
@@ -2451,6 +2457,7 @@ export const AnalysisResultsStep = ({
             </Card>
           </TabsContent>
         )}
+      </TutorialTrigger>
       </Tabs>
     </div>
   );

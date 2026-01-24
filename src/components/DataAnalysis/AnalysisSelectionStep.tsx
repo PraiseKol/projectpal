@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Loader2, Lock, Info, Coins, Sparkles, Settings2 } from "lucide-react";
+import { TutorialTrigger } from "@/components/Tutorial";
 import type { ColumnConfig } from "@/pages/DataAnalysis";
 
 interface AnalysisSelectionStepProps {
@@ -391,40 +392,46 @@ export const AnalysisSelectionStep = ({
   return (
     <div className="space-y-6">
       {/* Summary Card */}
-      <Card>
-        <CardContent className="py-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex gap-4">
-              <Badge variant="outline">{columnCounts.numeric + columnCounts.likert} Numeric</Badge>
-              <Badge variant="outline">{columnCounts.likert} Likert</Badge>
-              <Badge variant="outline">{columnCounts.categorical} Categorical</Badge>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-sm">
-                <span className="text-muted-foreground">Cost: </span>
-                <span className={`font-bold ${!hasEnoughCredits ? 'text-destructive' : 'text-primary'}`}>
-                  {finalCredits} credits
-                </span>
-                {selectedAnalyses.length >= 3 && (
-                  <Badge variant="secondary" className="ml-2 text-xs">5% Bundle Discount</Badge>
-                )}
+      <TutorialTrigger id="tutorial-column-summary">
+        <Card>
+          <CardContent className="py-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex gap-4">
+                <Badge variant="outline">{columnCounts.numeric + columnCounts.likert} Numeric</Badge>
+                <Badge variant="outline">{columnCounts.likert} Likert</Badge>
+                <Badge variant="outline">{columnCounts.categorical} Categorical</Badge>
               </div>
-              <div className="text-sm">
-                <span className="text-muted-foreground">Available: </span>
-                <span className="font-bold">{availableCredits}</span>
-              </div>
+              <TutorialTrigger id="tutorial-credits-display">
+                <div className="flex items-center gap-4">
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Cost: </span>
+                    <span className={`font-bold ${!hasEnoughCredits ? 'text-destructive' : 'text-primary'}`}>
+                      {finalCredits} credits
+                    </span>
+                    {selectedAnalyses.length >= 3 && (
+                      <Badge variant="secondary" className="ml-2 text-xs">5% Bundle Discount</Badge>
+                    )}
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Available: </span>
+                    <span className="font-bold">{availableCredits}</span>
+                  </div>
+                </div>
+              </TutorialTrigger>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </TutorialTrigger>
 
       {/* Analysis Methods */}
-      {Object.entries(groupedAnalyses).map(([category, methods]) => (
-        <Card key={category}>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">{CATEGORY_LABELS[category]}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+      <TutorialTrigger id="tutorial-analysis-grid">
+        <div className="space-y-6">
+          {Object.entries(groupedAnalyses).map(([category, methods]) => (
+            <Card key={category}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">{CATEGORY_LABELS[category]}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
             {methods.map(method => {
               const compatible = isCompatible(method);
               const accessible = isAccessible(method);
@@ -506,9 +513,11 @@ export const AnalysisSelectionStep = ({
                 </div>
               );
             })}
-          </CardContent>
-        </Card>
-      ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </TutorialTrigger>
 
       {/* Action Buttons */}
       <div className="flex items-center justify-between">
@@ -516,26 +525,28 @@ export const AnalysisSelectionStep = ({
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
-        <Button
-          onClick={() => {
-            if (onColumnsUpdate) onColumnsUpdate(localColumns);
-            onRunAnalysis();
-          }}
-          disabled={selectedAnalyses.length === 0 || !hasEnoughCredits || isAnalyzing}
-          className="gap-2"
-        >
-          {isAnalyzing ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Analyzing...
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-4 w-4" />
-              Run Analysis ({finalCredits} credits)
-            </>
-          )}
-        </Button>
+        <TutorialTrigger id="tutorial-run-btn">
+          <Button
+            onClick={() => {
+              if (onColumnsUpdate) onColumnsUpdate(localColumns);
+              onRunAnalysis();
+            }}
+            disabled={selectedAnalyses.length === 0 || !hasEnoughCredits || isAnalyzing}
+            className="gap-2"
+          >
+            {isAnalyzing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                Run Analysis ({finalCredits} credits)
+              </>
+            )}
+          </Button>
+        </TutorialTrigger>
       </div>
 
       {!hasEnoughCredits && selectedAnalyses.length > 0 && (
