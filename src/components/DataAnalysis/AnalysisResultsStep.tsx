@@ -267,9 +267,14 @@ export const AnalysisResultsStep = ({
 
   const availableResults = Object.entries(results).filter(([_, value]) => value && !value.error);
 
-  // Generate histogram data for descriptive statistics using normal distribution approximation
+  // Generate histogram data - prefer real bins from backend, fallback to approximation
   const generateHistogramData = (stats: any) => {
-    // Validate required stats with proper null checks
+    // If backend provided real histogram bins, use them directly
+    if (stats.histogram && Array.isArray(stats.histogram) && stats.histogram.length > 0) {
+      return stats.histogram;
+    }
+    
+    // Fallback to approximation for backward compatibility
     if (stats.min == null || stats.max == null || !stats.count || stats.count < 3) return [];
     if (stats.min === stats.max) return [{ range: `${stats.min.toFixed(1)}`, count: stats.count }];
     
@@ -287,13 +292,11 @@ export const AnalysisResultsStep = ({
     for (let i = 0; i < binCount; i++) {
       const binMid = stats.min + (i + 0.5) * binWidth;
       const zScore = (binMid - mean) / stdDev;
-      // Normal distribution density approximation
       const density = Math.exp(-0.5 * zScore * zScore);
       densities.push(density);
       totalDensity += density;
     }
     
-    // Normalize to sum to total count
     for (let i = 0; i < binCount; i++) {
       const start = stats.min + i * binWidth;
       const end = start + binWidth;
