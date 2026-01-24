@@ -8,12 +8,14 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SEO } from "@/components/SEO";
-import { ArrowLeft, Upload, FileSpreadsheet, BarChart3, Download, GraduationCap, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Upload, FileSpreadsheet, BarChart3, Download, GraduationCap, CheckCircle2, AlertCircle, HelpCircle } from "lucide-react";
 import { FileUploadStep } from "@/components/DataAnalysis/FileUploadStep";
 import { DataPreviewStep } from "@/components/DataAnalysis/DataPreviewStep";
 import { AnalysisSelectionStep } from "@/components/DataAnalysis/AnalysisSelectionStep";
 import { AnalysisResultsStep } from "@/components/DataAnalysis/AnalysisResultsStep";
 import { DataAnalysisSkeleton } from "@/components/skeletons/DataAnalysisSkeleton";
+import { TutorialProvider, TutorialOverlay, WelcomeDialog, TutorialTrigger } from "@/components/Tutorial";
+import { useTutorial } from "@/hooks/useTutorial";
 
 export interface ColumnConfig {
   name: string;
@@ -41,7 +43,8 @@ const STEPS = [
   { id: 4, name: 'Results', icon: Download, description: 'View & export' },
 ];
 
-const DataAnalysis = () => {
+// Inner component that uses tutorial context
+const DataAnalysisContent = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [profile, setProfile] = useState<any>(null);
@@ -57,6 +60,8 @@ const DataAnalysis = () => {
   const [selectedAnalyses, setSelectedAnalyses] = useState<string[]>([]);
   const [analysisResults, setAnalysisResults] = useState<AnalysisResults | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const { startTutorial } = useTutorial();
   
   useEffect(() => {
     checkAuth();
@@ -95,7 +100,6 @@ const DataAnalysis = () => {
     setColumns(columnConfig);
     setFileName(name);
     
-    // Create analysis session
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -134,8 +138,6 @@ const DataAnalysis = () => {
 
     setIsAnalyzing(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
       const response = await supabase.functions.invoke('data-analysis', {
         body: {
           action: 'run_analysis',
@@ -158,8 +160,6 @@ const DataAnalysis = () => {
       setAnalysisResults(response.data.results);
       toast.success(`Analysis complete! Used ${response.data.creditsUsed} credits`);
       setCurrentStep(4);
-      
-      // Refresh profile to show updated credits
       checkAuth();
     } catch (error) {
       console.error('Analysis error:', error);
@@ -184,6 +184,9 @@ const DataAnalysis = () => {
         keywords="data analysis, statistical analysis, SPSS alternative, survey analysis, academic research"
       />
       
+      <TutorialOverlay />
+      <WelcomeDialog />
+      
       {/* Header */}
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
@@ -199,6 +202,10 @@ const DataAnalysis = () => {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={startTutorial}>
+              <HelpCircle className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">Tutorial</span>
+            </Button>
             <div className="text-sm text-muted-foreground">
               Credits: <span className="font-medium text-foreground">{availableCredits}</span>
             </div>
@@ -209,40 +216,42 @@ const DataAnalysis = () => {
 
       <main className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            {STEPS.map((step, index) => {
-              const StepIcon = step.icon;
-              const isActive = currentStep === step.id;
-              const isComplete = currentStep > step.id;
-              
-              return (
-                <div key={step.id} className="flex items-center flex-1">
-                  <div className="flex flex-col items-center">
-                    <div className={`
-                      w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all
-                      ${isComplete ? 'bg-primary border-primary text-primary-foreground' : 
-                        isActive ? 'border-primary text-primary' : 
-                        'border-muted text-muted-foreground'}
-                    `}>
-                      {isComplete ? (
-                        <CheckCircle2 className="h-6 w-6" />
-                      ) : (
-                        <StepIcon className="h-5 w-5" />
-                      )}
+        <TutorialTrigger id="tutorial-progress-indicator">
+          <div className="mb-8">
+            <div className="flex items-center justify-between">
+              {STEPS.map((step, index) => {
+                const StepIcon = step.icon;
+                const isActive = currentStep === step.id;
+                const isComplete = currentStep > step.id;
+                
+                return (
+                  <div key={step.id} className="flex items-center flex-1">
+                    <div className="flex flex-col items-center">
+                      <div className={`
+                        w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all
+                        ${isComplete ? 'bg-primary border-primary text-primary-foreground' : 
+                          isActive ? 'border-primary text-primary' : 
+                          'border-muted text-muted-foreground'}
+                      `}>
+                        {isComplete ? (
+                          <CheckCircle2 className="h-6 w-6" />
+                        ) : (
+                          <StepIcon className="h-5 w-5" />
+                        )}
+                      </div>
+                      <span className={`mt-2 text-sm font-medium ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+                        {step.name}
+                      </span>
                     </div>
-                    <span className={`mt-2 text-sm font-medium ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
-                      {step.name}
-                    </span>
+                    {index < STEPS.length - 1 && (
+                      <div className={`flex-1 h-0.5 mx-4 ${currentStep > step.id ? 'bg-primary' : 'bg-muted'}`} />
+                    )}
                   </div>
-                  {index < STEPS.length - 1 && (
-                    <div className={`flex-1 h-0.5 mx-4 ${currentStep > step.id ? 'bg-primary' : 'bg-muted'}`} />
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
+        </TutorialTrigger>
 
         {/* Free User Notice */}
         {isFreeUser && (
@@ -312,6 +321,17 @@ const DataAnalysis = () => {
         </div>
       </main>
     </div>
+  );
+};
+
+// Main component with provider wrapper
+const DataAnalysis = () => {
+  const [currentStep, setCurrentStep] = useState(1);
+  
+  return (
+    <TutorialProvider currentStage={currentStep}>
+      <DataAnalysisContent />
+    </TutorialProvider>
   );
 };
 

@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, ArrowRight, FileSpreadsheet } from "lucide-react";
+import { TutorialTrigger } from "@/components/Tutorial";
 import type { ColumnConfig } from "@/pages/DataAnalysis";
 
 interface DataPreviewStepProps {
@@ -61,80 +62,92 @@ export const DataPreviewStep = ({
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
-              <Button 
-                onClick={() => onContinue(columns)}
-                disabled={includedCount < 2}
-              >
-                Continue
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
+              <TutorialTrigger id="tutorial-continue-btn">
+                <Button 
+                  onClick={() => onContinue(columns)}
+                  disabled={includedCount < 2}
+                >
+                  Continue
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </TutorialTrigger>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           {/* Column Configuration */}
-          <div className="mb-6">
-            <h3 className="font-semibold mb-3">Configure Columns</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Select which columns to include and verify their data types. You need at least 2 columns for analysis.
-            </p>
-            
-            <ScrollArea className="h-[300px] border rounded-lg">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">Include</TableHead>
-                    <TableHead>Column Name</TableHead>
-                    <TableHead className="w-40">Data Type</TableHead>
-                    <TableHead>Sample Values</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {columns.map((col, index) => (
-                    <TableRow key={index} className={!col.included ? 'opacity-50' : ''}>
-                      <TableCell>
-                        <Checkbox
-                          checked={col.included}
-                          onCheckedChange={() => toggleIncluded(index)}
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">{col.name}</TableCell>
-                      <TableCell>
-                        <Select
-                          value={col.type}
-                          onValueChange={(value) => setColumnType(index, value as ColumnConfig['type'])}
-                          disabled={!col.included}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="numeric">Numeric</SelectItem>
-                            <SelectItem value="likert">Likert Scale</SelectItem>
-                            <SelectItem value="categorical">Categorical</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1 flex-wrap">
-                          {col.sampleValues.slice(0, 3).map((val, i) => (
-                            <Badge key={i} variant="secondary" className="text-xs">
-                              {String(val).substring(0, 15)}{String(val).length > 15 ? '...' : ''}
-                            </Badge>
-                          ))}
-                          {col.sampleValues.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{col.sampleValues.length - 3}
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
+          <TutorialTrigger id="tutorial-column-table">
+            <div className="mb-6">
+              <h3 className="font-semibold mb-3">Configure Columns</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Select which columns to include and verify their data types. You need at least 2 columns for analysis.
+              </p>
+              
+              <ScrollArea className="h-[300px] border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">
+                        <TutorialTrigger id="tutorial-include-checkbox">
+                          <span>Include</span>
+                        </TutorialTrigger>
+                      </TableHead>
+                      <TableHead>Column Name</TableHead>
+                      <TableHead className="w-40">
+                        <TutorialTrigger id="tutorial-type-selector">
+                          <span>Data Type</span>
+                        </TutorialTrigger>
+                      </TableHead>
+                      <TableHead>Sample Values</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {columns.map((col, index) => (
+                      <TableRow key={index} className={!col.included ? 'opacity-50' : ''}>
+                        <TableCell>
+                          <Checkbox
+                            checked={col.included}
+                            onCheckedChange={() => toggleIncluded(index)}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">{col.name}</TableCell>
+                        <TableCell>
+                          <Select
+                            value={col.type}
+                            onValueChange={(value) => setColumnType(index, value as ColumnConfig['type'])}
+                            disabled={!col.included}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="numeric">Numeric</SelectItem>
+                              <SelectItem value="likert">Likert Scale</SelectItem>
+                              <SelectItem value="categorical">Categorical</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1 flex-wrap">
+                            {col.sampleValues.slice(0, 3).map((val, i) => (
+                              <Badge key={i} variant="secondary" className="text-xs">
+                                {String(val).substring(0, 15)}{String(val).length > 15 ? '...' : ''}
+                              </Badge>
+                            ))}
+                            {col.sampleValues.length > 3 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{col.sampleValues.length - 3}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </div>
+          </TutorialTrigger>
 
           {/* Data Preview */}
           <div>

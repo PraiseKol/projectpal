@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Upload, FileSpreadsheet, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { TutorialTrigger } from "@/components/Tutorial";
 import type { ColumnConfig } from "@/pages/DataAnalysis";
 
 interface FileUploadStepProps {
@@ -116,71 +117,75 @@ export const FileUploadStep = ({ onFileProcessed }: FileUploadStepProps) => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={`
-            border-2 border-dashed rounded-xl p-12 text-center transition-all
-            ${isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50'}
-            ${isProcessing ? 'pointer-events-none opacity-60' : 'cursor-pointer'}
-          `}
-        >
-          <input
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            onChange={handleFileSelect}
-            className="hidden"
-            id="file-upload"
-            disabled={isProcessing}
-          />
-          <label htmlFor="file-upload" className="cursor-pointer">
-            {isProcessing ? (
-              <div className="flex flex-col items-center gap-4">
-                <Loader2 className="h-12 w-12 text-primary animate-spin" />
-                <div>
-                  <p className="text-lg font-medium">Processing {selectedFile?.name}...</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Detecting columns and data types
-                  </p>
+        <TutorialTrigger id="tutorial-upload-dropzone">
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`
+              border-2 border-dashed rounded-xl p-12 text-center transition-all
+              ${isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50'}
+              ${isProcessing ? 'pointer-events-none opacity-60' : 'cursor-pointer'}
+            `}
+          >
+            <input
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={handleFileSelect}
+              className="hidden"
+              id="file-upload"
+              disabled={isProcessing}
+            />
+            <label htmlFor="file-upload" className="cursor-pointer">
+              {isProcessing ? (
+                <div className="flex flex-col items-center gap-4">
+                  <Loader2 className="h-12 w-12 text-primary animate-spin" />
+                  <div>
+                    <p className="text-lg font-medium">Processing {selectedFile?.name}...</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Detecting columns and data types
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-4">
-                <div className="p-4 bg-primary/10 rounded-full">
-                  <FileSpreadsheet className="h-12 w-12 text-primary" />
+              ) : (
+                <div className="flex flex-col items-center gap-4">
+                  <div className="p-4 bg-primary/10 rounded-full">
+                    <FileSpreadsheet className="h-12 w-12 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-medium">
+                      {isDragging ? 'Drop your file here' : 'Drag & drop your file here'}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      or click to browse
+                    </p>
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <span className="px-3 py-1 bg-muted rounded-full text-xs font-medium">.xlsx</span>
+                    <span className="px-3 py-1 bg-muted rounded-full text-xs font-medium">.csv</span>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-lg font-medium">
-                    {isDragging ? 'Drop your file here' : 'Drag & drop your file here'}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    or click to browse
-                  </p>
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <span className="px-3 py-1 bg-muted rounded-full text-xs font-medium">.xlsx</span>
-                  <span className="px-3 py-1 bg-muted rounded-full text-xs font-medium">.csv</span>
-                </div>
-              </div>
-            )}
-          </label>
-        </div>
+              )}
+            </label>
+          </div>
+        </TutorialTrigger>
 
-        <div className="mt-6 space-y-3">
-          <div className="flex items-start gap-2 text-sm text-muted-foreground">
-            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-            <span>First row should contain column headers (variable names)</span>
+        <TutorialTrigger id="tutorial-upload-tips">
+          <div className="mt-6 space-y-3">
+            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>First row should contain column headers (variable names)</span>
+            </div>
+            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Each row represents one respondent's data</span>
+            </div>
+            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>Maximum file size: 10MB</span>
+            </div>
           </div>
-          <div className="flex items-start gap-2 text-sm text-muted-foreground">
-            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-            <span>Each row represents one respondent's data</span>
-          </div>
-          <div className="flex items-start gap-2 text-sm text-muted-foreground">
-            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-            <span>Maximum file size: 10MB</span>
-          </div>
-        </div>
+        </TutorialTrigger>
       </CardContent>
     </Card>
   );
