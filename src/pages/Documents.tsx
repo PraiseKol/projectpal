@@ -4,19 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Upload, Loader2, FileText, Download, Eye, Palette, ImageIcon } from "lucide-react";
+import { ArrowLeft, Upload, Loader2, FileText, Download, Eye, ImageIcon } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { DocumentsSkeleton } from "@/components/skeletons/DocumentsSkeleton";
+import { ThemeSelector } from "@/components/Documents/ThemeSelector";
 
 const Documents = () => {
   const navigate = useNavigate();
@@ -236,26 +230,13 @@ const Documents = () => {
 
             {uploadedDocUrl && (
               <div>
-                <h2 className="text-lg font-semibold mb-4">Generate Presentation</h2>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Palette className="h-5 w-5 text-muted-foreground" />
-                    <Select value={selectedTheme} onValueChange={setSelectedTheme}>
-                      <SelectTrigger className="w-52">
-                        <SelectValue placeholder="Select Theme" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="random">🎲 Random Theme</SelectItem>
-                        <SelectItem value="academic-blue">📘 Academic Blue</SelectItem>
-                        <SelectItem value="professional-teal">🌊 Professional Teal</SelectItem>
-                        <SelectItem value="classic-red">🔴 Classic Red-Orange</SelectItem>
-                        <SelectItem value="warm-gradient">☀️ Warm Gradient</SelectItem>
-                        <SelectItem value="formal-green">🌿 Formal Green</SelectItem>
-                        <SelectItem value="modern-purple">💜 Modern Purple</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
+                <h2 className="text-lg font-semibold mb-4">Choose Template Style</h2>
+                <ThemeSelector
+                  selectedTheme={selectedTheme}
+                  onThemeSelect={setSelectedTheme}
+                />
+                
+                <div className="mt-6 space-y-4">
                   <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
                     <Checkbox 
                       id="include-images" 

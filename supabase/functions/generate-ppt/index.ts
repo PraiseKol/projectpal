@@ -1350,30 +1350,18 @@ serve(async (req) => {
     // Select theme - now includes design configuration
     let selectedTheme: Theme;
     if (requestedTheme && requestedTheme !== 'random') {
-      const themeMap: Record<string, number> = {
-        'academic-blue': 0,
-        'professional-teal': 1,
-        'classic-red': 2,
-        'warm-gradient': 3,
-        'formal-green': 4,
-        'modern-purple': 5,
-        'midnight-navy': 6,
-        'slate-charcoal': 7,
-        'deep-crimson': 8,
-        'forest-night': 9,
-        'royal-indigo': 10,
-        'clean-white': 11,
-        'soft-lavender': 12,
-        'mint-fresh': 13,
-        'warm-sand': 14,
-        'sky-blue': 15,
-        'sunset-orange': 16,
-        'ocean-deep': 17,
-        'rose-gold': 18,
-        'electric-blue': 19,
-        'emerald-prestige': 20
-      };
-      selectedTheme = THEMES[themeMap[requestedTheme] ?? Math.floor(Math.random() * THEMES.length)];
+      // Convert kebab-case ID to theme name for matching
+      const themeNameFromId = requestedTheme
+        .split('-')
+        .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+      
+      const foundTheme = THEMES.find(t => 
+        t.name.toLowerCase() === themeNameFromId.toLowerCase() ||
+        t.name.toLowerCase().replace(/[- ]/g, '') === requestedTheme.toLowerCase().replace(/[- ]/g, '')
+      );
+      
+      selectedTheme = foundTheme ?? THEMES[Math.floor(Math.random() * THEMES.length)];
     } else {
       selectedTheme = THEMES[Math.floor(Math.random() * THEMES.length)];
     }
