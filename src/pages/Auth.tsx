@@ -9,8 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { GraduationCap, Eye, EyeOff, CheckCircle2, XCircle, Mail, ArrowLeft, RefreshCw, Gift } from "lucide-react";
+import { Eye, EyeOff, CheckCircle2, XCircle, Mail, ArrowLeft, RefreshCw, Gift } from "lucide-react";
 import { SEO } from "@/components/SEO";
+import { ProjectPalLogo } from "@/components/ProjectPalLogo";
 import { 
   signInSchema, 
   signUpSchema, 
@@ -421,11 +422,8 @@ const Auth = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-gradient-to-br from-primary to-secondary rounded-2xl">
-              <GraduationCap className="h-8 w-8 text-white" />
-            </div>
+            <ProjectPalLogo size="lg" />
           </div>
-          <CardTitle className="text-3xl font-bold">ProjectPal</CardTitle>
           <CardDescription>Your academic project assistant</CardDescription>
         </CardHeader>
         <CardContent>

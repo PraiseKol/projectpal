@@ -12,7 +12,7 @@ export const SEO = ({
   title, 
   description, 
   keywords,
-  ogImage = "/images/scholarai-og.png",
+  ogImage = "/images/projectpal-og.png",
   canonical
 }: SEOProps) => {
   useEffect(() => {

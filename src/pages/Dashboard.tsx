@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, FileText, Sparkles, LogOut, CreditCard, GraduationCap, Settings as SettingsIcon, Receipt, AlertTriangle, Clock, RefreshCw, Lock, BarChart3, Users } from "lucide-react";
+import { MessageSquare, FileText, Sparkles, LogOut, CreditCard, Settings as SettingsIcon, Receipt, AlertTriangle, Clock, RefreshCw, Lock, BarChart3, Users } from "lucide-react";
+import { ProjectPalLogo } from "@/components/ProjectPalLogo";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -196,12 +197,7 @@ const Dashboard = () => {
       {/* Header */}
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-gradient-to-br from-primary to-secondary rounded-xl">
-              <GraduationCap className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-lg font-semibold">ProjectPal</span>
-          </div>
+          <ProjectPalLogo size="sm" />
           <div className="flex items-center gap-2">
             <ThemeToggle />
             {/* Desktop navigation */}

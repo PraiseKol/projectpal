@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, ArrowLeft, GraduationCap, Sparkles, CreditCard, Calendar, Coins, Info } from "lucide-react";
+import { Check, X, ArrowLeft, Sparkles, CreditCard, Calendar, Coins, Info, GraduationCap } from "lucide-react";
+import { ProjectPalLogo } from "@/components/ProjectPalLogo";
 import {
   Table,
   TableBody,
@@ -212,12 +213,7 @@ const Pricing = () => {
           <Button onClick={() => navigate("/dashboard")} variant="ghost" size="sm">
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-gradient-to-br from-primary to-secondary rounded-xl">
-              <GraduationCap className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-lg font-semibold">ProjectPal</span>
-          </div>
+          <ProjectPalLogo size="sm" />
         </div>
       </header>
 
