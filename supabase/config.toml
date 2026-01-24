@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.document-ai-chat]
 verify_jwt = false
+
+[functions.send-newsletter]
+verify_jwt = false
+
+[functions.manage-email-preferences]
+verify_jwt = false

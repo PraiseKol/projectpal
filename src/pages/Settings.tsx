@@ -8,6 +8,7 @@ import { ArrowLeft, Mail, CreditCard, Calendar, GraduationCap, Receipt } from "l
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SettingsSkeleton } from "@/components/skeletons/SettingsSkeleton";
+import { EmailPreferences } from "@/components/Settings/EmailPreferences";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -239,6 +240,9 @@ const Settings = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Email Preferences */}
+        <EmailPreferences />
       </main>
     </div>
   );
