@@ -267,18 +267,42 @@ export const AnalysisResultsStep = ({
 
   const availableResults = Object.entries(results).filter(([_, value]) => value && !value.error);
 
-  // Generate histogram data for descriptive statistics
+  // Generate histogram data for descriptive statistics using normal distribution approximation
   const generateHistogramData = (stats: any) => {
-    if (!stats.min || !stats.max || !stats.count) return [];
-    const binCount = Math.min(10, Math.ceil(Math.sqrt(stats.count)));
+    // Validate required stats with proper null checks
+    if (stats.min == null || stats.max == null || !stats.count || stats.count < 3) return [];
+    if (stats.min === stats.max) return [{ range: `${stats.min.toFixed(1)}`, count: stats.count }];
+    
+    const binCount = Math.min(10, Math.max(3, Math.ceil(Math.sqrt(stats.count))));
     const binWidth = (stats.max - stats.min) / binCount;
     const bins = [];
+    
+    // Use normal distribution approximation based on mean and stdDev
+    const mean = stats.mean ?? (stats.min + stats.max) / 2;
+    const stdDev = stats.stdDev && stats.stdDev > 0 ? stats.stdDev : binWidth;
+    
+    let totalDensity = 0;
+    const densities: number[] = [];
+    
+    for (let i = 0; i < binCount; i++) {
+      const binMid = stats.min + (i + 0.5) * binWidth;
+      const zScore = (binMid - mean) / stdDev;
+      // Normal distribution density approximation
+      const density = Math.exp(-0.5 * zScore * zScore);
+      densities.push(density);
+      totalDensity += density;
+    }
+    
+    // Normalize to sum to total count
     for (let i = 0; i < binCount; i++) {
       const start = stats.min + i * binWidth;
       const end = start + binWidth;
+      const normalizedCount = totalDensity > 0 
+        ? Math.round(stats.count * densities[i] / totalDensity)
+        : Math.round(stats.count / binCount);
       bins.push({
         range: `${start.toFixed(1)}-${end.toFixed(1)}`,
-        count: Math.round(stats.count / binCount * (0.5 + Math.random())), // Simulated distribution
+        count: Math.max(0, normalizedCount),
       });
     }
     return bins;

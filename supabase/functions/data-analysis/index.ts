@@ -25,6 +25,23 @@ const ANALYSIS_CREDITS: Record<string, number> = {
   'factor_analysis': 80,
 };
 
+// Utility function to sanitize results - converts NaN and Infinity to null
+function sanitizeResults(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'number') {
+    if (isNaN(obj)) return null;
+    if (!isFinite(obj)) return null;
+    return obj;
+  }
+  if (Array.isArray(obj)) return obj.map(sanitizeResults);
+  if (typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj).map(([k, v]) => [k, sanitizeResults(v)])
+    );
+  }
+  return obj;
+}
+
 // Statistical helper functions
 function mean(arr: number[]): number {
   if (arr.length === 0) return 0;
@@ -1541,19 +1558,33 @@ serve(async (req) => {
                 results.descriptive = {};
                 for (const col of numericCols) {
                   const values = data.map((row: any) => Number(row[col.index])).filter((v: number) => !isNaN(v));
-                  results.descriptive[col.name] = {
-                    count: values.length,
-                    mean: mean(values),
-                    median: median(values),
-                    mode: mode(values),
-                    stdDev: standardDeviation(values),
-                    min: Math.min(...values),
-                    max: Math.max(...values),
-                    variance: variance(values)
-                  };
+                  // Fix: Handle empty arrays to avoid Math.min/max returning Infinity
+                  if (values.length === 0) {
+                    results.descriptive[col.name] = {
+                      count: 0,
+                      mean: null,
+                      median: null,
+                      mode: [],
+                      stdDev: null,
+                      min: null,
+                      max: null,
+                      variance: null
+                    };
+                  } else {
+                    results.descriptive[col.name] = {
+                      count: values.length,
+                      mean: mean(values),
+                      median: median(values),
+                      mode: mode(values),
+                      stdDev: standardDeviation(values),
+                      min: Math.min(...values),
+                      max: Math.max(...values),
+                      variance: variance(values)
+                    };
+                  }
                 }
-                results.descriptive.interpretation = await generateAcademicInterpretation('descriptive', 
-                  Object.values(results.descriptive)[0]);
+                const firstResult = Object.values(results.descriptive).find(v => typeof v === 'object' && v !== null && (v as any).count > 0);
+                results.descriptive.interpretation = await generateAcademicInterpretation('descriptive', firstResult);
                 break;
               }
               
@@ -1971,13 +2002,16 @@ serve(async (req) => {
           .update(updateData)
           .eq('id', user.id);
         
+        // Sanitize results to remove NaN and Infinity values before saving/returning
+        const sanitizedResults = sanitizeResults(results);
+        
         // Save analysis session
         if (sessionId) {
           await supabaseClient
             .from('analysis_sessions')
             .update({
               analyses_run: analyses,
-              results,
+              results: sanitizedResults,
               credits_used: totalCredits,
               updated_at: new Date().toISOString()
             })
@@ -1987,7 +2021,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({
             success: true,
-            results,
+            results: sanitizedResults,
             creditsUsed: totalCredits,
             remainingCredits: {
               daily: newDailyCredits,
