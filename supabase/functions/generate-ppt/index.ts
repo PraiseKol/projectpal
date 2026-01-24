@@ -10,7 +10,21 @@ const corsHeaders = {
 const BASE_CREDIT_COST = 6;
 const IMAGE_CREDIT_COST = 2;
 
-// Theme definitions based on professional presentation styles
+// Design system for template variations
+interface DesignConfig {
+  style: "classic" | "modern" | "minimal" | "bold" | "elegant" | "creative";
+  headerStyle: "top-bar" | "left-sidebar" | "corner-accent" | "full-banner" | "underline" | "gradient-bar" | "none";
+  headerHeight: number;
+  bulletStyle: "circle" | "square" | "dash" | "arrow" | "check" | "diamond" | "number";
+  accentPosition: "top" | "bottom" | "left" | "corner" | "dual" | "none";
+  titleAlign: "left" | "center";
+  contentAlign: "left" | "center";
+  decorativeElements: "minimal" | "moderate" | "bold";
+  fontPrimary: string;
+  fontSecondary: string;
+}
+
+// Extended theme with design configuration
 interface Theme {
   name: string;
   primary: string;
@@ -20,9 +34,12 @@ interface Theme {
   text: string;
   accent: string;
   bulletColor: string;
+  design: DesignConfig;
 }
 
+// 21 unique templates with varying designs
 const THEMES: Theme[] = [
+  // ============== CLASSIC/ACADEMIC TEMPLATES ==============
   {
     name: "Academic Blue",
     primary: "1A365D",
@@ -31,7 +48,19 @@ const THEMES: Theme[] = [
     headerBg: "1E3A5F",
     text: "FFFFFF",
     accent: "F97316",
-    bulletColor: "F5A962"
+    bulletColor: "F5A962",
+    design: {
+      style: "classic",
+      headerStyle: "top-bar",
+      headerHeight: 1.0,
+      bulletStyle: "circle",
+      accentPosition: "top",
+      titleAlign: "left",
+      contentAlign: "left",
+      decorativeElements: "moderate",
+      fontPrimary: "Arial",
+      fontSecondary: "Arial"
+    }
   },
   {
     name: "Professional Teal",
@@ -41,7 +70,19 @@ const THEMES: Theme[] = [
     headerBg: "115E59",
     text: "FFFFFF",
     accent: "2DD4BF",
-    bulletColor: "5EEAD4"
+    bulletColor: "5EEAD4",
+    design: {
+      style: "modern",
+      headerStyle: "gradient-bar",
+      headerHeight: 0.8,
+      bulletStyle: "arrow",
+      accentPosition: "dual",
+      titleAlign: "left",
+      contentAlign: "left",
+      decorativeElements: "bold",
+      fontPrimary: "Calibri",
+      fontSecondary: "Calibri"
+    }
   },
   {
     name: "Classic Red-Orange",
@@ -51,7 +92,19 @@ const THEMES: Theme[] = [
     headerBg: "991B1B",
     text: "FFFFFF",
     accent: "FCD34D",
-    bulletColor: "FBBF24"
+    bulletColor: "FBBF24",
+    design: {
+      style: "bold",
+      headerStyle: "full-banner",
+      headerHeight: 1.2,
+      bulletStyle: "square",
+      accentPosition: "bottom",
+      titleAlign: "center",
+      contentAlign: "left",
+      decorativeElements: "bold",
+      fontPrimary: "Arial",
+      fontSecondary: "Arial"
+    }
   },
   {
     name: "Warm Gradient",
@@ -61,7 +114,19 @@ const THEMES: Theme[] = [
     headerBg: "F59E0B",
     text: "1F2937",
     accent: "7C3AED",
-    bulletColor: "D97706"
+    bulletColor: "D97706",
+    design: {
+      style: "elegant",
+      headerStyle: "underline",
+      headerHeight: 0.6,
+      bulletStyle: "diamond",
+      accentPosition: "top",
+      titleAlign: "left",
+      contentAlign: "left",
+      decorativeElements: "minimal",
+      fontPrimary: "Georgia",
+      fontSecondary: "Arial"
+    }
   },
   {
     name: "Formal Green",
@@ -71,7 +136,19 @@ const THEMES: Theme[] = [
     headerBg: "166534",
     text: "1F2937",
     accent: "15803D",
-    bulletColor: "166534"
+    bulletColor: "166534",
+    design: {
+      style: "classic",
+      headerStyle: "left-sidebar",
+      headerHeight: 1.0,
+      bulletStyle: "check",
+      accentPosition: "left",
+      titleAlign: "left",
+      contentAlign: "left",
+      decorativeElements: "moderate",
+      fontPrimary: "Times New Roman",
+      fontSecondary: "Arial"
+    }
   },
   {
     name: "Modern Purple",
@@ -81,9 +158,22 @@ const THEMES: Theme[] = [
     headerBg: "4C1D95",
     text: "FFFFFF",
     accent: "C4B5FD",
-    bulletColor: "A78BFA"
+    bulletColor: "A78BFA",
+    design: {
+      style: "modern",
+      headerStyle: "corner-accent",
+      headerHeight: 0.8,
+      bulletStyle: "dash",
+      accentPosition: "corner",
+      titleAlign: "left",
+      contentAlign: "left",
+      decorativeElements: "bold",
+      fontPrimary: "Calibri",
+      fontSecondary: "Calibri"
+    }
   },
-  // Dark/Professional Themes
+
+  // ============== DARK/PROFESSIONAL TEMPLATES ==============
   {
     name: "Midnight Navy",
     primary: "0F172A",
@@ -92,7 +182,19 @@ const THEMES: Theme[] = [
     headerBg: "1E3A8A",
     text: "FFFFFF",
     accent: "FCD34D",
-    bulletColor: "FBBF24"
+    bulletColor: "FBBF24",
+    design: {
+      style: "elegant",
+      headerStyle: "top-bar",
+      headerHeight: 0.9,
+      bulletStyle: "diamond",
+      accentPosition: "dual",
+      titleAlign: "left",
+      contentAlign: "left",
+      decorativeElements: "moderate",
+      fontPrimary: "Georgia",
+      fontSecondary: "Arial"
+    }
   },
   {
     name: "Slate Charcoal",
@@ -102,7 +204,19 @@ const THEMES: Theme[] = [
     headerBg: "475569",
     text: "FFFFFF",
     accent: "06B6D4",
-    bulletColor: "67E8F9"
+    bulletColor: "67E8F9",
+    design: {
+      style: "modern",
+      headerStyle: "gradient-bar",
+      headerHeight: 0.7,
+      bulletStyle: "arrow",
+      accentPosition: "bottom",
+      titleAlign: "left",
+      contentAlign: "left",
+      decorativeElements: "minimal",
+      fontPrimary: "Calibri",
+      fontSecondary: "Calibri"
+    }
   },
   {
     name: "Deep Crimson",
@@ -112,7 +226,19 @@ const THEMES: Theme[] = [
     headerBg: "9F1239",
     text: "FFFFFF",
     accent: "FDA4AF",
-    bulletColor: "FB7185"
+    bulletColor: "FB7185",
+    design: {
+      style: "bold",
+      headerStyle: "full-banner",
+      headerHeight: 1.3,
+      bulletStyle: "square",
+      accentPosition: "top",
+      titleAlign: "center",
+      contentAlign: "left",
+      decorativeElements: "bold",
+      fontPrimary: "Arial Black",
+      fontSecondary: "Arial"
+    }
   },
   {
     name: "Forest Night",
@@ -122,7 +248,19 @@ const THEMES: Theme[] = [
     headerBg: "166534",
     text: "FFFFFF",
     accent: "A3E635",
-    bulletColor: "BEF264"
+    bulletColor: "BEF264",
+    design: {
+      style: "classic",
+      headerStyle: "left-sidebar",
+      headerHeight: 1.0,
+      bulletStyle: "circle",
+      accentPosition: "left",
+      titleAlign: "left",
+      contentAlign: "left",
+      decorativeElements: "moderate",
+      fontPrimary: "Arial",
+      fontSecondary: "Arial"
+    }
   },
   {
     name: "Royal Indigo",
@@ -132,9 +270,22 @@ const THEMES: Theme[] = [
     headerBg: "4338CA",
     text: "FFFFFF",
     accent: "C4B5FD",
-    bulletColor: "A78BFA"
+    bulletColor: "A78BFA",
+    design: {
+      style: "elegant",
+      headerStyle: "corner-accent",
+      headerHeight: 0.8,
+      bulletStyle: "diamond",
+      accentPosition: "corner",
+      titleAlign: "left",
+      contentAlign: "left",
+      decorativeElements: "bold",
+      fontPrimary: "Georgia",
+      fontSecondary: "Calibri"
+    }
   },
-  // Light/Clean Themes
+
+  // ============== LIGHT/CLEAN TEMPLATES ==============
   {
     name: "Clean White",
     primary: "0369A1",
@@ -143,7 +294,19 @@ const THEMES: Theme[] = [
     headerBg: "0284C7",
     text: "1F2937",
     accent: "38BDF8",
-    bulletColor: "0369A1"
+    bulletColor: "0369A1",
+    design: {
+      style: "minimal",
+      headerStyle: "underline",
+      headerHeight: 0.5,
+      bulletStyle: "dash",
+      accentPosition: "none",
+      titleAlign: "left",
+      contentAlign: "left",
+      decorativeElements: "minimal",
+      fontPrimary: "Calibri Light",
+      fontSecondary: "Calibri"
+    }
   },
   {
     name: "Soft Lavender",
@@ -153,7 +316,19 @@ const THEMES: Theme[] = [
     headerBg: "8B5CF6",
     text: "1F2937",
     accent: "C4B5FD",
-    bulletColor: "7C3AED"
+    bulletColor: "7C3AED",
+    design: {
+      style: "elegant",
+      headerStyle: "top-bar",
+      headerHeight: 0.7,
+      bulletStyle: "circle",
+      accentPosition: "top",
+      titleAlign: "left",
+      contentAlign: "left",
+      decorativeElements: "minimal",
+      fontPrimary: "Georgia",
+      fontSecondary: "Arial"
+    }
   },
   {
     name: "Mint Fresh",
@@ -163,7 +338,19 @@ const THEMES: Theme[] = [
     headerBg: "10B981",
     text: "1F2937",
     accent: "6EE7B7",
-    bulletColor: "059669"
+    bulletColor: "059669",
+    design: {
+      style: "modern",
+      headerStyle: "gradient-bar",
+      headerHeight: 0.6,
+      bulletStyle: "check",
+      accentPosition: "dual",
+      titleAlign: "left",
+      contentAlign: "left",
+      decorativeElements: "moderate",
+      fontPrimary: "Calibri",
+      fontSecondary: "Calibri"
+    }
   },
   {
     name: "Warm Sand",
@@ -173,7 +360,19 @@ const THEMES: Theme[] = [
     headerBg: "D97706",
     text: "1F2937",
     accent: "FBBF24",
-    bulletColor: "B45309"
+    bulletColor: "B45309",
+    design: {
+      style: "classic",
+      headerStyle: "left-sidebar",
+      headerHeight: 0.8,
+      bulletStyle: "arrow",
+      accentPosition: "left",
+      titleAlign: "left",
+      contentAlign: "left",
+      decorativeElements: "moderate",
+      fontPrimary: "Times New Roman",
+      fontSecondary: "Arial"
+    }
   },
   {
     name: "Sky Blue",
@@ -183,9 +382,22 @@ const THEMES: Theme[] = [
     headerBg: "0369A1",
     text: "1F2937",
     accent: "7DD3FC",
-    bulletColor: "0284C7"
+    bulletColor: "0284C7",
+    design: {
+      style: "minimal",
+      headerStyle: "none",
+      headerHeight: 0,
+      bulletStyle: "dash",
+      accentPosition: "bottom",
+      titleAlign: "center",
+      contentAlign: "left",
+      decorativeElements: "minimal",
+      fontPrimary: "Calibri",
+      fontSecondary: "Calibri"
+    }
   },
-  // Specialty/Creative Themes
+
+  // ============== SPECIALTY/CREATIVE TEMPLATES ==============
   {
     name: "Sunset Orange",
     primary: "EA580C",
@@ -194,7 +406,19 @@ const THEMES: Theme[] = [
     headerBg: "C2410C",
     text: "FFFFFF",
     accent: "FDBA74",
-    bulletColor: "FB923C"
+    bulletColor: "FB923C",
+    design: {
+      style: "creative",
+      headerStyle: "full-banner",
+      headerHeight: 1.4,
+      bulletStyle: "arrow",
+      accentPosition: "dual",
+      titleAlign: "center",
+      contentAlign: "left",
+      decorativeElements: "bold",
+      fontPrimary: "Arial",
+      fontSecondary: "Arial"
+    }
   },
   {
     name: "Ocean Deep",
@@ -204,7 +428,19 @@ const THEMES: Theme[] = [
     headerBg: "0891B2",
     text: "FFFFFF",
     accent: "67E8F9",
-    bulletColor: "22D3EE"
+    bulletColor: "22D3EE",
+    design: {
+      style: "modern",
+      headerStyle: "gradient-bar",
+      headerHeight: 0.9,
+      bulletStyle: "circle",
+      accentPosition: "bottom",
+      titleAlign: "left",
+      contentAlign: "left",
+      decorativeElements: "moderate",
+      fontPrimary: "Calibri",
+      fontSecondary: "Calibri"
+    }
   },
   {
     name: "Rose Gold",
@@ -214,7 +450,19 @@ const THEMES: Theme[] = [
     headerBg: "DB2777",
     text: "1F2937",
     accent: "F9A8D4",
-    bulletColor: "BE185D"
+    bulletColor: "BE185D",
+    design: {
+      style: "elegant",
+      headerStyle: "corner-accent",
+      headerHeight: 0.7,
+      bulletStyle: "diamond",
+      accentPosition: "corner",
+      titleAlign: "left",
+      contentAlign: "left",
+      decorativeElements: "moderate",
+      fontPrimary: "Georgia",
+      fontSecondary: "Arial"
+    }
   },
   {
     name: "Electric Blue",
@@ -224,7 +472,19 @@ const THEMES: Theme[] = [
     headerBg: "1D4ED8",
     text: "FFFFFF",
     accent: "93C5FD",
-    bulletColor: "60A5FA"
+    bulletColor: "60A5FA",
+    design: {
+      style: "bold",
+      headerStyle: "top-bar",
+      headerHeight: 1.1,
+      bulletStyle: "square",
+      accentPosition: "top",
+      titleAlign: "left",
+      contentAlign: "left",
+      decorativeElements: "bold",
+      fontPrimary: "Arial Black",
+      fontSecondary: "Arial"
+    }
   },
   {
     name: "Emerald Prestige",
@@ -234,7 +494,19 @@ const THEMES: Theme[] = [
     headerBg: "059669",
     text: "FFFFFF",
     accent: "FCD34D",
-    bulletColor: "FBBF24"
+    bulletColor: "FBBF24",
+    design: {
+      style: "elegant",
+      headerStyle: "left-sidebar",
+      headerHeight: 1.0,
+      bulletStyle: "diamond",
+      accentPosition: "left",
+      titleAlign: "left",
+      contentAlign: "left",
+      decorativeElements: "bold",
+      fontPrimary: "Georgia",
+      fontSecondary: "Calibri"
+    }
   }
 ];
 
@@ -252,6 +524,21 @@ interface PresentationData {
   author?: string;
   institution?: string;
   slides: SlideData[];
+}
+
+// Get bullet character based on style
+function getBulletChar(style: string, index: number): string {
+  const bulletMap: Record<string, string | ((i: number) => string)> = {
+    "circle": "•",
+    "square": "■",
+    "dash": "—",
+    "arrow": "→",
+    "check": "✓",
+    "diamond": "◆",
+    "number": (i: number) => `${i + 1}.`
+  };
+  const bullet = bulletMap[style] || "•";
+  return typeof bullet === 'function' ? bullet(index) : bullet;
 }
 
 // Generate AI image for slides
@@ -317,100 +604,296 @@ No text in the image. High quality, clean vector-style illustration. Simple and 
   return null;
 }
 
-// Build title slide
+// ============== DESIGN-AWARE SLIDE BUILDERS ==============
+
+// Build title slide with design variations
 function buildTitleSlide(pptx: PptxGenJS, data: SlideData, theme: Theme, presentationData: PresentationData) {
   const slide = pptx.addSlide();
+  const { design } = theme;
   slide.background = { color: theme.background };
   
-  // Add decorative header bar
-  slide.addShape(pptx.ShapeType.rect, { 
-    x: 0, y: 0, w: '100%', h: 0.8, 
-    fill: { color: theme.primary } 
-  });
+  // Apply header based on design style
+  switch (design.headerStyle) {
+    case "top-bar":
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 0, w: '100%', h: design.headerHeight, 
+        fill: { color: theme.primary } 
+      });
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: design.headerHeight, w: '100%', h: 0.05, 
+        fill: { color: theme.secondary } 
+      });
+      break;
+      
+    case "left-sidebar":
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 0, w: 1.2, h: '100%', 
+        fill: { color: theme.primary } 
+      });
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 1.2, y: 0, w: 0.05, h: '100%', 
+        fill: { color: theme.secondary } 
+      });
+      break;
+      
+    case "corner-accent":
+      // Top-left triangle accent
+      slide.addShape(pptx.ShapeType.rtTriangle, { 
+        x: 0, y: 0, w: 2.5, h: 2.5, 
+        fill: { color: theme.primary },
+        rotate: 0
+      });
+      // Bottom-right accent
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 8, y: 4.8, w: 2, h: 0.7, 
+        fill: { color: theme.secondary } 
+      });
+      break;
+      
+    case "full-banner":
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 0, w: '100%', h: design.headerHeight, 
+        fill: { color: theme.primary } 
+      });
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: design.headerHeight - 0.15, w: '100%', h: 0.15, 
+        fill: { color: theme.secondary } 
+      });
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 5.5 - 0.3, w: '100%', h: 0.3, 
+        fill: { color: theme.headerBg } 
+      });
+      break;
+      
+    case "gradient-bar":
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 0, w: '100%', h: design.headerHeight, 
+        fill: { color: theme.primary } 
+      });
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: design.headerHeight, w: 5, h: 0.08, 
+        fill: { color: theme.secondary } 
+      });
+      break;
+      
+    case "underline":
+      // Minimal - just decorative line
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0.5, y: 3.4, w: 2, h: 0.05, 
+        fill: { color: theme.primary } 
+      });
+      break;
+      
+    case "none":
+    default:
+      // No header decoration
+      break;
+  }
   
-  // Add accent line
-  slide.addShape(pptx.ShapeType.rect, { 
-    x: 0, y: 0.8, w: '100%', h: 0.05, 
-    fill: { color: theme.secondary } 
-  });
+  // Title positioning based on design
+  const titleX = design.headerStyle === "left-sidebar" ? 1.5 : 0.5;
+  const titleW = design.headerStyle === "left-sidebar" ? 8 : 9;
+  const titleY = design.style === "bold" ? 1.8 : 2.2;
   
-  // Main title
   slide.addText(data.title || presentationData.title, {
-    x: 0.5, y: 2.2, w: 9, h: 1.2,
-    fontSize: 40, bold: true, color: theme.text, align: 'center',
-    fontFace: 'Arial'
+    x: titleX, y: titleY, w: titleW, h: 1.2,
+    fontSize: design.style === "bold" ? 44 : 40, 
+    bold: true, 
+    color: theme.text, 
+    align: design.titleAlign,
+    fontFace: design.fontPrimary
   });
   
   // Subtitle/Author
   const subtitle = data.subtitle || presentationData.author || '';
   if (subtitle) {
     slide.addText(subtitle, {
-      x: 0.5, y: 3.5, w: 9, h: 0.6,
-      fontSize: 20, color: theme.accent, align: 'center',
-      fontFace: 'Arial'
+      x: titleX, y: titleY + 1.3, w: titleW, h: 0.6,
+      fontSize: 20, color: theme.accent, align: design.titleAlign,
+      fontFace: design.fontSecondary
     });
   }
   
   // Institution
   if (presentationData.institution) {
     slide.addText(presentationData.institution, {
-      x: 0.5, y: 4.2, w: 9, h: 0.5,
-      fontSize: 16, color: theme.secondary, align: 'center',
-      fontFace: 'Arial'
+      x: titleX, y: titleY + 2.0, w: titleW, h: 0.5,
+      fontSize: 16, color: theme.secondary, align: design.titleAlign,
+      fontFace: design.fontSecondary
     });
   }
   
-  // Bottom decorative element
-  slide.addShape(pptx.ShapeType.rect, { 
-    x: 3.5, y: 4.9, w: 3, h: 0.04, 
-    fill: { color: theme.secondary } 
-  });
+  // Bottom decorative element based on accent position
+  if (design.accentPosition === "bottom" || design.accentPosition === "dual") {
+    slide.addShape(pptx.ShapeType.rect, { 
+      x: design.titleAlign === "center" ? 3.5 : titleX, 
+      y: 4.9, 
+      w: design.titleAlign === "center" ? 3 : 2.5, 
+      h: 0.04, 
+      fill: { color: theme.secondary } 
+    });
+  }
 }
 
-// Build content slide with optional image
+// Build content slide with design variations
 function buildContentSlide(pptx: PptxGenJS, data: SlideData, theme: Theme, imageUrl?: string) {
   const slide = pptx.addSlide();
+  const { design } = theme;
   slide.background = { color: theme.background };
   
-  // Header bar with title
-  slide.addShape(pptx.ShapeType.rect, { 
-    x: 0, y: 0, w: '100%', h: 1, 
-    fill: { color: theme.headerBg } 
-  });
+  let contentStartX = 0.5;
+  let contentStartY = 1.3;
+  let contentWidth = imageUrl ? 5.5 : 9;
   
-  // Accent line under header
-  slide.addShape(pptx.ShapeType.rect, { 
-    x: 0, y: 1, w: '100%', h: 0.03, 
-    fill: { color: theme.secondary } 
-  });
+  // Apply header based on design style
+  switch (design.headerStyle) {
+    case "top-bar":
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 0, w: '100%', h: design.headerHeight, 
+        fill: { color: theme.headerBg } 
+      });
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: design.headerHeight, w: '100%', h: 0.03, 
+        fill: { color: theme.secondary } 
+      });
+      slide.addText(data.title, {
+        x: 0.4, y: (design.headerHeight - 0.6) / 2, w: 9.2, h: 0.6,
+        fontSize: 26, bold: true, color: 'FFFFFF',
+        fontFace: design.fontPrimary
+      });
+      contentStartY = design.headerHeight + 0.3;
+      break;
+      
+    case "left-sidebar":
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 0, w: 0.4, h: '100%', 
+        fill: { color: theme.primary } 
+      });
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0.4, y: 0, w: 0.03, h: '100%', 
+        fill: { color: theme.secondary } 
+      });
+      slide.addText(data.title, {
+        x: 0.6, y: 0.3, w: 9, h: 0.7,
+        fontSize: 26, bold: true, color: theme.text,
+        fontFace: design.fontPrimary
+      });
+      contentStartX = 0.6;
+      contentStartY = 1.2;
+      break;
+      
+    case "corner-accent":
+      slide.addShape(pptx.ShapeType.rtTriangle, { 
+        x: 0, y: 0, w: 1.2, h: 1.2, 
+        fill: { color: theme.primary },
+        rotate: 0
+      });
+      slide.addText(data.title, {
+        x: 0.5, y: 0.3, w: 9, h: 0.7,
+        fontSize: 26, bold: true, color: theme.text,
+        fontFace: design.fontPrimary
+      });
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0.5, y: 1.0, w: 3, h: 0.04, 
+        fill: { color: theme.secondary } 
+      });
+      contentStartY = 1.3;
+      break;
+      
+    case "full-banner":
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 0, w: '100%', h: design.headerHeight, 
+        fill: { color: theme.headerBg } 
+      });
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: design.headerHeight - 0.1, w: '100%', h: 0.1, 
+        fill: { color: theme.secondary } 
+      });
+      slide.addText(data.title, {
+        x: 0.5, y: (design.headerHeight - 0.7) / 2, w: 9, h: 0.7,
+        fontSize: 28, bold: true, color: 'FFFFFF',
+        align: design.titleAlign,
+        fontFace: design.fontPrimary
+      });
+      contentStartY = design.headerHeight + 0.3;
+      break;
+      
+    case "gradient-bar":
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 0, w: '100%', h: design.headerHeight, 
+        fill: { color: theme.headerBg } 
+      });
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: design.headerHeight, w: 4, h: 0.06, 
+        fill: { color: theme.secondary } 
+      });
+      slide.addText(data.title, {
+        x: 0.4, y: (design.headerHeight - 0.5) / 2, w: 9.2, h: 0.5,
+        fontSize: 24, bold: true, color: 'FFFFFF',
+        fontFace: design.fontPrimary
+      });
+      contentStartY = design.headerHeight + 0.25;
+      break;
+      
+    case "underline":
+      slide.addText(data.title, {
+        x: 0.5, y: 0.3, w: 9, h: 0.7,
+        fontSize: 26, bold: true, color: theme.primary,
+        fontFace: design.fontPrimary
+      });
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0.5, y: 1.0, w: 2.5, h: 0.04, 
+        fill: { color: theme.secondary } 
+      });
+      contentStartY = 1.3;
+      break;
+      
+    case "none":
+    default:
+      slide.addText(data.title, {
+        x: 0.5, y: 0.4, w: 9, h: 0.7,
+        fontSize: 28, bold: true, color: theme.primary,
+        align: design.titleAlign,
+        fontFace: design.fontPrimary
+      });
+      contentStartY = 1.3;
+      break;
+  }
   
-  slide.addText(data.title, {
-    x: 0.4, y: 0.25, w: 9.2, h: 0.6,
-    fontSize: 26, bold: true, color: 'FFFFFF',
-    fontFace: 'Arial'
-  });
-  
-  // Content area - adjust width if image present
-  const contentWidth = imageUrl ? 5.5 : 9;
+  // Content bullets
   const bullets = data.bullets || [];
+  const lineHeight = design.style === "bold" ? 0.7 : 0.65;
   
   bullets.forEach((bullet, i) => {
-    if (i < 7) { // Max 7 bullets per slide
-      slide.addText(`• ${bullet}`, {
-        x: 0.5, y: 1.3 + (i * 0.65), w: contentWidth, h: 0.6,
-        fontSize: 15, color: theme.text,
-        fontFace: 'Arial',
+    if (i < 7) {
+      const bulletChar = getBulletChar(design.bulletStyle, i);
+      slide.addText(`${bulletChar} ${bullet}`, {
+        x: contentStartX, 
+        y: contentStartY + (i * lineHeight), 
+        w: contentWidth, 
+        h: 0.6,
+        fontSize: design.style === "minimal" ? 14 : 15, 
+        color: theme.text,
+        fontFace: design.fontSecondary,
         valign: 'top'
       });
     }
   });
   
-  // Add image if available (right side)
+  // Add bottom accent for certain designs
+  if (design.accentPosition === "bottom" || design.accentPosition === "dual") {
+    slide.addShape(pptx.ShapeType.rect, { 
+      x: 0, y: 5.35, w: '100%', h: 0.15, 
+      fill: { color: theme.secondary } 
+    });
+  }
+  
+  // Add image if available
   if (imageUrl) {
     try {
       slide.addImage({
         path: imageUrl,
-        x: 6.0, y: 1.3, w: 3.5, h: 3.5
+        x: 6.0, y: contentStartY, w: 3.5, h: 3.5
       });
     } catch (e) {
       console.error('Failed to add image to slide:', e);
@@ -418,166 +901,344 @@ function buildContentSlide(pptx: PptxGenJS, data: SlideData, theme: Theme, image
   }
 }
 
-// Build section header slide
+// Build section header slide with design variations
 function buildSectionSlide(pptx: PptxGenJS, data: SlideData, theme: Theme) {
   const slide = pptx.addSlide();
-  slide.background = { color: theme.primary };
+  const { design } = theme;
   
-  // Large centered title
+  // Section slides use primary color as background for most designs
+  if (design.style === "minimal" || design.style === "elegant") {
+    slide.background = { color: theme.background };
+  } else {
+    slide.background = { color: theme.primary };
+  }
+  
+  const textColor = (design.style === "minimal" || design.style === "elegant") ? theme.primary : 'FFFFFF';
+  
+  // Add decorative elements based on design
+  switch (design.decorativeElements) {
+    case "bold":
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 2.5, w: '100%', h: 0.08, 
+        fill: { color: theme.secondary } 
+      });
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 3.2, w: '100%', h: 0.08, 
+        fill: { color: theme.accent } 
+      });
+      break;
+    case "moderate":
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 3, y: 3.5, w: 4, h: 0.05, 
+        fill: { color: theme.secondary } 
+      });
+      break;
+    case "minimal":
+    default:
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 4, y: 3.4, w: 2, h: 0.03, 
+        fill: { color: theme.secondary } 
+      });
+      break;
+  }
+  
   slide.addText(data.title, {
     x: 0.5, y: 2.3, w: 9, h: 1,
-    fontSize: 44, bold: true, color: 'FFFFFF', align: 'center',
-    fontFace: 'Arial'
-  });
-  
-  // Decorative line
-  slide.addShape(pptx.ShapeType.rect, { 
-    x: 3, y: 3.5, w: 4, h: 0.05, 
-    fill: { color: theme.secondary } 
+    fontSize: design.style === "bold" ? 48 : 44, 
+    bold: true, 
+    color: textColor, 
+    align: 'center',
+    fontFace: design.fontPrimary
   });
   
   if (data.subtitle) {
     slide.addText(data.subtitle, {
       x: 0.5, y: 3.8, w: 9, h: 0.5,
-      fontSize: 18, color: theme.accent, align: 'center',
-      fontFace: 'Arial'
+      fontSize: 18, 
+      color: (design.style === "minimal" || design.style === "elegant") ? theme.accent : theme.secondary, 
+      align: 'center',
+      fontFace: design.fontSecondary
     });
   }
 }
 
-// Build table slide
+// Build table slide with design variations
 function buildTableSlide(pptx: PptxGenJS, data: SlideData, theme: Theme) {
   const slide = pptx.addSlide();
+  const { design } = theme;
   slide.background = { color: theme.background };
   
-  // Header
-  slide.addShape(pptx.ShapeType.rect, { 
-    x: 0, y: 0, w: '100%', h: 1, 
-    fill: { color: theme.headerBg } 
-  });
+  // Apply header based on design
+  let contentStartY = 1.3;
   
-  slide.addText(data.title, {
-    x: 0.4, y: 0.25, w: 9.2, h: 0.6,
-    fontSize: 26, bold: true, color: 'FFFFFF',
-    fontFace: 'Arial'
-  });
+  switch (design.headerStyle) {
+    case "left-sidebar":
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 0, w: 0.4, h: '100%', 
+        fill: { color: theme.primary } 
+      });
+      slide.addText(data.title, {
+        x: 0.6, y: 0.3, w: 9, h: 0.6,
+        fontSize: 26, bold: true, color: theme.text,
+        fontFace: design.fontPrimary
+      });
+      contentStartY = 1.1;
+      break;
+      
+    case "underline":
+    case "none":
+      slide.addText(data.title, {
+        x: 0.5, y: 0.3, w: 9, h: 0.6,
+        fontSize: 26, bold: true, color: theme.primary,
+        fontFace: design.fontPrimary
+      });
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0.5, y: 0.9, w: 2, h: 0.03, 
+        fill: { color: theme.secondary } 
+      });
+      contentStartY = 1.2;
+      break;
+      
+    default:
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 0, w: '100%', h: design.headerHeight || 1, 
+        fill: { color: theme.headerBg } 
+      });
+      slide.addText(data.title, {
+        x: 0.4, y: 0.25, w: 9.2, h: 0.6,
+        fontSize: 26, bold: true, color: 'FFFFFF',
+        fontFace: design.fontPrimary
+      });
+      contentStartY = (design.headerHeight || 1) + 0.3;
+      break;
+  }
   
   if (data.tableData && data.tableData.headers && data.tableData.rows) {
     const tableRows: any[] = [];
     
     // Header row
     tableRows.push(data.tableData.headers.map(h => ({
-      text: h, options: { bold: true, fill: { color: theme.primary }, color: 'FFFFFF', fontSize: 12 }
+      text: h, options: { bold: true, fill: { color: theme.primary }, color: 'FFFFFF', fontSize: 12, fontFace: design.fontPrimary }
     })));
     
-    // Data rows
+    // Data rows with alternating colors
     data.tableData.rows.forEach((row, i) => {
       tableRows.push(row.map(cell => ({
-        text: cell, options: { fill: { color: i % 2 === 0 ? 'F3F4F6' : 'FFFFFF' }, color: '374151', fontSize: 11 }
+        text: cell, options: { 
+          fill: { color: i % 2 === 0 ? 'F3F4F6' : 'FFFFFF' }, 
+          color: '374151', 
+          fontSize: 11,
+          fontFace: design.fontSecondary 
+        }
       })));
     });
     
     slide.addTable(tableRows, {
-      x: 0.5, y: 1.3, w: 9,
+      x: 0.5, y: contentStartY, w: 9,
       border: { pt: 0.5, color: 'E5E7EB' },
-      fontFace: 'Arial'
+      fontFace: design.fontSecondary
     });
   }
 }
 
-// Build conclusion slide
+// Build conclusion slide with design variations
 function buildConclusionSlide(pptx: PptxGenJS, data: SlideData, theme: Theme) {
   const slide = pptx.addSlide();
+  const { design } = theme;
   slide.background = { color: theme.background };
   
   // Header with different style for conclusion
-  slide.addShape(pptx.ShapeType.rect, { 
-    x: 0, y: 0, w: '100%', h: 1.2, 
-    fill: { color: theme.primary } 
-  });
+  let contentStartY = 1.5;
   
-  slide.addText(data.title, {
-    x: 0.4, y: 0.35, w: 9.2, h: 0.6,
-    fontSize: 28, bold: true, color: 'FFFFFF',
-    fontFace: 'Arial'
-  });
+  switch (design.headerStyle) {
+    case "full-banner":
+    case "top-bar":
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 0, w: '100%', h: 1.2, 
+        fill: { color: theme.primary } 
+      });
+      slide.addText(data.title, {
+        x: 0.4, y: 0.35, w: 9.2, h: 0.6,
+        fontSize: 28, bold: true, color: 'FFFFFF',
+        fontFace: design.fontPrimary
+      });
+      contentStartY = 1.5;
+      break;
+      
+    case "corner-accent":
+      slide.addShape(pptx.ShapeType.rtTriangle, { 
+        x: 0, y: 0, w: 1.5, h: 1.5, 
+        fill: { color: theme.primary },
+        rotate: 0
+      });
+      slide.addText(data.title, {
+        x: 0.5, y: 0.4, w: 9, h: 0.6,
+        fontSize: 28, bold: true, color: theme.text,
+        fontFace: design.fontPrimary
+      });
+      contentStartY = 1.3;
+      break;
+      
+    default:
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 0, w: '100%', h: 1.2, 
+        fill: { color: theme.headerBg } 
+      });
+      slide.addText(data.title, {
+        x: 0.4, y: 0.35, w: 9.2, h: 0.6,
+        fontSize: 28, bold: true, color: 'FFFFFF',
+        fontFace: design.fontPrimary
+      });
+      contentStartY = 1.5;
+      break;
+  }
   
   const bullets = data.bullets || [];
   bullets.forEach((bullet, i) => {
     if (i < 6) {
-      slide.addText(`✓ ${bullet}`, {
-        x: 0.5, y: 1.5 + (i * 0.7), w: 9, h: 0.6,
+      const bulletChar = design.bulletStyle === "check" ? "✓" : getBulletChar(design.bulletStyle, i);
+      slide.addText(`${bulletChar} ${bullet}`, {
+        x: 0.5, y: contentStartY + (i * 0.7), w: 9, h: 0.6,
         fontSize: 16, color: theme.text,
-        fontFace: 'Arial'
+        fontFace: design.fontSecondary
       });
     }
   });
 }
 
-// Build references slide
+// Build references slide with design variations
 function buildReferencesSlide(pptx: PptxGenJS, data: SlideData, theme: Theme) {
   const slide = pptx.addSlide();
+  const { design } = theme;
   slide.background = { color: theme.background };
   
-  slide.addShape(pptx.ShapeType.rect, { 
-    x: 0, y: 0, w: '100%', h: 1, 
-    fill: { color: theme.headerBg } 
-  });
+  let contentStartY = 1.3;
   
-  slide.addText("References", {
-    x: 0.4, y: 0.25, w: 9.2, h: 0.6,
-    fontSize: 26, bold: true, color: 'FFFFFF',
-    fontFace: 'Arial'
-  });
+  switch (design.headerStyle) {
+    case "left-sidebar":
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 0, w: 0.4, h: '100%', 
+        fill: { color: theme.primary } 
+      });
+      slide.addText("References", {
+        x: 0.6, y: 0.3, w: 9, h: 0.6,
+        fontSize: 26, bold: true, color: theme.text,
+        fontFace: design.fontPrimary
+      });
+      contentStartY = 1.1;
+      break;
+      
+    case "underline":
+    case "none":
+      slide.addText("References", {
+        x: 0.5, y: 0.3, w: 9, h: 0.6,
+        fontSize: 26, bold: true, color: theme.primary,
+        fontFace: design.fontPrimary
+      });
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0.5, y: 0.9, w: 2, h: 0.03, 
+        fill: { color: theme.secondary } 
+      });
+      break;
+      
+    default:
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 0, w: '100%', h: 1, 
+        fill: { color: theme.headerBg } 
+      });
+      slide.addText("References", {
+        x: 0.4, y: 0.25, w: 9.2, h: 0.6,
+        fontSize: 26, bold: true, color: 'FFFFFF',
+        fontFace: design.fontPrimary
+      });
+      break;
+  }
   
   const refs = data.bullets || [];
   refs.forEach((ref, i) => {
     if (i < 8) {
       slide.addText(`[${i + 1}] ${ref}`, {
-        x: 0.5, y: 1.3 + (i * 0.55), w: 9, h: 0.5,
+        x: 0.5, y: contentStartY + (i * 0.55), w: 9, h: 0.5,
         fontSize: 12, color: theme.text,
-        fontFace: 'Arial'
+        fontFace: design.fontSecondary
       });
     }
   });
 }
 
-// Build thank you slide
+// Build thank you slide with design variations
 function buildThankYouSlide(pptx: PptxGenJS, theme: Theme, author?: string, institution?: string) {
   const slide = pptx.addSlide();
-  slide.background = { color: theme.primary };
+  const { design } = theme;
+  
+  // Use primary color for most designs, but keep background for minimal/elegant
+  if (design.style === "minimal") {
+    slide.background = { color: theme.background };
+  } else {
+    slide.background = { color: theme.primary };
+  }
+  
+  const textColor = design.style === "minimal" ? theme.primary : 'FFFFFF';
+  
+  // Add decorative elements based on design
+  switch (design.decorativeElements) {
+    case "bold":
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 0, w: '100%', h: 0.2, 
+        fill: { color: theme.secondary } 
+      });
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 0, y: 5.3, w: '100%', h: 0.2, 
+        fill: { color: theme.secondary } 
+      });
+      break;
+    case "moderate":
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 3.5, y: 4, w: 3, h: 0.04, 
+        fill: { color: theme.secondary } 
+      });
+      break;
+    case "minimal":
+    default:
+      slide.addShape(pptx.ShapeType.rect, { 
+        x: 4, y: 3.8, w: 2, h: 0.03, 
+        fill: { color: theme.secondary } 
+      });
+      break;
+  }
   
   slide.addText("Thank You!", {
     x: 0.5, y: 1.8, w: 9, h: 1.2,
-    fontSize: 52, bold: true, color: 'FFFFFF', align: 'center',
-    fontFace: 'Arial'
+    fontSize: design.style === "bold" ? 56 : 52, 
+    bold: true, 
+    color: textColor, 
+    align: 'center',
+    fontFace: design.fontPrimary
   });
   
   slide.addText("Questions & Discussion", {
     x: 0.5, y: 3.2, w: 9, h: 0.6,
-    fontSize: 22, color: theme.secondary, align: 'center',
-    fontFace: 'Arial'
-  });
-  
-  // Decorative line
-  slide.addShape(pptx.ShapeType.rect, { 
-    x: 3.5, y: 4, w: 3, h: 0.04, 
-    fill: { color: theme.secondary } 
+    fontSize: 22, 
+    color: design.style === "minimal" ? theme.accent : theme.secondary, 
+    align: 'center',
+    fontFace: design.fontSecondary
   });
   
   if (author) {
     slide.addText(author, {
       x: 0.5, y: 4.3, w: 9, h: 0.5,
-      fontSize: 16, color: 'FFFFFF', align: 'center',
-      fontFace: 'Arial'
+      fontSize: 16, color: textColor, align: 'center',
+      fontFace: design.fontSecondary
     });
   }
   
   if (institution) {
     slide.addText(institution, {
       x: 0.5, y: 4.8, w: 9, h: 0.4,
-      fontSize: 14, color: theme.accent, align: 'center',
-      fontFace: 'Arial'
+      fontSize: 14, 
+      color: design.style === "minimal" ? theme.secondary : theme.accent, 
+      align: 'center',
+      fontFace: design.fontSecondary
     });
   }
 }
@@ -686,7 +1347,7 @@ serve(async (req) => {
 
     console.log(`[CREDIT] PPT - Deducted ${creditsToDeduct} credits from: ${creditSource}, images: ${include_images}`);
 
-    // Select theme
+    // Select theme - now includes design configuration
     let selectedTheme: Theme;
     if (requestedTheme && requestedTheme !== 'random') {
       const themeMap: Record<string, number> = {
@@ -695,13 +1356,28 @@ serve(async (req) => {
         'classic-red': 2,
         'warm-gradient': 3,
         'formal-green': 4,
-        'modern-purple': 5
+        'modern-purple': 5,
+        'midnight-navy': 6,
+        'slate-charcoal': 7,
+        'deep-crimson': 8,
+        'forest-night': 9,
+        'royal-indigo': 10,
+        'clean-white': 11,
+        'soft-lavender': 12,
+        'mint-fresh': 13,
+        'warm-sand': 14,
+        'sky-blue': 15,
+        'sunset-orange': 16,
+        'ocean-deep': 17,
+        'rose-gold': 18,
+        'electric-blue': 19,
+        'emerald-prestige': 20
       };
       selectedTheme = THEMES[themeMap[requestedTheme] ?? Math.floor(Math.random() * THEMES.length)];
     } else {
       selectedTheme = THEMES[Math.floor(Math.random() * THEMES.length)];
     }
-    console.log(`[PPT] Selected theme: ${selectedTheme.name}`);
+    console.log(`[PPT] Selected theme: ${selectedTheme.name} (${selectedTheme.design.style} style, ${selectedTheme.design.headerStyle} header)`);
 
     // Fetch document content
     const docResponse = await fetch(document_url);
@@ -843,7 +1519,7 @@ GUIDELINES:
     pptx.author = presentationData.author || "ProjectPal";
     pptx.subject = "AI Generated Academic Presentation";
 
-    // Build slides based on type
+    // Build slides based on type - now with design-aware functions
     for (let i = 0; i < presentationData.slides.length; i++) {
       const slideData = presentationData.slides[i];
       const imageUrl = slideImages.get(i);
@@ -915,6 +1591,7 @@ GUIDELINES:
         credits_used: creditsToDeduct,
         images_enabled: include_images,
         theme_used: selectedTheme.name,
+        design_style: selectedTheme.design.style,
         slides_generated: presentationData.slides.length + (hasThankYou ? 0 : 1),
         images_generated: slideImages.size,
         profile: {
