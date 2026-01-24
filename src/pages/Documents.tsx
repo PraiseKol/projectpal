@@ -107,15 +107,21 @@ const Documents = () => {
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
+      // Use signed URL instead of public URL for security
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from("documents")
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 3600); // 1 hour expiry
 
-      setUploadedDocUrl(urlData.publicUrl);
+      if (signedUrlError || !signedUrlData?.signedUrl) {
+        throw new Error("Failed to generate document URL");
+      }
 
+      setUploadedDocUrl(signedUrlData.signedUrl);
+
+      // Store the file path (not URL) in database for later signed URL generation
       await supabase.from("documents").insert({
         user_id: user.id,
-        file_url: urlData.publicUrl,
+        file_url: fileName, // Store path, not URL
         file_name: selectedFile.name,
       });
 

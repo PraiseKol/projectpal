@@ -144,10 +144,16 @@ const DocumentEditor = () => {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      // Use signed URL instead of public URL for security
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from("documents")
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 3600); // 1 hour expiry
+
+      if (signedUrlError || !signedUrlData?.signedUrl) {
+        throw new Error("Failed to generate document URL");
+      }
+      
+      const publicUrl = signedUrlData.signedUrl;
 
       // Extract text content
       let extractedContent = "";
@@ -185,13 +191,13 @@ const DocumentEditor = () => {
         }
       }
 
-      // Save document to database
+      // Save document to database (store file path, not URL)
       const { data: docData, error: docError } = await supabase
         .from("documents")
         .insert({
           user_id: user.id,
           file_name: file.name,
-          file_url: publicUrl,
+          file_url: fileName, // Store path for later signed URL generation
           document_type: "editor",
           extracted_content: extractedContent || null,
         })
