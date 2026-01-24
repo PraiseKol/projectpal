@@ -356,7 +356,9 @@ export const AnalysisResultsStep = ({
 
       // Significance Legend
       children.push(new Paragraph({
-        children: [new TextRun({ text: "─".repeat(50), size: 20 })],
+        border: {
+          top: { style: BorderStyle.SINGLE, size: 6, color: "999999" }
+        },
         spacing: { before: 300, after: 100 }
       }));
       children.push(new Paragraph({
@@ -364,7 +366,7 @@ export const AnalysisResultsStep = ({
         spacing: { after: 50 }
       }));
       children.push(new Paragraph({
-        children: [new TextRun({ text: "All statistical analyses were conducted at α = 0.05 significance level.", italics: true, size: 20 })],
+        children: [new TextRun({ text: "All statistical analyses were conducted at alpha = 0.05 significance level.", italics: true, size: 20 })],
       }));
 
       const doc = new Document({
@@ -565,11 +567,12 @@ export const AnalysisResultsStep = ({
       y += 10;
       pdf.setFontSize(9);
       pdf.setFont("helvetica", "italic");
-      pdf.text("─".repeat(70), margin, y);
+      pdf.setDrawColor(150, 150, 150);
+      pdf.line(margin, y, pageWidth - margin, y);
       y += 5;
       pdf.text("Significance Levels: * p < .05, ** p < .01, *** p < .001", margin, y);
       y += 4;
-      pdf.text("All statistical analyses were conducted at α = 0.05 significance level.", margin, y);
+      pdf.text("All statistical analyses were conducted at alpha = 0.05 significance level.", margin, y);
 
       // Add page number to last page
       addPageNumber();
