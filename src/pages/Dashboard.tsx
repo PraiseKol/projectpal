@@ -189,7 +189,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO 
-        title="Dashboard | ScholarAI Hub"
+        title="Dashboard | ProjectPal"
         description="Manage your academic projects, track credits, and access AI-powered writing tools."
         keywords="academic writing, AI assistant, research projects, thesis writing"
       />
@@ -200,7 +200,7 @@ const Dashboard = () => {
             <div className="p-2 bg-gradient-to-br from-primary to-secondary rounded-xl">
               <GraduationCap className="h-5 w-5 text-white" />
             </div>
-            <span className="text-lg font-semibold">ScholarAI Hub</span>
+            <span className="text-lg font-semibold">ProjectPal</span>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />

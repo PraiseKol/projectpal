@@ -202,7 +202,7 @@ const Pricing = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO 
-        title="Pricing | ScholarAI Hub"
+        title="Pricing | ProjectPal"
         description="Choose the perfect plan for your academic journey. Get credits for AI-powered project assistance, from free to Scholar plans."
         keywords="academic writing pricing, AI assistant plans, research credits, thesis writing subscription"
       />
@@ -216,7 +216,7 @@ const Pricing = () => {
             <div className="p-2 bg-gradient-to-br from-primary to-secondary rounded-xl">
               <GraduationCap className="h-5 w-5 text-white" />
             </div>
-            <span className="text-lg font-semibold">ScholarAI Hub</span>
+            <span className="text-lg font-semibold">ProjectPal</span>
           </div>
         </div>
       </header>
@@ -273,7 +273,7 @@ const Pricing = () => {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-2xl">Free Plan</CardTitle>
-                <CardDescription>Perfect for trying out ScholarAI</CardDescription>
+                <CardDescription>Perfect for trying out ProjectPal</CardDescription>
               </div>
               <Badge className="rounded-full">Current</Badge>
             </div>

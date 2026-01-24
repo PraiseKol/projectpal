@@ -394,7 +394,7 @@ const DocumentEditor = () => {
   return (
     <div className="min-h-screen bg-background">
       <SEO 
-        title="Document Editor | ScholarAI Hub"
+        title="Document Editor | ProjectPal"
         description="Upload your academic documents for AI-powered analysis and editing. Get grammar, structure, and style improvements."
         keywords="document editor, academic writing, AI editing, grammar check, writing improvement"
       />
