@@ -123,18 +123,18 @@ export const AnalysisResultsStep = ({
 
       section.tables.forEach((table) => {
         text += `Table 4.${tableNum}: ${table.title}\n`;
-        text += "─".repeat(80) + "\n";
+        text += "-".repeat(80) + "\n";
         
         // Header row
         text += table.headers.join("\t") + "\n";
-        text += "─".repeat(80) + "\n";
+        text += "-".repeat(80) + "\n";
         
         // Data rows
         table.rows.forEach(row => {
           text += row.join("\t") + "\n";
         });
         
-        text += "─".repeat(80) + "\n";
+        text += "-".repeat(80) + "\n";
         
         if (table.footnote) {
           text += `Note: ${table.footnote}\n`;
