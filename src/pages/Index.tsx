@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { GraduationCap, BookOpen, Sparkles, CheckCircle } from "lucide-react";
+import { BookOpen, Sparkles, CheckCircle } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SEO } from "@/components/SEO";
+import { ProjectPalLogo } from "@/components/ProjectPalLogo";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -49,8 +50,8 @@ const Index = () => {
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-16 text-center">
-        <div className="inline-block p-4 bg-gradient-to-br from-primary to-secondary rounded-2xl mb-8 animate-scale-in">
-          <GraduationCap className="h-16 w-16 text-white" />
+        <div className="flex justify-center mb-8 animate-scale-in">
+          <ProjectPalLogo size="lg" showText={false} />
         </div>
         <h1 className="text-5xl md:text-6xl font-bold mb-6 animate-fade-in">ProjectPal</h1>
         <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-fade-in">
