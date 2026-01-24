@@ -53,7 +53,8 @@ const Pricing = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedPurchase, setSelectedPurchase] = useState<SelectedPurchase | null>(null);
-  const [paystackKey, setPaystackKey] = useState<string | null>(null);
+  // Use environment variable for Paystack public key (not from database)
+  const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY as string | undefined;
   
   // Get pre-selected values from URL params (for renewals)
   const preSelectedPlan = searchParams.get("plan") as "pro" | "scholar" | null;
@@ -64,22 +65,7 @@ const Pricing = () => {
   useEffect(() => {
     loadPaystackScript();
     getUserEmail();
-    fetchPaystackKey();
   }, []);
-
-  const fetchPaystackKey = async () => {
-    const { data, error } = await supabase
-      .from("app_settings")
-      .select("value")
-      .eq("key", "PAYSTACK_PUBLIC_KEY")
-      .maybeSingle();
-    
-    if (data?.value) {
-      setPaystackKey(data.value);
-    } else if (error) {
-      console.error("Error fetching Paystack key:", error);
-    }
-  };
 
   const loadPaystackScript = () => {
     const script = document.createElement("script");
