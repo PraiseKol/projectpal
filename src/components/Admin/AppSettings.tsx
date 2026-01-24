@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Settings, Save, RefreshCw } from "lucide-react";
@@ -94,11 +95,52 @@ export const AppSettings = () => {
 
   if (isLoading) {
     return (
-      <Card className="shadow-md rounded-2xl">
-        <CardContent className="flex items-center justify-center py-8">
-          <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <Card className="shadow-md rounded-2xl">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-5 w-5" />
+              <Skeleton className="h-6 w-40" />
+            </div>
+            <Skeleton className="h-4 w-64 mt-1" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-10 flex-1" />
+                  <Skeleton className="h-10 w-10" />
+                </div>
+                <Skeleton className="h-3 w-40" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-36" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-10 flex-1" />
+                  <Skeleton className="h-10 w-10" />
+                </div>
+                <Skeleton className="h-3 w-36" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-md rounded-2xl">
+          <CardHeader>
+            <Skeleton className="h-6 w-36" />
+            <Skeleton className="h-4 w-56 mt-1" />
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between py-3">
+              <div className="space-y-1">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-64" />
+              </div>
+              <Skeleton className="h-6 w-12 rounded-full" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 

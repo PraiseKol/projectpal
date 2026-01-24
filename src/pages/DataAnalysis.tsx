@@ -8,11 +8,12 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SEO } from "@/components/SEO";
-import { ArrowLeft, Upload, FileSpreadsheet, BarChart3, Download, GraduationCap, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Upload, FileSpreadsheet, BarChart3, Download, GraduationCap, CheckCircle2, AlertCircle } from "lucide-react";
 import { FileUploadStep } from "@/components/DataAnalysis/FileUploadStep";
 import { DataPreviewStep } from "@/components/DataAnalysis/DataPreviewStep";
 import { AnalysisSelectionStep } from "@/components/DataAnalysis/AnalysisSelectionStep";
 import { AnalysisResultsStep } from "@/components/DataAnalysis/AnalysisResultsStep";
+import { DataAnalysisSkeleton } from "@/components/skeletons/DataAnalysisSkeleton";
 
 export interface ColumnConfig {
   name: string;
@@ -172,14 +173,7 @@ const DataAnalysis = () => {
   const availableCredits = (profile?.daily_credits || 0) + (profile?.paid_credits || 0);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex items-center gap-2">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span>Loading...</span>
-        </div>
-      </div>
-    );
+    return <DataAnalysisSkeleton />;
   }
 
   return (

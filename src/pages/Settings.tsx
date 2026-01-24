@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Mail, CreditCard, Calendar, GraduationCap, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { SettingsSkeleton } from "@/components/skeletons/SettingsSkeleton";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -83,11 +84,7 @@ const Settings = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
+    return <SettingsSkeleton />;
   }
 
   return (

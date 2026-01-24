@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Download } from "lucide-react";
 import { toast } from "sonner";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TransactionHistorySkeleton } from "@/components/skeletons/TransactionHistorySkeleton";
 
 const TransactionHistory = () => {
   const navigate = useNavigate();
@@ -79,18 +79,7 @@ const TransactionHistory = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b border-border">
-          <div className="container mx-auto px-4 py-4">
-            <Skeleton className="h-8 w-64" />
-          </div>
-        </header>
-        <main className="container mx-auto px-4 py-8">
-          <Skeleton className="h-64 w-full rounded-2xl" />
-        </main>
-      </div>
-    );
+    return <TransactionHistorySkeleton />;
   }
 
   return (

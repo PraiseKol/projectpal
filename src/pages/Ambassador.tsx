@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ArrowLeft, Copy, Users, Coins, Wallet, TrendingUp, CheckCircle2, Clock, ExternalLink, Percent, CalendarDays, DollarSign } from "lucide-react";
 import {
@@ -17,6 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { AmbassadorSkeleton } from "@/components/skeletons/AmbassadorSkeleton";
 
 interface ReferralCode {
   id: string;
@@ -203,11 +203,7 @@ const Ambassador = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Skeleton className="h-64 w-64" />
-      </div>
-    );
+    return <AmbassadorSkeleton />;
   }
 
   if (!isAmbassador) return null;

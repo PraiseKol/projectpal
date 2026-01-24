@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Shield, Plus, Trash2, Search } from "lucide-react";
+import { TableRowSkeleton } from "@/components/skeletons/TableRowSkeleton";
 
 interface Role {
   id: string;
@@ -255,11 +256,7 @@ export const RoleManagement = ({ emailMap, users }: RoleManagementProps) => {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8">
-                    Loading roles...
-                  </TableCell>
-                </TableRow>
+                <TableRowSkeleton columns={4} rows={5} />
               ) : filteredRoles.length > 0 ? (
                 filteredRoles.map((role) => (
                   <TableRow key={role.id}>
