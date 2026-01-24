@@ -82,6 +82,159 @@ const THEMES: Theme[] = [
     text: "FFFFFF",
     accent: "C4B5FD",
     bulletColor: "A78BFA"
+  },
+  // Dark/Professional Themes
+  {
+    name: "Midnight Navy",
+    primary: "0F172A",
+    secondary: "FBBF24",
+    background: "020617",
+    headerBg: "1E3A8A",
+    text: "FFFFFF",
+    accent: "FCD34D",
+    bulletColor: "FBBF24"
+  },
+  {
+    name: "Slate Charcoal",
+    primary: "334155",
+    secondary: "22D3EE",
+    background: "1E293B",
+    headerBg: "475569",
+    text: "FFFFFF",
+    accent: "06B6D4",
+    bulletColor: "67E8F9"
+  },
+  {
+    name: "Deep Crimson",
+    primary: "881337",
+    secondary: "FB7185",
+    background: "1C1917",
+    headerBg: "9F1239",
+    text: "FFFFFF",
+    accent: "FDA4AF",
+    bulletColor: "FB7185"
+  },
+  {
+    name: "Forest Night",
+    primary: "14532D",
+    secondary: "84CC16",
+    background: "052E16",
+    headerBg: "166534",
+    text: "FFFFFF",
+    accent: "A3E635",
+    bulletColor: "BEF264"
+  },
+  {
+    name: "Royal Indigo",
+    primary: "3730A3",
+    secondary: "A78BFA",
+    background: "1E1B4B",
+    headerBg: "4338CA",
+    text: "FFFFFF",
+    accent: "C4B5FD",
+    bulletColor: "A78BFA"
+  },
+  // Light/Clean Themes
+  {
+    name: "Clean White",
+    primary: "0369A1",
+    secondary: "0EA5E9",
+    background: "FFFFFF",
+    headerBg: "0284C7",
+    text: "1F2937",
+    accent: "38BDF8",
+    bulletColor: "0369A1"
+  },
+  {
+    name: "Soft Lavender",
+    primary: "7C3AED",
+    secondary: "A78BFA",
+    background: "F5F3FF",
+    headerBg: "8B5CF6",
+    text: "1F2937",
+    accent: "C4B5FD",
+    bulletColor: "7C3AED"
+  },
+  {
+    name: "Mint Fresh",
+    primary: "059669",
+    secondary: "34D399",
+    background: "ECFDF5",
+    headerBg: "10B981",
+    text: "1F2937",
+    accent: "6EE7B7",
+    bulletColor: "059669"
+  },
+  {
+    name: "Warm Sand",
+    primary: "B45309",
+    secondary: "F59E0B",
+    background: "FFFBEB",
+    headerBg: "D97706",
+    text: "1F2937",
+    accent: "FBBF24",
+    bulletColor: "B45309"
+  },
+  {
+    name: "Sky Blue",
+    primary: "0284C7",
+    secondary: "38BDF8",
+    background: "F0F9FF",
+    headerBg: "0369A1",
+    text: "1F2937",
+    accent: "7DD3FC",
+    bulletColor: "0284C7"
+  },
+  // Specialty/Creative Themes
+  {
+    name: "Sunset Orange",
+    primary: "EA580C",
+    secondary: "FB923C",
+    background: "431407",
+    headerBg: "C2410C",
+    text: "FFFFFF",
+    accent: "FDBA74",
+    bulletColor: "FB923C"
+  },
+  {
+    name: "Ocean Deep",
+    primary: "0E7490",
+    secondary: "22D3EE",
+    background: "083344",
+    headerBg: "0891B2",
+    text: "FFFFFF",
+    accent: "67E8F9",
+    bulletColor: "22D3EE"
+  },
+  {
+    name: "Rose Gold",
+    primary: "BE185D",
+    secondary: "F472B6",
+    background: "FDF2F8",
+    headerBg: "DB2777",
+    text: "1F2937",
+    accent: "F9A8D4",
+    bulletColor: "BE185D"
+  },
+  {
+    name: "Electric Blue",
+    primary: "2563EB",
+    secondary: "60A5FA",
+    background: "172554",
+    headerBg: "1D4ED8",
+    text: "FFFFFF",
+    accent: "93C5FD",
+    bulletColor: "60A5FA"
+  },
+  {
+    name: "Emerald Prestige",
+    primary: "047857",
+    secondary: "FBBF24",
+    background: "022C22",
+    headerBg: "059669",
+    text: "FFFFFF",
+    accent: "FCD34D",
+    bulletColor: "FBBF24"
   }
 ];
 
