@@ -1116,58 +1116,156 @@ function calculateDeterminant(matrix: number[][]): number {
   return det;
 }
 
-// Helper: Calculate eigenvalues using power iteration
-function calculateEigenvalues(matrix: number[][], p: number): { value: number; percentVariance: number; cumulative: number }[] {
-  const eigenvalues: { value: number; percentVariance: number; cumulative: number }[] = [];
-  const totalVariance = p; // For correlation matrix, total variance = number of variables
-  
-  // Simplified eigenvalue estimation using trace and diagonal dominance
-  // For a correlation matrix, sum of eigenvalues = p
-  const diagonalSum = matrix.reduce((sum, row, i) => {
-    let offDiagSum = 0;
-    for (let j = 0; j < p; j++) {
-      if (i !== j) offDiagSum += Math.abs(row[j]);
+// Matrix utility functions for OLS regression
+function matrixMultiply(A: number[][], B: number[][]): number[][] {
+  const rowsA = A.length, colsA = A[0].length, colsB = B[0].length;
+  const result: number[][] = Array.from({ length: rowsA }, () => new Array(colsB).fill(0));
+  for (let i = 0; i < rowsA; i++) {
+    for (let j = 0; j < colsB; j++) {
+      for (let k = 0; k < colsA; k++) {
+        result[i][j] += A[i][k] * B[k][j];
+      }
     }
-    return sum + offDiagSum;
-  }, 0) / p;
+  }
+  return result;
+}
+
+function matrixTranspose(A: number[][]): number[][] {
+  return A[0].map((_, j) => A.map(row => row[j]));
+}
+
+// Matrix inverse using Gauss-Jordan elimination
+function matrixInverse(matrix: number[][]): number[][] | null {
+  const n = matrix.length;
+  const augmented = matrix.map((row, i) => [...row, ...Array(n).fill(0).map((_, j) => i === j ? 1 : 0)]);
   
-  // Estimate eigenvalues based on matrix structure
-  for (let i = 0; i < p; i++) {
-    // Gershgorin circle approximation
-    let radius = 0;
-    for (let j = 0; j < p; j++) {
-      if (i !== j) radius += Math.abs(matrix[i][j]);
+  for (let i = 0; i < n; i++) {
+    let maxRow = i;
+    for (let k = i + 1; k < n; k++) {
+      if (Math.abs(augmented[k][i]) > Math.abs(augmented[maxRow][i])) maxRow = k;
+    }
+    [augmented[i], augmented[maxRow]] = [augmented[maxRow], augmented[i]];
+    
+    if (Math.abs(augmented[i][i]) < 1e-10) return null; // Singular matrix
+    
+    const pivot = augmented[i][i];
+    for (let j = 0; j < 2 * n; j++) augmented[i][j] /= pivot;
+    
+    for (let k = 0; k < n; k++) {
+      if (k !== i) {
+        const factor = augmented[k][i];
+        for (let j = 0; j < 2 * n; j++) augmented[k][j] -= factor * augmented[i][j];
+      }
+    }
+  }
+  
+  return augmented.map(row => row.slice(n));
+}
+
+// Helper: Calculate eigenvalues using Power Iteration with Deflation
+function calculateEigenvalues(matrix: number[][], p: number): { value: number; percentVariance: number; cumulative: number; eigenvector: number[] }[] {
+  const maxIterations = 100;
+  const tolerance = 1e-8;
+  const totalVariance = p;
+  const eigenvalues: { value: number; percentVariance: number; cumulative: number; eigenvector: number[] }[] = [];
+  
+  // Work with a copy of the matrix for deflation
+  let A = matrix.map(row => [...row]);
+  
+  for (let ev = 0; ev < p; ev++) {
+    // Initialize with random vector
+    let v = Array(p).fill(0).map((_, i) => Math.sin((ev + 1) * (i + 1)));
+    let norm = Math.sqrt(v.reduce((sum, x) => sum + x * x, 0));
+    v = v.map(x => x / norm);
+    
+    let eigenvalue = 0;
+    
+    // Power iteration
+    for (let iter = 0; iter < maxIterations; iter++) {
+      // Multiply: w = A * v
+      const w = A.map(row => row.reduce((sum, val, j) => sum + val * v[j], 0));
+      
+      // Calculate Rayleigh quotient (eigenvalue estimate)
+      const newEigenvalue = v.reduce((sum, vi, i) => sum + vi * w[i], 0);
+      
+      // Normalize
+      norm = Math.sqrt(w.reduce((sum, x) => sum + x * x, 0));
+      if (norm < tolerance) break;
+      v = w.map(x => x / norm);
+      
+      // Check convergence
+      if (Math.abs(newEigenvalue - eigenvalue) < tolerance) {
+        eigenvalue = newEigenvalue;
+        break;
+      }
+      eigenvalue = newEigenvalue;
     }
     
-    // Approximate eigenvalue
-    const lambda = Math.max(0.01, 1 + radius * (1 - i / p) - i * 0.3);
-    const percentVariance = (lambda / totalVariance) * 100;
+    // Ensure non-negative eigenvalue for correlation matrix
+    eigenvalue = Math.max(0, eigenvalue);
+    
+    const percentVariance = (eigenvalue / totalVariance) * 100;
     const cumulative = eigenvalues.reduce((sum, e) => sum + e.percentVariance, 0) + percentVariance;
     
     eigenvalues.push({
-      value: lambda,
+      value: eigenvalue,
       percentVariance,
-      cumulative: Math.min(100, cumulative),
+      cumulative,
+      eigenvector: v,
     });
+    
+    // Deflation: A = A - λ * v * v'
+    for (let i = 0; i < p; i++) {
+      for (let j = 0; j < p; j++) {
+        A[i][j] -= eigenvalue * v[i] * v[j];
+      }
+    }
   }
   
-  // Normalize so sum = p
-  const currentSum = eigenvalues.reduce((sum, e) => sum + e.value, 0);
-  if (currentSum > 0) {
-    const scale = p / currentSum;
-    let runningCumulative = 0;
-    eigenvalues.forEach(e => {
-      e.value *= scale;
-      e.percentVariance = (e.value / p) * 100;
-      runningCumulative += e.percentVariance;
-      e.cumulative = runningCumulative;
-    });
-  }
-  
-  // Sort descending
+  // Sort by eigenvalue descending
   eigenvalues.sort((a, b) => b.value - a.value);
   
+  // Recalculate cumulative after sorting
+  let runningCumulative = 0;
+  eigenvalues.forEach(e => {
+    runningCumulative += e.percentVariance;
+    e.cumulative = runningCumulative;
+  });
+  
   return eigenvalues;
+}
+
+// Generate histogram bins using actual data distribution
+function generateHistogramBins(values: number[], binCount?: number): { range: string; count: number; start: number; end: number }[] {
+  if (values.length === 0) return [];
+  
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  
+  if (min === max) {
+    return [{ range: `${min.toFixed(1)}`, count: values.length, start: min, end: max }];
+  }
+  
+  // Use Sturges' rule or sqrt rule for bin count
+  const n = values.length;
+  const calculatedBinCount = binCount ?? Math.min(10, Math.max(5, Math.ceil(Math.sqrt(n))));
+  const binWidth = (max - min) / calculatedBinCount;
+  
+  const bins: { range: string; count: number; start: number; end: number }[] = [];
+  
+  for (let i = 0; i < calculatedBinCount; i++) {
+    const start = min + i * binWidth;
+    const end = i === calculatedBinCount - 1 ? max + 0.001 : start + binWidth;
+    const count = values.filter(v => v >= start && v < end).length;
+    bins.push({
+      range: `${start.toFixed(1)}-${end.toFixed(1)}`,
+      count,
+      start,
+      end
+    });
+  }
+  
+  return bins;
 }
 
 // Simplified F-distribution CDF
@@ -1230,9 +1328,9 @@ function likertAnalysis(data: number[]): {
   return { distribution, weightedMean, mode: modeValues, interpretation };
 }
 
-// Simple linear regression
-function linearRegression(y: number[], xVars: number[][]): {
-  coefficients: { name: string; value: number; pValue: number }[];
+// OLS Linear regression using matrix operations (Normal Equations)
+function linearRegression(y: number[], xVars: number[][], varNames?: string[]): {
+  coefficients: { name: string; value: number; se: number; tValue: number; pValue: number }[];
   rSquared: number;
   adjustedRSquared: number;
   fStatistic: number;
@@ -1245,43 +1343,77 @@ function linearRegression(y: number[], xVars: number[][]): {
     return { coefficients: [], rSquared: 0, adjustedRSquared: 0, fStatistic: 0, fPValue: 1 };
   }
   
-  // Calculate means
-  const yMean = mean(y);
+  // Build design matrix X with intercept column
+  const X: number[][] = [];
+  for (let i = 0; i < n; i++) {
+    X[i] = [1, ...xVars.map(xVar => xVar[i])];
+  }
   
-  // Simple OLS estimation
-  const coefficients: { name: string; value: number; pValue: number }[] = [];
+  // OLS: β = (X'X)^(-1) * X'y
+  const Xt = matrixTranspose(X);
+  const XtX = matrixMultiply(Xt, X);
+  const XtXinv = matrixInverse(XtX);
   
-  // Intercept
-  coefficients.push({ name: 'Intercept', value: yMean, pValue: 0.001 });
-  
-  // For each predictor
-  xVars.forEach((x, i) => {
-    const corr = pearsonCorrelation(x, y);
-    const sdY = standardDeviation(y);
-    const sdX = standardDeviation(x);
-    const b = sdX > 0 ? corr.r * (sdY / sdX) : 0;
-    coefficients.push({ 
-      name: `X${i + 1}`, 
-      value: b, 
-      pValue: corr.pValue 
+  // Fallback if matrix is singular (multicollinearity)
+  if (!XtXinv) {
+    const yMean = mean(y);
+    const coefficients: { name: string; value: number; se: number; tValue: number; pValue: number }[] = [];
+    coefficients.push({ name: 'Intercept', value: yMean, se: 0, tValue: 0, pValue: 1 });
+    xVars.forEach((x, i) => {
+      const corr = pearsonCorrelation(x, y);
+      const sdY = standardDeviation(y);
+      const sdX = standardDeviation(x);
+      const b = sdX > 0 ? corr.r * (sdY / sdX) : 0;
+      coefficients.push({ name: varNames?.[i] ?? `X${i + 1}`, value: b, se: 0, tValue: 0, pValue: corr.pValue });
     });
-  });
+    return { coefficients, rSquared: 0, adjustedRSquared: 0, fStatistic: 0, fPValue: 1 };
+  }
   
-  // R-squared
+  const yMatrix = y.map(v => [v]);
+  const Xty = matrixMultiply(Xt, yMatrix);
+  const betaMatrix = matrixMultiply(XtXinv, Xty);
+  const beta = betaMatrix.map(row => row[0]);
+  
+  // Calculate predictions and residuals
+  const yMean = mean(y);
   let ssTotal = 0, ssResidual = 0;
+  const residuals: number[] = [];
+  
   y.forEach((yi, i) => {
     ssTotal += Math.pow(yi - yMean, 2);
-    let predicted = coefficients[0].value;
-    xVars.forEach((x, j) => {
-      predicted += coefficients[j + 1].value * (x[i] - mean(x));
-    });
-    ssResidual += Math.pow(yi - predicted, 2);
+    let predicted = 0;
+    for (let j = 0; j <= k; j++) {
+      predicted += beta[j] * X[i][j];
+    }
+    const resid = yi - predicted;
+    residuals.push(resid);
+    ssResidual += resid * resid;
   });
   
+  // Calculate standard errors using MSE and (X'X)^-1 diagonal
+  const mse = n > k + 1 ? ssResidual / (n - k - 1) : ssResidual;
+  const dfResid = n - k - 1;
+  
+  const coefficients = beta.map((b, j) => {
+    const se = Math.sqrt(Math.max(0, mse * XtXinv[j][j]));
+    const tValue = se > 0 ? b / se : 0;
+    const pValue = dfResid > 0 && se > 0 ? 2 * (1 - tDistCDF(Math.abs(tValue), dfResid)) : 1;
+    return {
+      name: j === 0 ? 'Intercept' : (varNames?.[j - 1] ?? `X${j}`),
+      value: b,
+      se,
+      tValue,
+      pValue: isNaN(pValue) ? 1 : pValue
+    };
+  });
+  
+  // R-squared and F-statistic
   const rSquared = ssTotal > 0 ? 1 - (ssResidual / ssTotal) : 0;
   const adjustedRSquared = n > k + 1 ? 1 - ((1 - rSquared) * (n - 1) / (n - k - 1)) : 0;
-  const fStatistic = k > 0 && n > k + 1 && rSquared < 1 ? (rSquared / k) / ((1 - rSquared) / (n - k - 1)) : 0;
-  const fPValue = fStatistic > 0 ? 1 - fDistCDF(fStatistic, k, n - k - 1) : 1;
+  const ssRegression = ssTotal - ssResidual;
+  const msRegression = k > 0 ? ssRegression / k : 0;
+  const fStatistic = mse > 0 && k > 0 ? msRegression / mse : 0;
+  const fPValue = fStatistic > 0 && dfResid > 0 ? 1 - fDistCDF(fStatistic, k, dfResid) : 1;
   
   return { 
     coefficients, 
@@ -1568,7 +1700,8 @@ serve(async (req) => {
                       stdDev: null,
                       min: null,
                       max: null,
-                      variance: null
+                      variance: null,
+                      histogram: []
                     };
                   } else {
                     results.descriptive[col.name] = {
@@ -1579,7 +1712,8 @@ serve(async (req) => {
                       stdDev: standardDeviation(values),
                       min: Math.min(...values),
                       max: Math.max(...values),
-                      variance: variance(values)
+                      variance: variance(values),
+                      histogram: generateHistogramBins(values)  // Real histogram from actual data
                     };
                   }
                 }
