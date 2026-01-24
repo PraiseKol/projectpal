@@ -373,26 +373,26 @@ export const AnalysisResultsStep = ({
       </div>
 
       {/* Results Tabs */}
-      <TutorialTrigger id="tutorial-results-tabs">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <ScrollArea className="w-full">
-          <TabsList className="w-full flex-wrap h-auto gap-1 p-1">
-            {availableResults.map(([key]) => (
-              <TabsTrigger key={key} value={key} className="text-xs sm:text-sm">
-                {getAnalysisTitle(key)}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </ScrollArea>
-      </TutorialTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TutorialTrigger id="tutorial-results-tabs">
+          <ScrollArea className="w-full">
+            <TabsList className="w-full flex-wrap h-auto gap-1 p-1">
+              {availableResults.map(([key]) => (
+                <TabsTrigger key={key} value={key} className="text-xs sm:text-sm">
+                  {getAnalysisTitle(key)}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </ScrollArea>
+        </TutorialTrigger>
 
-      <TutorialTrigger id="tutorial-results-content">
-        {/* Descriptive Statistics with Histogram */}
-        {results.descriptive && (
-          <TabsContent value="descriptive">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
+        <TutorialTrigger id="tutorial-results-content">
+          {/* Descriptive Statistics with Histogram */}
+          {results.descriptive && (
+            <TabsContent value="descriptive">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Descriptive Statistics</CardTitle>
                     <CardDescription>Summary statistics for numeric variables</CardDescription>
@@ -2457,7 +2457,7 @@ export const AnalysisResultsStep = ({
             </Card>
           </TabsContent>
         )}
-      </TutorialTrigger>
+        </TutorialTrigger>
       </Tabs>
     </div>
   );
