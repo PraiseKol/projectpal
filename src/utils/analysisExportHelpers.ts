@@ -125,10 +125,95 @@ export const generateFrequencyTableData = (results: any): TableData[] => {
 
 // ============= CORRELATION MATRIX =============
 
+// Maximum variables before switching to pairwise format for better PDF/DOCX rendering
+const MAX_MATRIX_VARIABLES = 8;
+
+/**
+ * Generates a pairwise correlation table for large datasets (>8 variables)
+ * This format renders properly in PDF/DOCX exports unlike wide matrices
+ */
+export const generateCorrelationPairwiseTableData = (results: any, type: 'pearson' | 'spearman'): TableData | null => {
+  if (!results?.matrix || !results?.variables) return null;
+  
+  const variables = results.variables;
+  const headers = ['Variable 1', 'Variable 2', 'Correlation (r)', 'p-value', 'Significance'];
+  const rows: string[][] = [];
+  
+  // Generate pairwise correlations (upper triangle only to avoid duplicates)
+  for (let i = 0; i < variables.length; i++) {
+    for (let j = i + 1; j < variables.length; j++) {
+      const cell = results.matrix[i][j];
+      const value = type === 'pearson' ? cell.r : cell.rho;
+      const pValue = cell.pValue;
+      const sig = getSignificanceMarker(pValue);
+      
+      // Only include correlations with |r| >= 0.3 or significant ones to reduce length
+      const absValue = Math.abs(value || 0);
+      if (absValue >= 0.3 || (pValue !== undefined && pValue < 0.05)) {
+        rows.push([
+          variables[i],
+          variables[j],
+          formatNumber(value, 3),
+          pValue !== undefined && pValue !== null 
+            ? (pValue < 0.001 ? '<.001' : pValue.toFixed(3))
+            : 'N/A',
+          sig || 'ns'
+        ]);
+      }
+    }
+  }
+  
+  // Sort by absolute correlation value (strongest first)
+  rows.sort((a, b) => Math.abs(parseFloat(b[2]) || 0) - Math.abs(parseFloat(a[2]) || 0));
+  
+  // If no significant correlations, include all for completeness
+  if (rows.length === 0) {
+    for (let i = 0; i < variables.length; i++) {
+      for (let j = i + 1; j < variables.length; j++) {
+        const cell = results.matrix[i][j];
+        const value = type === 'pearson' ? cell.r : cell.rho;
+        const pValue = cell.pValue;
+        const sig = getSignificanceMarker(pValue);
+        
+        rows.push([
+          variables[i],
+          variables[j],
+          formatNumber(value, 3),
+          pValue !== undefined && pValue !== null 
+            ? (pValue < 0.001 ? '<.001' : pValue.toFixed(3))
+            : 'N/A',
+          sig || 'ns'
+        ]);
+      }
+    }
+    rows.sort((a, b) => Math.abs(parseFloat(b[2]) || 0) - Math.abs(parseFloat(a[2]) || 0));
+  }
+
+  return {
+    title: type === 'pearson' 
+      ? 'Pearson Correlation Coefficients (Pairwise)' 
+      : 'Spearman Rank Correlation Coefficients (Pairwise)',
+    headers,
+    rows,
+    footnote: '* p < .05, ** p < .01, *** p < .001; ns = not significant. Only correlations with |r| >= 0.30 or p < .05 shown.'
+  };
+};
+
+/**
+ * Generates correlation table data - uses matrix format for small datasets,
+ * pairwise format for large datasets (>8 variables)
+ */
 export const generateCorrelationTableData = (results: any, type: 'pearson' | 'spearman'): TableData | null => {
   if (!results?.matrix || !results?.variables) return null;
   
   const variables = results.variables;
+  
+  // For large datasets, use pairwise format for better PDF/DOCX rendering
+  if (variables.length > MAX_MATRIX_VARIABLES) {
+    return generateCorrelationPairwiseTableData(results, type);
+  }
+  
+  // Standard matrix format for smaller datasets
   const headers = ['Variable', ...variables];
   const rows = results.matrix.map((row: any[], i: number) => {
     const rowData = [variables[i]];
@@ -176,7 +261,7 @@ export const generateTTestTableData = (results: any, type: 'independent' | 'pair
     title: type === 'independent' ? 'Independent Samples T-Test Results' : 'Paired Samples T-Test Results',
     headers,
     rows,
-    footnote: `Significance: ${results.pValue < 0.05 ? 'The difference is statistically significant (p < .05)' : 'The difference is not statistically significant (p ≥ .05)'}`
+    footnote: `Significance: ${results.pValue < 0.05 ? 'The difference is statistically significant (p < .05)' : 'The difference is not statistically significant (p >= .05)'}`
   };
 };
 
@@ -214,7 +299,7 @@ export const generateGroupMeansTableData = (results: any): TableData | null => {
 export const generateAnovaTableData = (results: any): TableData | null => {
   if (!results) return null;
   
-  const headers = ['Source', 'Sum of Squares', 'df', 'Mean Square', 'F', 'Sig.', 'Partial η²'];
+  const headers = ['Source', 'Sum of Squares', 'df', 'Mean Square', 'F', 'Sig.', 'Partial Eta Sq.'];
   const rows: string[][] = [];
 
   // Between groups
@@ -258,14 +343,14 @@ export const generateAnovaTableData = (results: any): TableData | null => {
     rows,
     footnote: results.pValue < 0.05 
       ? 'The F-test is significant (p < .05), indicating significant differences between group means.'
-      : 'The F-test is not significant (p ≥ .05), indicating no significant differences between group means.'
+      : 'The F-test is not significant (p >= .05), indicating no significant differences between group means.'
   };
 };
 
 export const generateTwoWayAnovaTableData = (results: any): TableData | null => {
   if (!results) return null;
   
-  const headers = ['Source', 'Sum of Squares', 'df', 'Mean Square', 'F', 'Sig.', 'Partial η²'];
+  const headers = ['Source', 'Sum of Squares', 'df', 'Mean Square', 'F', 'Sig.', 'Partial Eta Sq.'];
   const rows: string[][] = [];
 
   // Factor A
@@ -297,7 +382,7 @@ export const generateTwoWayAnovaTableData = (results: any): TableData | null => 
   // Interaction
   if (results.interaction) {
     rows.push([
-      `${results.factorA?.name || 'A'} × ${results.factorB?.name || 'B'}`,
+      `${results.factorA?.name || 'A'} x ${results.factorB?.name || 'B'}`,
       formatNumber(results.interaction.ss, 3),
       String(results.interaction.df ?? 'N/A'),
       formatNumber(results.interaction.ms, 3),
@@ -473,7 +558,7 @@ export const generateLogisticRegressionTableData = (results: any): TableData | n
     title: 'Logistic Regression Coefficients (Variables in the Equation)',
     headers,
     rows,
-    footnote: `Model χ² = ${formatNumber(results.modelChiSquare, 3)}, p ${formatPValue(results.modelPValue)}; Nagelkerke R² = ${formatNumber(results.nagelkerkeR2, 3)}`
+    footnote: `Model Chi-Square = ${formatNumber(results.modelChiSquare, 3)}, p ${formatPValue(results.modelPValue)}; Nagelkerke R-Squared = ${formatNumber(results.nagelkerkeR2, 3)}`
   };
 };
 
@@ -530,7 +615,7 @@ export const generateChiSquareTableData = (results: any): TableData | null => {
     rows: statsRows,
     footnote: results.pValue < 0.05 
       ? 'The association between variables is statistically significant (p < .05).'
-      : 'There is no statistically significant association between variables (p ≥ .05).'
+      : 'There is no statistically significant association between variables (p >= .05).'
   };
 };
 
@@ -638,7 +723,7 @@ export const generateMannWhitneyTableData = (results: any): TableData | null => 
     rows,
     footnote: results.pValue < 0.05 
       ? 'The difference between groups is statistically significant (p < .05).'
-      : 'There is no statistically significant difference between groups (p ≥ .05).'
+      : 'There is no statistically significant difference between groups (p >= .05).'
   };
 };
 
@@ -658,7 +743,7 @@ export const generateKruskalWallisTableData = (results: any): TableData | null =
     rows,
     footnote: results.pValue < 0.05 
       ? 'The difference between groups is statistically significant (p < .05).'
-      : 'There is no statistically significant difference between groups (p ≥ .05).'
+      : 'There is no statistically significant difference between groups (p >= .05).'
   };
 };
 
@@ -684,7 +769,7 @@ export const generateWilcoxonTableData = (results: any): TableData | null => {
     rows,
     footnote: results.pValue < 0.05 
       ? 'The difference is statistically significant (p < .05).'
-      : 'There is no statistically significant difference (p ≥ .05).'
+      : 'There is no statistically significant difference (p >= .05).'
   };
 };
 
@@ -693,7 +778,7 @@ export const generateWilcoxonTableData = (results: any): TableData | null => {
 export const generateAncovaTableData = (results: any): TableData | null => {
   if (!results) return null;
   
-  const headers = ['Source', 'Type III Sum of Squares', 'df', 'Mean Square', 'F', 'Sig.', 'Partial η²'];
+  const headers = ['Source', 'Type III Sum of Squares', 'df', 'Mean Square', 'F', 'Sig.', 'Partial Eta Sq.'];
   const rows: string[][] = [];
 
   // Corrected Model
