@@ -17,6 +17,9 @@ const ANALYSIS_CREDITS: Record<string, number> = {
   'ttest_independent': 30,
   'ttest_paired': 30,
   'chi_square': 30,
+  'mannwhitney_u': 30,
+  'wilcoxon_signed_rank': 30,
+  'kruskal_wallis': 40,
   'anova_oneway': 40,
   'anova_twoway': 60,
   'ancova': 60,
@@ -199,6 +202,222 @@ function pairedTTest(before: number[], after: number[]): { tValue: number; df: n
   const df = n - 1;
   const pValue = 2 * (1 - tDistCDF(Math.abs(tValue), df));
   return { tValue, df, pValue, meanDiff };
+}
+
+// ============ NON-PARAMETRIC TESTS ============
+
+// Mann-Whitney U Test (non-parametric alternative to independent t-test)
+function mannWhitneyU(group1: number[], group2: number[]): {
+  U1: number;
+  U2: number;
+  U: number;
+  z: number;
+  pValue: number;
+  effectSize: number;
+  medianDiff: number;
+} {
+  const n1 = group1.length, n2 = group2.length;
+  if (n1 < 2 || n2 < 2) return { U1: 0, U2: 0, U: 0, z: 0, pValue: 1, effectSize: 0, medianDiff: 0 };
+  
+  // Combine and rank all values
+  const combined = [
+    ...group1.map(v => ({ value: v, group: 1 })),
+    ...group2.map(v => ({ value: v, group: 2 }))
+  ].sort((a, b) => a.value - b.value);
+  
+  // Assign ranks (handle ties by averaging)
+  const ranks: number[] = [];
+  let i = 0;
+  while (i < combined.length) {
+    let j = i;
+    while (j < combined.length && combined[j].value === combined[i].value) j++;
+    const avgRank = (i + 1 + j) / 2;
+    for (let k = i; k < j; k++) ranks[k] = avgRank;
+    i = j;
+  }
+  
+  // Sum ranks for each group
+  let R1 = 0, R2 = 0;
+  combined.forEach((item, idx) => {
+    if (item.group === 1) R1 += ranks[idx];
+    else R2 += ranks[idx];
+  });
+  
+  // Calculate U statistics
+  const U1 = n1 * n2 + (n1 * (n1 + 1)) / 2 - R1;
+  const U2 = n1 * n2 + (n2 * (n2 + 1)) / 2 - R2;
+  const U = Math.min(U1, U2);
+  
+  // Normal approximation for large samples (with tie correction)
+  const mu = (n1 * n2) / 2;
+  
+  // Calculate tie correction
+  const tieGroups: number[] = [];
+  let ti = 0;
+  while (ti < combined.length) {
+    let tj = ti;
+    while (tj < combined.length && combined[tj].value === combined[ti].value) tj++;
+    if (tj - ti > 1) tieGroups.push(tj - ti);
+    ti = tj;
+  }
+  
+  const N = n1 + n2;
+  let tieCorrection = 0;
+  for (const t of tieGroups) {
+    tieCorrection += (t * t * t - t);
+  }
+  
+  const sigma = Math.sqrt((n1 * n2 * (N + 1) / 12) - (n1 * n2 * tieCorrection / (12 * N * (N - 1))));
+  const z = sigma > 0 ? (U - mu) / sigma : 0;
+  const pValue = 2 * (1 - normalCDF(Math.abs(z)));
+  
+  // Effect size (r = z / sqrt(N))
+  const effectSize = N > 0 ? Math.abs(z) / Math.sqrt(N) : 0;
+  
+  return {
+    U1, U2, U, z, pValue,
+    effectSize,
+    medianDiff: median(group1) - median(group2)
+  };
+}
+
+// Kruskal-Wallis H Test (non-parametric alternative to one-way ANOVA)
+function kruskalWallisH(groups: number[][]): {
+  H: number;
+  df: number;
+  pValue: number;
+  effectSize: number;
+  groupMedians: number[];
+} {
+  const k = groups.length;
+  const N = groups.flat().length;
+  
+  if (k < 2 || N < 3) return { H: 0, df: 0, pValue: 1, effectSize: 0, groupMedians: [] };
+  
+  // Combine all data with group labels
+  const combined = groups.flatMap((g, idx) => 
+    g.map(v => ({ value: v, group: idx }))
+  ).sort((a, b) => a.value - b.value);
+  
+  // Assign ranks (handle ties)
+  const ranks: number[] = [];
+  let i = 0;
+  while (i < combined.length) {
+    let j = i;
+    while (j < combined.length && combined[j].value === combined[i].value) j++;
+    const avgRank = (i + 1 + j) / 2;
+    for (let l = i; l < j; l++) ranks[l] = avgRank;
+    i = j;
+  }
+  
+  // Sum ranks for each group
+  const rankSums = groups.map(() => 0);
+  combined.forEach((item, idx) => {
+    rankSums[item.group] += ranks[idx];
+  });
+  
+  // Calculate H statistic
+  const nValues = groups.map(g => g.length);
+  let sumTerm = 0;
+  for (let g = 0; g < k; g++) {
+    if (nValues[g] > 0) {
+      sumTerm += (rankSums[g] * rankSums[g]) / nValues[g];
+    }
+  }
+  
+  const H = (12 / (N * (N + 1))) * sumTerm - 3 * (N + 1);
+  const df = k - 1;
+  const pValue = 1 - chiSquareCDF(H, df);
+  
+  // Effect size (epsilon-squared = H / (N - 1))
+  const effectSize = (N > 1) ? H / (N - 1) : 0;
+  
+  return {
+    H, df, pValue,
+    effectSize: Math.max(0, Math.min(1, effectSize)),
+    groupMedians: groups.map(g => median(g))
+  };
+}
+
+// Wilcoxon Signed-Rank Test (non-parametric alternative to paired t-test)
+function wilcoxonSignedRank(before: number[], after: number[]): {
+  W: number;
+  Wplus: number;
+  Wminus: number;
+  z: number;
+  pValue: number;
+  effectSize: number;
+  medianDiff: number;
+} {
+  const n = Math.min(before.length, after.length);
+  if (n < 5) return { W: 0, Wplus: 0, Wminus: 0, z: 0, pValue: 1, effectSize: 0, medianDiff: 0 };
+  
+  // Calculate differences (exclude zeros)
+  const diffs: { diff: number; absDiff: number; origIdx: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const d = after[i] - before[i];
+    if (d !== 0) diffs.push({ diff: d, absDiff: Math.abs(d), origIdx: i });
+  }
+  
+  if (diffs.length < 2) return { W: 0, Wplus: 0, Wminus: 0, z: 0, pValue: 1, effectSize: 0, medianDiff: 0 };
+  
+  // Rank by absolute difference
+  const sorted = [...diffs].sort((a, b) => a.absDiff - b.absDiff);
+  
+  // Assign ranks (handle ties)
+  const ranks = new Map<number, number>();
+  let i = 0;
+  while (i < sorted.length) {
+    let j = i;
+    while (j < sorted.length && sorted[j].absDiff === sorted[i].absDiff) j++;
+    const avgRank = (i + 1 + j) / 2;
+    for (let k = i; k < j; k++) {
+      ranks.set(sorted[k].origIdx, avgRank);
+    }
+    i = j;
+  }
+  
+  // Sum positive and negative ranks
+  let Wplus = 0, Wminus = 0;
+  diffs.forEach(item => {
+    const rank = ranks.get(item.origIdx) || 0;
+    if (item.diff > 0) Wplus += rank;
+    else Wminus += rank;
+  });
+  
+  const W = Math.min(Wplus, Wminus);
+  const nPairs = diffs.length;
+  
+  // Normal approximation with tie correction
+  const mu = (nPairs * (nPairs + 1)) / 4;
+  
+  // Calculate tie correction for variance
+  const tieGroups: number[] = [];
+  let ti = 0;
+  while (ti < sorted.length) {
+    let tj = ti;
+    while (tj < sorted.length && sorted[tj].absDiff === sorted[ti].absDiff) tj++;
+    if (tj - ti > 1) tieGroups.push(tj - ti);
+    ti = tj;
+  }
+  
+  let tieCorrection = 0;
+  for (const t of tieGroups) {
+    tieCorrection += (t * t * t - t);
+  }
+  
+  const sigma = Math.sqrt((nPairs * (nPairs + 1) * (2 * nPairs + 1) - tieCorrection / 2) / 24);
+  const z = sigma > 0 ? (W - mu) / sigma : 0;
+  const pValue = 2 * (1 - normalCDF(Math.abs(z)));
+  
+  // Effect size (r = z / sqrt(N))
+  const effectSize = Math.abs(z) / Math.sqrt(n);
+  
+  return {
+    W, Wplus, Wminus, z, pValue,
+    effectSize,
+    medianDiff: median(diffs.map(d => d.diff))
+  };
 }
 
 // Post-hoc: Tukey HSD test
@@ -1532,6 +1751,18 @@ function generateTemplateInterpretation(analysisType: string, results: any): str
     case 'chi_square':
       return `The chi-square test of independence revealed ${results.pValue < 0.05 ? 'a statistically significant' : 'no statistically significant'} association between the categorical variables (χ² = ${results.chiSquare?.toFixed(3) || 'N/A'}, df = ${results.df || 'N/A'}, p = ${results.pValue?.toFixed(3) || 'N/A'}). Cramer's V of ${results.cramersV?.toFixed(3) || 'N/A'} indicates ${results.cramersV >= 0.5 ? 'a strong' : results.cramersV >= 0.3 ? 'a moderate' : 'a weak'} effect size.`;
     
+    case 'mannwhitney_u':
+      const effectInterpU = results.effectSize >= 0.5 ? 'large' : results.effectSize >= 0.3 ? 'medium' : 'small';
+      return `A Mann-Whitney U test was conducted to compare the distribution of scores between the two groups. The analysis revealed a U value of ${results.U?.toFixed(2) || 'N/A'}, with z = ${results.z?.toFixed(3) || 'N/A'} and p = ${results.pValue?.toFixed(4) || 'N/A'}. ${results.pValue < 0.05 ? 'This indicates a statistically significant difference between the groups.' : 'This indicates no statistically significant difference between the groups.'} The effect size (r = ${results.effectSize?.toFixed(3) || 'N/A'}) indicates a ${effectInterpU} effect. The median difference between groups was ${results.medianDiff?.toFixed(2) || 'N/A'}.`;
+    
+    case 'kruskal_wallis':
+      const effectInterpK = results.effectSize >= 0.14 ? 'large' : results.effectSize >= 0.06 ? 'medium' : 'small';
+      return `A Kruskal-Wallis H test was performed to compare the distributions across ${results.groupMedians?.length || 'multiple'} groups. The test yielded H(${results.df || 'N/A'}) = ${results.H?.toFixed(3) || 'N/A'}, p = ${results.pValue?.toFixed(4) || 'N/A'}. ${results.pValue < 0.05 ? 'This indicates a statistically significant difference in the distributions across groups, suggesting that at least one group differs from the others.' : 'This does not indicate a statistically significant difference in the distributions across groups.'} The effect size (ε² = ${results.effectSize?.toFixed(3) || 'N/A'}) represents a ${effectInterpK} effect.`;
+    
+    case 'wilcoxon_signed_rank':
+      const effectInterpW = results.effectSize >= 0.5 ? 'large' : results.effectSize >= 0.3 ? 'medium' : 'small';
+      return `A Wilcoxon signed-rank test was used to compare the paired observations. The analysis yielded W = ${results.W?.toFixed(2) || 'N/A'}, z = ${results.z?.toFixed(3) || 'N/A'}, p = ${results.pValue?.toFixed(4) || 'N/A'}. ${results.pValue < 0.05 ? 'This indicates a statistically significant difference between the pre-test and post-test conditions.' : 'This indicates no statistically significant difference between the pre-test and post-test conditions.'} The effect size (r = ${results.effectSize?.toFixed(3) || 'N/A'}) suggests a ${effectInterpW} effect. The median of the differences was ${results.medianDiff?.toFixed(2) || 'N/A'}.`;
+    
     default:
       return `The analysis has been completed. Please review the statistical results in the table above for detailed findings.`;
   }
@@ -2098,6 +2329,119 @@ serve(async (req) => {
                   };
                 } else {
                   results.factor_analysis = { error: 'Factor analysis requires at least 5 Likert scale items' };
+                }
+                break;
+              }
+              
+              // ============ NON-PARAMETRIC TESTS ============
+              
+              case 'mannwhitney_u': {
+                const groupCol = columns.find((c: any) => c.type === 'categorical' && c.isGrouping);
+                const dvCol = columns.find((c: any) => (c.type === 'numeric' || c.type === 'likert') && c.isDependentVariable);
+                
+                if (groupCol && dvCol) {
+                  const groups: Record<string, number[]> = {};
+                  data.forEach((row: any) => {
+                    const groupKey = String(row[groupCol.index]);
+                    const value = Number(row[dvCol.index]);
+                    if (!isNaN(value)) {
+                      if (!groups[groupKey]) groups[groupKey] = [];
+                      groups[groupKey].push(value);
+                    }
+                  });
+                  
+                  const groupKeys = Object.keys(groups);
+                  if (groupKeys.length === 2) {
+                    const testResult = mannWhitneyU(groups[groupKeys[0]], groups[groupKeys[1]]);
+                    results.mannwhitney_u = {
+                      ...testResult,
+                      groups: groupKeys,
+                      groupMedians: { [groupKeys[0]]: median(groups[groupKeys[0]]), [groupKeys[1]]: median(groups[groupKeys[1]]) },
+                      groupStats: groupKeys.map(k => ({
+                        name: k,
+                        n: groups[k].length,
+                        median: median(groups[k]),
+                        mean: mean(groups[k]),
+                        stdDev: standardDeviation(groups[k])
+                      })),
+                      significance: interpretSignificance(testResult.pValue),
+                      interpretation: await generateAcademicInterpretation('mannwhitney_u', testResult)
+                    };
+                  } else {
+                    results.mannwhitney_u = { error: 'Mann-Whitney U test requires exactly 2 groups' };
+                  }
+                } else {
+                  results.mannwhitney_u = { error: 'Please configure grouping variable and dependent variable' };
+                }
+                break;
+              }
+              
+              case 'kruskal_wallis': {
+                const groupCol = columns.find((c: any) => c.type === 'categorical' && c.isGrouping);
+                const dvCol = columns.find((c: any) => (c.type === 'numeric' || c.type === 'likert') && c.isDependentVariable);
+                
+                if (groupCol && dvCol) {
+                  const groups: Record<string, number[]> = {};
+                  data.forEach((row: any) => {
+                    const groupKey = String(row[groupCol.index]);
+                    const value = Number(row[dvCol.index]);
+                    if (!isNaN(value)) {
+                      if (!groups[groupKey]) groups[groupKey] = [];
+                      groups[groupKey].push(value);
+                    }
+                  });
+                  
+                  const groupKeys = Object.keys(groups);
+                  if (groupKeys.length >= 2) {
+                    const groupArrays = groupKeys.map(k => groups[k]);
+                    const testResult = kruskalWallisH(groupArrays);
+                    results.kruskal_wallis = {
+                      ...testResult,
+                      groups: groupKeys,
+                      groupStats: groupKeys.map((k, i) => ({
+                        name: k,
+                        n: groups[k].length,
+                        median: testResult.groupMedians[i],
+                        mean: mean(groups[k]),
+                        stdDev: standardDeviation(groups[k])
+                      })),
+                      significance: interpretSignificance(testResult.pValue),
+                      interpretation: await generateAcademicInterpretation('kruskal_wallis', testResult)
+                    };
+                  } else {
+                    results.kruskal_wallis = { error: 'Kruskal-Wallis test requires at least 2 groups' };
+                  }
+                } else {
+                  results.kruskal_wallis = { error: 'Please configure grouping variable and dependent variable' };
+                }
+                break;
+              }
+              
+              case 'wilcoxon_signed_rank': {
+                const beforeCol = columns.find((c: any) => c.isPre);
+                const afterCol = columns.find((c: any) => c.isPost);
+                
+                if (beforeCol && afterCol) {
+                  const before = data.map((r: any) => Number(r[beforeCol.index])).filter((v: number) => !isNaN(v));
+                  const after = data.map((r: any) => Number(r[afterCol.index])).filter((v: number) => !isNaN(v));
+                  const minLen = Math.min(before.length, after.length);
+                  
+                  const beforeTrimmed = before.slice(0, minLen);
+                  const afterTrimmed = after.slice(0, minLen);
+                  
+                  const testResult = wilcoxonSignedRank(beforeTrimmed, afterTrimmed);
+                  results.wilcoxon_signed_rank = {
+                    ...testResult,
+                    preMedian: median(beforeTrimmed),
+                    postMedian: median(afterTrimmed),
+                    preMean: mean(beforeTrimmed),
+                    postMean: mean(afterTrimmed),
+                    n: minLen,
+                    significance: interpretSignificance(testResult.pValue),
+                    interpretation: await generateAcademicInterpretation('wilcoxon_signed_rank', testResult)
+                  };
+                } else {
+                  results.wilcoxon_signed_rank = { error: 'Please configure pre-test and post-test columns' };
                 }
                 break;
               }

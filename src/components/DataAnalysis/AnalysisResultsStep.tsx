@@ -2050,7 +2050,351 @@ export const AnalysisResultsStep = ({
           </TabsContent>
         )}
 
-        {/* Likert Scale Analysis */}
+        {/* Mann-Whitney U Test */}
+        {results.mannwhitney_u && (
+          <TabsContent value="mannwhitney_u">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Mann-Whitney U Test</CardTitle>
+                    <CardDescription>Non-parametric comparison of two independent groups</CardDescription>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => copyToClipboard(results.mannwhitney_u.interpretation || '')}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Interpretation
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Test Statistics */}
+                  <div>
+                    <h4 className="font-semibold mb-3">Test Statistics</h4>
+                    <Table>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-medium">U Statistic</TableCell>
+                          <TableCell>{results.mannwhitney_u.U?.toFixed(2)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Z Score</TableCell>
+                          <TableCell>{results.mannwhitney_u.z?.toFixed(3)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">p-value</TableCell>
+                          <TableCell>
+                            {results.mannwhitney_u.pValue?.toFixed(4)}
+                            {results.mannwhitney_u.pValue < 0.05 && (
+                              <Badge variant="secondary" className="ml-2">Significant</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Effect Size (r)</TableCell>
+                          <TableCell>
+                            {results.mannwhitney_u.effectSize?.toFixed(3)}
+                            <span className="text-muted-foreground ml-1">
+                              ({results.mannwhitney_u.effectSize >= 0.5 ? 'Large' : 
+                                results.mannwhitney_u.effectSize >= 0.3 ? 'Medium' : 'Small'})
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Median Difference</TableCell>
+                          <TableCell>{results.mannwhitney_u.medianDiff?.toFixed(3)}</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                  
+                  {/* Group Statistics */}
+                  <div>
+                    <h4 className="font-semibold mb-3">Group Statistics (Medians)</h4>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Group</TableHead>
+                          <TableHead className="text-right">N</TableHead>
+                          <TableHead className="text-right">Median</TableHead>
+                          <TableHead className="text-right">Mean</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {results.mannwhitney_u.groupStats?.map((stat: any) => (
+                          <TableRow key={stat.name}>
+                            <TableCell className="font-medium">{stat.name}</TableCell>
+                            <TableCell className="text-right">{stat.n}</TableCell>
+                            <TableCell className="text-right">{stat.median?.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">{stat.mean?.toFixed(2)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
+                {/* Group Comparison Bar Chart */}
+                {results.mannwhitney_u.groupStats && (
+                  <div className="mt-6 h-[200px]">
+                    <h4 className="font-semibold mb-3">Group Medians</h4>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={results.mannwhitney_u.groupStats}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="median" fill="hsl(var(--primary))" name="Median" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {results.mannwhitney_u.interpretation && (
+                  <div className="mt-6 p-4 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText className="h-4 w-4 text-primary" />
+                      <span className="font-semibold">Academic Interpretation</span>
+                    </div>
+                    <p className="text-sm leading-relaxed">{results.mannwhitney_u.interpretation}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Wilcoxon Signed-Rank Test */}
+        {results.wilcoxon_signed_rank && (
+          <TabsContent value="wilcoxon_signed_rank">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Wilcoxon Signed-Rank Test</CardTitle>
+                    <CardDescription>Non-parametric comparison of paired observations</CardDescription>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => copyToClipboard(results.wilcoxon_signed_rank.interpretation || '')}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Interpretation
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Test Statistics */}
+                  <div>
+                    <h4 className="font-semibold mb-3">Test Statistics</h4>
+                    <Table>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-medium">W Statistic</TableCell>
+                          <TableCell>{results.wilcoxon_signed_rank.W?.toFixed(2)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">W+ (Positive Ranks)</TableCell>
+                          <TableCell>{results.wilcoxon_signed_rank.Wplus?.toFixed(2)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">W- (Negative Ranks)</TableCell>
+                          <TableCell>{results.wilcoxon_signed_rank.Wminus?.toFixed(2)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Z Score</TableCell>
+                          <TableCell>{results.wilcoxon_signed_rank.z?.toFixed(3)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">p-value</TableCell>
+                          <TableCell>
+                            {results.wilcoxon_signed_rank.pValue?.toFixed(4)}
+                            {results.wilcoxon_signed_rank.pValue < 0.05 && (
+                              <Badge variant="secondary" className="ml-2">Significant</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Effect Size (r)</TableCell>
+                          <TableCell>
+                            {results.wilcoxon_signed_rank.effectSize?.toFixed(3)}
+                            <span className="text-muted-foreground ml-1">
+                              ({results.wilcoxon_signed_rank.effectSize >= 0.5 ? 'Large' : 
+                                results.wilcoxon_signed_rank.effectSize >= 0.3 ? 'Medium' : 'Small'})
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                  
+                  {/* Paired Statistics */}
+                  <div>
+                    <h4 className="font-semibold mb-3">Paired Statistics</h4>
+                    <Table>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-medium">Sample Size (n)</TableCell>
+                          <TableCell>{results.wilcoxon_signed_rank.n}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Pre-test Median</TableCell>
+                          <TableCell>{results.wilcoxon_signed_rank.preMedian?.toFixed(2)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Post-test Median</TableCell>
+                          <TableCell>{results.wilcoxon_signed_rank.postMedian?.toFixed(2)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Median Difference</TableCell>
+                          <TableCell>{results.wilcoxon_signed_rank.medianDiff?.toFixed(3)}</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
+                {/* Pre/Post Comparison Chart */}
+                <div className="mt-6 h-[200px]">
+                  <h4 className="font-semibold mb-3">Pre-test vs Post-test Medians</h4>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[
+                      { name: 'Pre-test', median: results.wilcoxon_signed_rank.preMedian },
+                      { name: 'Post-test', median: results.wilcoxon_signed_rank.postMedian }
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="median" fill="hsl(var(--primary))" name="Median" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {results.wilcoxon_signed_rank.interpretation && (
+                  <div className="mt-6 p-4 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText className="h-4 w-4 text-primary" />
+                      <span className="font-semibold">Academic Interpretation</span>
+                    </div>
+                    <p className="text-sm leading-relaxed">{results.wilcoxon_signed_rank.interpretation}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Kruskal-Wallis H Test */}
+        {results.kruskal_wallis && (
+          <TabsContent value="kruskal_wallis">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Kruskal-Wallis H Test</CardTitle>
+                    <CardDescription>Non-parametric comparison of multiple independent groups</CardDescription>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => copyToClipboard(results.kruskal_wallis.interpretation || '')}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Interpretation
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Test Statistics */}
+                  <div>
+                    <h4 className="font-semibold mb-3">Test Statistics</h4>
+                    <Table>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-medium">H Statistic</TableCell>
+                          <TableCell>{results.kruskal_wallis.H?.toFixed(3)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Degrees of Freedom</TableCell>
+                          <TableCell>{results.kruskal_wallis.df}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">p-value</TableCell>
+                          <TableCell>
+                            {results.kruskal_wallis.pValue?.toFixed(4)}
+                            {results.kruskal_wallis.pValue < 0.05 && (
+                              <Badge variant="secondary" className="ml-2">Significant</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Effect Size (ε²)</TableCell>
+                          <TableCell>
+                            {results.kruskal_wallis.effectSize?.toFixed(3)}
+                            <span className="text-muted-foreground ml-1">
+                              ({results.kruskal_wallis.effectSize >= 0.14 ? 'Large' : 
+                                results.kruskal_wallis.effectSize >= 0.06 ? 'Medium' : 'Small'})
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                  
+                  {/* Group Statistics */}
+                  <div>
+                    <h4 className="font-semibold mb-3">Group Statistics (Medians)</h4>
+                    <ScrollArea className="h-[200px]">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Group</TableHead>
+                            <TableHead className="text-right">N</TableHead>
+                            <TableHead className="text-right">Median</TableHead>
+                            <TableHead className="text-right">Mean</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {results.kruskal_wallis.groupStats?.map((stat: any) => (
+                            <TableRow key={stat.name}>
+                              <TableCell className="font-medium">{stat.name}</TableCell>
+                              <TableCell className="text-right">{stat.n}</TableCell>
+                              <TableCell className="text-right">{stat.median?.toFixed(2)}</TableCell>
+                              <TableCell className="text-right">{stat.mean?.toFixed(2)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </ScrollArea>
+                  </div>
+                </div>
+
+                {/* Group Medians Bar Chart */}
+                {results.kruskal_wallis.groupStats && (
+                  <div className="mt-6 h-[250px]">
+                    <h4 className="font-semibold mb-3">Group Medians Comparison</h4>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={results.kruskal_wallis.groupStats}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="median" fill="hsl(var(--primary))" name="Median" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {results.kruskal_wallis.interpretation && (
+                  <div className="mt-6 p-4 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText className="h-4 w-4 text-primary" />
+                      <span className="font-semibold">Academic Interpretation</span>
+                    </div>
+                    <p className="text-sm leading-relaxed">{results.kruskal_wallis.interpretation}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
         {results.likert && (
           <TabsContent value="likert">
             <Card>
@@ -2121,6 +2465,9 @@ function getAnalysisTitle(key: string): string {
     correlation_spearman: 'Spearman Correlation',
     ttest_independent: 'Independent T-Test',
     ttest_paired: 'Paired T-Test',
+    mannwhitney_u: 'Mann-Whitney U',
+    wilcoxon_signed_rank: 'Wilcoxon Signed-Rank',
+    kruskal_wallis: 'Kruskal-Wallis H',
     anova_oneway: 'One-Way ANOVA',
     anova_twoway: 'Two-Way ANOVA',
     ancova: 'ANCOVA',
