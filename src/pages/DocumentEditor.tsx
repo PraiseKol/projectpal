@@ -521,10 +521,42 @@ const DocumentEditor = () => {
             </Card>
           </div>
         ) : (
-          /* Editor Section */
+          /* Editor Section - AI Chat on Left, Document on Right */
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-            {/* Left: Editor */}
-            <div className="space-y-4">
+            {/* Left: AI Chat & Suggestions Panel */}
+            <div className="space-y-4 lg:order-1 order-2">
+              <Card className="lg:sticky lg:top-20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Sparkles className="h-5 w-5" />
+                    AI Assistant
+                  </CardTitle>
+                  <CardDescription>
+                    Tell the AI what to do with your document
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <AIInstructionInput
+                    onSubmit={handleAIRequest}
+                    isLoading={isProcessing}
+                    disabled={!hasCredits}
+                  />
+                </CardContent>
+              </Card>
+
+              <div className="lg:max-h-[calc(100vh-22rem)] lg:overflow-y-auto">
+                <SuggestionsPanel
+                  suggestions={suggestions}
+                  onApply={handleApplySuggestion}
+                  onDismiss={handleDismissSuggestion}
+                  onApplyAll={handleApplyAll}
+                  isLoading={isProcessing}
+                />
+              </div>
+            </div>
+
+            {/* Right: Document Editor */}
+            <div className="lg:order-2 order-1">
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -534,7 +566,7 @@ const DocumentEditor = () => {
                         {currentDocument.file_name}
                       </CardTitle>
                       <CardDescription>
-                        Use the AI to improve your document
+                        Edit your document content below
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
@@ -552,14 +584,8 @@ const DocumentEditor = () => {
                   <Textarea
                     value={editableContent}
                     onChange={(e) => setEditableContent(e.target.value)}
-                    className="min-h-[250px] sm:min-h-[350px] font-mono text-sm"
+                    className="min-h-[350px] sm:min-h-[450px] font-mono text-sm"
                     placeholder="Your document content will appear here..."
-                  />
-
-                  <AIInstructionInput
-                    onSubmit={handleAIRequest}
-                    isLoading={isProcessing}
-                    disabled={!hasCredits}
                   />
 
                   <div className="flex flex-wrap gap-2">
@@ -583,17 +609,6 @@ const DocumentEditor = () => {
                   </div>
                 </CardContent>
               </Card>
-            </div>
-
-            {/* Right: Suggestions Panel */}
-            <div className="lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)]">
-              <SuggestionsPanel
-                suggestions={suggestions}
-                onApply={handleApplySuggestion}
-                onDismiss={handleDismissSuggestion}
-                onApplyAll={handleApplyAll}
-                isLoading={isProcessing}
-              />
             </div>
           </div>
         )}

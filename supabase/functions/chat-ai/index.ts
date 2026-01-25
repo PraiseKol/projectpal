@@ -6,6 +6,30 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Detect if user wants to search for articles
+function isArticleSearchRequest(message: string): { isSearch: boolean; query: string } {
+  const msgLower = message.toLowerCase();
+  
+  const searchPatterns = [
+    /\b(?:find|search|look\s+for|get|show\s+me|give\s+me|list)\b.*?\b(?:articles?|papers?|research|publications?|studies|journals?)\b.*?\b(?:about|on|related\s+to|regarding|for)\b\s*(.+)/i,
+    /\b(?:articles?|papers?|research|publications?|studies|journals?)\b.*?\b(?:about|on|related\s+to|regarding|for)\b\s*(.+)/i,
+    /\bsearch\s+(?:for\s+)?(?:academic\s+)?(?:articles?|papers?)\s+(?:about|on)\s*(.+)/i,
+  ];
+  
+  for (const pattern of searchPatterns) {
+    const match = message.match(pattern);
+    if (match && match[1]) {
+      // Clean up the query
+      let query = match[1].trim().replace(/[?.!]+$/, '').trim();
+      if (query.length >= 3) {
+        return { isSearch: true, query };
+      }
+    }
+  }
+  
+  return { isSearch: false, query: '' };
+}
+
 // Credit cost detection based on user request type
 function determineCreditCost(message: string): { cost: number; actionType: string } {
   const msgLower = message.toLowerCase();
@@ -122,8 +146,13 @@ serve(async (req) => {
 
     if (profileError) throw profileError;
 
+    // Check if this is an article search request
+    const articleSearchCheck = isArticleSearchRequest(message);
+    
     // Determine credit cost based on message
-    const { cost: creditCost, actionType } = determineCreditCost(message);
+    const { cost: creditCost, actionType } = articleSearchCheck.isSearch 
+      ? { cost: 1, actionType: 'article_search' } 
+      : determineCreditCost(message);
     console.log(`[CREDIT] Action detected: ${actionType}, Cost: ${creditCost} credits`);
 
     // Check credits and handle resets
@@ -190,7 +219,119 @@ serve(async (req) => {
         errorMessage = `Your subscription has expired. This action requires ${creditCost} credits. Upgrade to continue!`;
       } else {
         errorMessage = `This action requires ${creditCost} credits. You have ${totalAvailable} credits remaining. Upgrade to Pro or Scholar for more credits!`;
+    }
+
+    // Handle article search requests
+    if (articleSearchCheck.isSearch) {
+      console.log(`[ARTICLE_SEARCH] Detected article search for: "${articleSearchCheck.query}"`);
+      
+      try {
+        // Call Semantic Scholar API directly
+        const searchUrl = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(articleSearchCheck.query)}&limit=10&fields=paperId,title,abstract,year,citationCount,authors,externalIds,url`;
+        
+        const searchResponse = await fetch(searchUrl, {
+          headers: { 'Accept': 'application/json' },
+        });
+
+        if (!searchResponse.ok) {
+          if (searchResponse.status === 429) {
+            throw new Error('Article search rate limit reached. Please try again in a moment.');
+          }
+          throw new Error('Failed to search for articles');
+        }
+
+        const searchData = await searchResponse.json();
+        const papers = searchData.data || [];
+
+        // Format results as a nice markdown message
+        let aiMessage = '';
+        if (papers.length === 0) {
+          aiMessage = `I couldn't find any academic articles matching "${articleSearchCheck.query}". Try using different keywords or a broader topic.`;
+        } else {
+          aiMessage = `## Academic Articles on "${articleSearchCheck.query}"\n\nI found ${papers.length} relevant articles from Semantic Scholar:\n\n`;
+          
+          papers.forEach((paper: any, index: number) => {
+            const authors = paper.authors?.map((a: any) => a.name).join(', ') || 'Unknown';
+            const year = paper.year || 'n.d.';
+            const citations = paper.citationCount || 0;
+            const doi = paper.externalIds?.DOI ? `https://doi.org/${paper.externalIds.DOI}` : null;
+            
+            aiMessage += `### ${index + 1}. ${paper.title}\n`;
+            aiMessage += `**Authors:** ${authors}\n`;
+            aiMessage += `**Year:** ${year} | **Citations:** ${citations}\n`;
+            
+            if (paper.abstract) {
+              const truncatedAbstract = paper.abstract.length > 300 
+                ? paper.abstract.substring(0, 300) + '...' 
+                : paper.abstract;
+              aiMessage += `**Abstract:** ${truncatedAbstract}\n`;
+            }
+            
+            if (doi) {
+              aiMessage += `**DOI:** [${doi}](${doi})\n`;
+            }
+            
+            // APA Reference
+            let authorStr = '';
+            const authorNames = paper.authors?.map((a: any) => a.name) || [];
+            if (authorNames.length === 1) {
+              authorStr = authorNames[0];
+            } else if (authorNames.length === 2) {
+              authorStr = `${authorNames[0]} & ${authorNames[1]}`;
+            } else if (authorNames.length > 2) {
+              authorStr = `${authorNames[0]} et al.`;
+            } else {
+              authorStr = 'Unknown Author';
+            }
+            aiMessage += `**APA Reference:** ${authorStr} (${year}). ${paper.title}.${doi ? ` ${doi}` : ''}\n\n`;
+          });
+          
+          aiMessage += `---\n*These are real academic articles from Semantic Scholar. Click the DOI links to access the full papers.*`;
+        }
+
+        // Save AI message to database
+        await supabaseClient.from('messages').insert({
+          session_id,
+          sender: 'ai',
+          content: aiMessage,
+        });
+
+        // Deduct credits
+        const deductResult = deductCredits(creditCost, dailyCredits, monthlyCredits, paidCredits, isActiveSubscriber);
+        dailyCredits = deductResult.dailyCredits;
+        monthlyCredits = deductResult.monthlyCredits;
+        paidCredits = deductResult.paidCredits;
+
+        // Update user profile
+        await supabaseClient
+          .from('profiles')
+          .update({
+            daily_credits: dailyCredits,
+            monthly_credits: monthlyCredits,
+            paid_credits: paidCredits,
+            daily_reset_date: today,
+          })
+          .eq('id', user.id);
+
+        return new Response(
+          JSON.stringify({
+            response: aiMessage,
+            credits_used: creditCost,
+            action_type: 'article_search',
+            profile: {
+              daily_credits: dailyCredits,
+              monthly_credits: monthlyCredits,
+              paid_credits: paidCredits,
+              credits_expiry_date: creditsExpiryDate,
+            },
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (searchError) {
+        console.error('Article search error:', searchError);
+        // Fall through to regular AI response if search fails
       }
+    }
       
       console.log(`[CREDIT] Insufficient credits for ${actionType} (need ${creditCost}, have ${totalAvailable})`);
       return new Response(
