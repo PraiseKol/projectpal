@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Upload, Loader2, FileText, Download, Eye, ImageIcon } from "lucide-react";
+import { ArrowLeft, Upload, Loader2, FileText, Download, Eye, ImageIcon, RefreshCw, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { DocumentViewer } from "@/components/DocumentViewer";
@@ -136,10 +137,14 @@ const Documents = () => {
     }
   };
 
+  const [generationError, setGenerationError] = useState<string | null>(null);
+
   const handleGeneratePPT = async () => {
     if (!uploadedDocUrl) return;
 
     setIsGenerating(true);
+    setGenerationError(null);
+    
     try {
       const { data, error } = await supabase.functions.invoke("generate-ppt", {
         body: { 
@@ -149,11 +154,34 @@ const Documents = () => {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Handle specific error types
+        if (error.message?.includes("rate limit") || error.message?.includes("429")) {
+          throw new Error("Rate limit exceeded. Please wait a moment and try again.");
+        }
+        if (error.message?.includes("timeout") || error.message?.includes("504")) {
+          throw new Error("The request timed out. Your document may be too large. Try a smaller document.");
+        }
+        if (error.message?.includes("credits") || error.message?.includes("402")) {
+          throw new Error("Insufficient credits. Please upgrade your plan or purchase more credits.");
+        }
+        throw error;
+      }
 
-      if (data.error) {
+      if (data?.error) {
+        // Parse specific error messages from the edge function
+        const errorMsg = data.error.toLowerCase();
+        if (errorMsg.includes("credit")) {
+          setGenerationError("Insufficient credits. Please upgrade your plan.");
+        } else if (errorMsg.includes("document") || errorMsg.includes("parse") || errorMsg.includes("extract")) {
+          setGenerationError("Could not read the document. Try uploading a different file format (PDF, DOC, or DOCX).");
+        } else if (errorMsg.includes("ai") || errorMsg.includes("model")) {
+          setGenerationError("AI service temporarily unavailable. Please try again in a few minutes.");
+        } else {
+          setGenerationError(data.error);
+        }
         toast({
-          title: "Error",
+          title: "Generation Failed",
           description: data.error,
           variant: "destructive",
         });
@@ -167,14 +195,21 @@ const Documents = () => {
       });
     } catch (error: any) {
       console.error("PPT generation error:", error);
+      const errorMessage = error.message || "Failed to generate presentation. Please try again.";
+      setGenerationError(errorMessage);
       toast({
         title: "Generation Failed",
-        description: error.message || "Failed to generate presentation",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleRetry = () => {
+    setGenerationError(null);
+    handleGeneratePPT();
   };
 
   if (isCheckingPlan) {
@@ -270,10 +305,29 @@ const Documents = () => {
                     ) : (
                       <>
                         <FileText className="mr-2 h-4 w-4" />
-                        Generate PowerPoint
+                      Generate PowerPoint
                       </>
                     )}
                   </Button>
+
+                  {/* Error display with retry */}
+                  {generationError && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="flex items-center justify-between">
+                        <span>{generationError}</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRetry}
+                          className="ml-4"
+                        >
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          Retry
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
               </div>
             )}

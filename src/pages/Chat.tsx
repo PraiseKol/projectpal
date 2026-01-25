@@ -369,6 +369,7 @@ const Chat = () => {
 
   const quickActions = [
     { label: "Generate Project Topic", prompt: "Generate a project topic for my field of study" },
+    { label: "Search for Articles", prompt: "Search for academic articles about [your topic here]" },
     { label: "Write Proposal", prompt: "Help me write a research proposal" },
     { label: "Write Chapter 1 (Introduction)", prompt: "Help me write Chapter 1: Introduction for my project" },
     { label: "Write Chapter 2 (Literature Review)", prompt: "Help me write Chapter 2: Literature Review" },

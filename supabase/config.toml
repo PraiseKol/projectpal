@@ -26,3 +26,15 @@ verify_jwt = false
 
 [functions.manage-email-preferences]
 verify_jwt = false
+
+[functions.search-articles]
+verify_jwt = false
+
+[functions.admin-operations]
+verify_jwt = false
+
+[functions.ambassador-operations]
+verify_jwt = false
+
+[functions.data-analysis]
+verify_jwt = false
