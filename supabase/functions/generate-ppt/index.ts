@@ -541,7 +541,29 @@ function getBulletChar(style: string, index: number): string {
   return typeof bullet === 'function' ? bullet(index) : bullet;
 }
 
-// Generate AI image for slides
+// Helper function to fetch image and convert to base64 data URI
+async function fetchImageAsBase64(imageUrl: string): Promise<string | null> {
+  try {
+    console.log('[IMAGE] Fetching image for base64 conversion:', imageUrl.substring(0, 60));
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      console.error('[IMAGE] Failed to fetch image:', response.status);
+      return null;
+    }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const contentType = response.headers.get('content-type') || 'image/png';
+    
+    console.log('[IMAGE] Successfully converted to base64');
+    return `data:${contentType};base64,${base64}`;
+  } catch (e) {
+    console.error('[IMAGE] Base64 conversion error:', e);
+    return null;
+  }
+}
+
+// Generate AI image for slides - now returns base64 data directly
 async function generateSlideImage(
   prompt: string, 
   theme: Theme, 
@@ -580,23 +602,9 @@ No text in the image. High quality, clean vector-style illustration. Simple and 
     const base64Image = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
     
     if (base64Image && base64Image.includes('base64,')) {
-      const base64Data = base64Image.split(',')[1];
-      const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-      const imageBlob = new Blob([imageBuffer], { type: 'image/png' });
-      const imageName = `${userId}/ppt-images/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.png`;
-      
-      const { error: uploadError } = await supabaseClient.storage
-        .from('documents')
-        .upload(imageName, imageBlob, { contentType: 'image/png' });
-      
-      if (uploadError) {
-        console.error('[IMAGE] Upload failed:', uploadError);
-        return null;
-      }
-      
-      const { data: imgUrl } = supabaseClient.storage.from('documents').getPublicUrl(imageName);
-      console.log('[IMAGE] Generated and uploaded successfully');
-      return imgUrl.publicUrl;
+      // Return the base64 data directly instead of uploading to storage
+      console.log('[IMAGE] Generated successfully, returning base64 data');
+      return base64Image;
     }
   } catch (e) {
     console.error('[IMAGE] Generation error:', e);
@@ -888,11 +896,13 @@ function buildContentSlide(pptx: PptxGenJS, data: SlideData, theme: Theme, image
     });
   }
   
-  // Add image if available
+  // Add image if available - use data property instead of path to avoid XMLHttpRequest
   if (imageUrl) {
     try {
+      // If imageUrl is already base64 data, use it directly
+      // Otherwise it would be a URL that we need to convert (but we now generate base64 directly)
       slide.addImage({
-        path: imageUrl,
+        data: imageUrl,
         x: 6.0, y: contentStartY, w: 3.5, h: 3.5
       });
     } catch (e) {
