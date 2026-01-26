@@ -14,6 +14,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Detect if the instruction is asking for content generation vs editing
+function isContentGenerationRequest(instruction: string): boolean {
+  const generationKeywords = [
+    "write", "generate", "create", "draft", "compose", "produce",
+    "chapter 5", "chapter five", "next chapter", "new chapter",
+    "abstract", "summary", "summarize", "conclusion", "introduction",
+    "expand", "elaborate", "develop", "continue", "extend",
+    "recommendations", "findings", "discussion", "methodology",
+    "rewrite completely", "rewrite the entire", "write from scratch"
+  ];
+  
+  const lowerInstruction = instruction.toLowerCase();
+  return generationKeywords.some(keyword => lowerInstruction.includes(keyword));
+}
+
+// Credit costs
+const EDIT_CREDIT_COST = 1;
+const GENERATION_CREDIT_COST = 3;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -86,11 +105,15 @@ serve(async (req) => {
       }
     }
 
+    // Determine request type and credit cost
+    const isGeneration = isContentGenerationRequest(instruction);
+    const creditCost = isGeneration ? GENERATION_CREDIT_COST : EDIT_CREDIT_COST;
+
     // Check credits
     const totalCredits = profile.daily_credits + profile.paid_credits;
-    if (totalCredits <= 0) {
+    if (totalCredits < creditCost) {
       return new Response(
-        JSON.stringify({ error: "No credits available" }),
+        JSON.stringify({ error: `Insufficient credits. This action requires ${creditCost} credits.` }),
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -105,7 +128,31 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `You are an expert academic writing assistant. The user will give you a document and an instruction. 
+    console.log(`Processing ${isGeneration ? 'GENERATION' : 'EDIT'} request: ${instruction.substring(0, 50)}`);
+
+    // Different prompts for generation vs editing
+    let systemPrompt: string;
+    let tools: any[] | undefined;
+    let toolChoice: any | undefined;
+
+    if (isGeneration) {
+      // Content generation mode - no tools, just generate text
+      systemPrompt = `You are an expert academic writing assistant. The user will provide a document and ask you to generate new content based on it.
+
+Your task is to generate high-quality academic content based on the user's instruction. 
+
+GUIDELINES:
+- Write in a formal, academic tone appropriate for the document
+- Maintain consistency with the existing document's style, terminology, and structure
+- If asked to write a new chapter, follow the format and depth of existing chapters
+- Include proper academic language, citations placeholders if needed, and logical flow
+- Be thorough and comprehensive in your response
+- Structure content with clear headings and paragraphs
+
+Return ONLY the generated content as plain text. Do not include explanations about what you did.`;
+    } else {
+      // Edit suggestions mode - use tool calling
+      systemPrompt = `You are an expert academic writing assistant. The user will give you a document and an instruction. 
 Your job is to analyze the document and return specific text edits as structured suggestions.
 
 IMPORTANT: Return suggestions using the provided tool. Each suggestion should:
@@ -116,7 +163,67 @@ IMPORTANT: Return suggestions using the provided tool. Each suggestion should:
 
 Be thorough but focused on actionable improvements. Limit to the most impactful 5-10 suggestions.`;
 
-    console.log("Calling Lovable AI with instruction:", instruction.substring(0, 100));
+      tools = [
+        {
+          type: "function",
+          function: {
+            name: "suggest_edits",
+            description: "Return structured edit suggestions for the document",
+            parameters: {
+              type: "object",
+              properties: {
+                suggestions: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      original: { 
+                        type: "string", 
+                        description: "The exact text to find and replace (copy exactly from the document)" 
+                      },
+                      replacement: { 
+                        type: "string", 
+                        description: "The improved text to replace the original with" 
+                      },
+                      explanation: { 
+                        type: "string", 
+                        description: "Brief explanation of why this change improves the document" 
+                      },
+                      type: { 
+                        type: "string", 
+                        enum: ["grammar", "clarity", "style", "structure", "content"],
+                        description: "Category of the edit"
+                      }
+                    },
+                    required: ["original", "replacement", "explanation", "type"],
+                    additionalProperties: false
+                  }
+                }
+              },
+              required: ["suggestions"],
+              additionalProperties: false
+            }
+          }
+        }
+      ];
+      toolChoice = { type: "function", function: { name: "suggest_edits" } };
+    }
+
+    const requestBody: any = {
+      model: "google/gemini-3-flash-preview",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { 
+          role: "user", 
+          content: `Document content:\n\n${documentContent}\n\n---\n\nInstruction: ${instruction}` 
+        }
+      ],
+    };
+
+    if (tools) {
+      requestBody.tools = tools;
+      requestBody.tool_choice = toolChoice;
+    }
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -124,60 +231,7 @@ Be thorough but focused on actionable improvements. Limit to the most impactful 
         "Authorization": `Bearer ${lovableApiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { 
-            role: "user", 
-            content: `Document content:\n\n${documentContent}\n\n---\n\nInstruction: ${instruction}` 
-          }
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "suggest_edits",
-              description: "Return structured edit suggestions for the document",
-              parameters: {
-                type: "object",
-                properties: {
-                  suggestions: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        original: { 
-                          type: "string", 
-                          description: "The exact text to find and replace (copy exactly from the document)" 
-                        },
-                        replacement: { 
-                          type: "string", 
-                          description: "The improved text to replace the original with" 
-                        },
-                        explanation: { 
-                          type: "string", 
-                          description: "Brief explanation of why this change improves the document" 
-                        },
-                        type: { 
-                          type: "string", 
-                          enum: ["grammar", "clarity", "style", "structure", "content"],
-                          description: "Category of the edit"
-                        }
-                      },
-                      required: ["original", "replacement", "explanation", "type"],
-                      additionalProperties: false
-                    }
-                  }
-                },
-                required: ["suggestions"],
-                additionalProperties: false
-              }
-            }
-          }
-        ],
-        tool_choice: { type: "function", function: { name: "suggest_edits" } }
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!aiResponse.ok) {
@@ -206,48 +260,67 @@ Be thorough but focused on actionable improvements. Limit to the most impactful 
     const aiData = await aiResponse.json();
     console.log("AI response received");
 
-    // Parse the tool call response
-    let suggestions: DiffSuggestion[] = [];
+    // Parse response based on request type
+    let responseData: { suggestions?: DiffSuggestion[], generatedContent?: string };
     
-    try {
-      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-      if (toolCall?.function?.arguments) {
-        const args = JSON.parse(toolCall.function.arguments);
-        suggestions = (args.suggestions || []).map((s: any, index: number) => ({
-          id: `suggestion-${Date.now()}-${index}`,
-          original: s.original || "",
-          replacement: s.replacement || "",
-          explanation: s.explanation || "",
-          type: s.type || "content"
-        }));
+    if (isGeneration) {
+      // Extract generated content from message
+      const content = aiData.choices?.[0]?.message?.content || "";
+      responseData = { generatedContent: content };
+      console.log(`Generated content: ${content.length} characters`);
+    } else {
+      // Parse the tool call response for suggestions
+      let suggestions: DiffSuggestion[] = [];
+      
+      try {
+        const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+        if (toolCall?.function?.arguments) {
+          const args = JSON.parse(toolCall.function.arguments);
+          suggestions = (args.suggestions || []).map((s: any, index: number) => ({
+            id: `suggestion-${Date.now()}-${index}`,
+            original: s.original || "",
+            replacement: s.replacement || "",
+            explanation: s.explanation || "",
+            type: s.type || "content"
+          }));
+        }
+      } catch (parseError) {
+        console.error("Error parsing AI response:", parseError);
+        return new Response(
+          JSON.stringify({ error: "Failed to parse AI response" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
-    } catch (parseError) {
-      console.error("Error parsing AI response:", parseError);
-      return new Response(
-        JSON.stringify({ error: "Failed to parse AI response" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      
+      responseData = { suggestions };
+      console.log(`Returning ${suggestions.length} suggestions`);
     }
 
     // Deduct credits
-    if (profile.daily_credits > 0) {
+    if (profile.daily_credits >= creditCost) {
       await supabase
         .from("profiles")
-        .update({ daily_credits: profile.daily_credits - 1 })
+        .update({ daily_credits: profile.daily_credits - creditCost })
         .eq("id", user.id);
     } else {
+      // Split between daily and paid
+      const fromDaily = profile.daily_credits;
+      const fromPaid = creditCost - fromDaily;
       await supabase
         .from("profiles")
-        .update({ paid_credits: profile.paid_credits - 1 })
+        .update({ 
+          daily_credits: 0,
+          paid_credits: profile.paid_credits - fromPaid 
+        })
         .eq("id", user.id);
     }
 
-    console.log(`Returning ${suggestions.length} suggestions`);
-
     return new Response(
       JSON.stringify({ 
-        suggestions,
-        creditsRemaining: totalCredits - 1
+        ...responseData,
+        requestType: isGeneration ? "generation" : "edit",
+        creditsUsed: creditCost,
+        creditsRemaining: totalCredits - creditCost
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

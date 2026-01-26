@@ -10,6 +10,7 @@ import { SEO } from "@/components/SEO";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SuggestionsPanel, DiffSuggestion } from "@/components/DocumentEditor/SuggestionsPanel";
 import { AIInstructionInput } from "@/components/DocumentEditor/AIInstructionInput";
+import { translateError } from "@/utils/errorMessages";
 import { 
   ArrowLeft, 
   Upload, 
@@ -66,6 +67,7 @@ const DocumentEditor = () => {
   const [currentDocument, setCurrentDocument] = useState<DocumentData | null>(null);
   const [editableContent, setEditableContent] = useState("");
   const [suggestions, setSuggestions] = useState<DiffSuggestion[]>([]);
+  const [generatedContent, setGeneratedContent] = useState<string>("");
 
   const [userProfile, setUserProfile] = useState<{
     plan_type: string;
@@ -241,6 +243,7 @@ const DocumentEditor = () => {
 
     setIsProcessing(true);
     setSuggestions([]);
+    setGeneratedContent("");
 
     try {
       const { data, error } = await supabase.functions.invoke("document-ai-chat", {
@@ -253,12 +256,17 @@ const DocumentEditor = () => {
       if (error) throw error;
       if (data.error) throw new Error(data.error);
 
-      setSuggestions(data.suggestions || []);
-      
-      if (data.suggestions?.length === 0) {
-        toast.info("No suggestions for this instruction. Try a different request.");
-      } else {
-        toast.success(`Found ${data.suggestions?.length || 0} suggestions`);
+      // Handle both edit suggestions and generated content
+      if (data.requestType === "generation" && data.generatedContent) {
+        setGeneratedContent(data.generatedContent);
+        toast.success(`Content generated! (${data.creditsUsed} credits used)`);
+      } else if (data.suggestions) {
+        setSuggestions(data.suggestions);
+        if (data.suggestions.length === 0) {
+          toast.info("No suggestions for this instruction. Try a different request.");
+        } else {
+          toast.success(`Found ${data.suggestions.length} suggestions (${data.creditsUsed} credit used)`);
+        }
       }
       
       // Refresh user profile for updated credits
@@ -266,10 +274,19 @@ const DocumentEditor = () => {
 
     } catch (error: any) {
       console.error("AI request error:", error);
-      toast.error(error.message || "Failed to process request");
+      toast.error(translateError(error));
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleInsertContent = (content: string) => {
+    setEditableContent(prev => prev + "\n\n" + content);
+    setGeneratedContent("");
+  };
+
+  const handleClearGenerated = () => {
+    setGeneratedContent("");
   };
 
   const handleApplySuggestion = (id: string) => {
@@ -547,9 +564,12 @@ const DocumentEditor = () => {
               <div className="lg:max-h-[calc(100vh-22rem)] lg:overflow-y-auto">
                 <SuggestionsPanel
                   suggestions={suggestions}
+                  generatedContent={generatedContent}
                   onApply={handleApplySuggestion}
                   onDismiss={handleDismissSuggestion}
                   onApplyAll={handleApplyAll}
+                  onInsertContent={handleInsertContent}
+                  onClearGenerated={handleClearGenerated}
                   isLoading={isProcessing}
                 />
               </div>

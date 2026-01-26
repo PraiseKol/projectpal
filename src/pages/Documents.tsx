@@ -12,6 +12,7 @@ import { DocumentViewer } from "@/components/DocumentViewer";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { DocumentsSkeleton } from "@/components/skeletons/DocumentsSkeleton";
 import { ThemeSelector } from "@/components/Documents/ThemeSelector";
+import { translateError } from "@/utils/errorMessages";
 
 const Documents = () => {
   const navigate = useNavigate();
@@ -195,7 +196,7 @@ const Documents = () => {
       });
     } catch (error: any) {
       console.error("PPT generation error:", error);
-      const errorMessage = error.message || "Failed to generate presentation. Please try again.";
+      const errorMessage = translateError(error);
       setGenerationError(errorMessage);
       toast({
         title: "Generation Failed",
