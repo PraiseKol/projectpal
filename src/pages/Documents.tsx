@@ -286,12 +286,12 @@ const Documents = () => {
                       </label>
                     </div>
                     <span className="text-xs text-muted-foreground ml-auto">
-                      {includeImages ? "+2 credits" : ""}
+                      {includeImages ? "+5 credits" : ""}
                     </span>
                   </div>
                   
                   <p className="text-xs text-muted-foreground">
-                    Credit cost: <span className="font-semibold">{includeImages ? 8 : 6} credits</span>
+                    Credit cost: <span className="font-semibold">{includeImages ? 20 : 15} credits</span>
                   </p>
                   <Button
                     onClick={handleGeneratePPT}

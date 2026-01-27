@@ -7,8 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const BASE_CREDIT_COST = 6;
-const IMAGE_CREDIT_COST = 2;
+const BASE_CREDIT_COST = 15;
+const IMAGE_CREDIT_COST = 5;
 
 // Design system for template variations
 interface DesignConfig {
@@ -1569,9 +1569,13 @@ GUIDELINES:
 
     if (uploadError) throw uploadError;
 
-    const { data: urlData } = supabaseClient.storage
+    const { data: signedUrlData, error: signedUrlError } = await supabaseClient.storage
       .from('documents')
-      .getPublicUrl(fileName);
+      .createSignedUrl(fileName, 3600); // 1 hour expiry
+
+    if (signedUrlError || !signedUrlData?.signedUrl) {
+      throw new Error('Failed to generate download URL');
+    }
 
     // Update credits
     await supabaseClient
@@ -1585,7 +1589,7 @@ GUIDELINES:
 
     return new Response(
       JSON.stringify({
-        ppt_url: urlData.publicUrl,
+        ppt_url: signedUrlData.signedUrl,
         credits_used: creditsToDeduct,
         images_enabled: include_images,
         theme_used: selectedTheme.name,
