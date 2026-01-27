@@ -1377,14 +1377,105 @@ serve(async (req) => {
     }
     console.log(`[PPT] Selected theme: ${selectedTheme.name} (${selectedTheme.design.style} style, ${selectedTheme.design.headerStyle} header)`);
 
-    // Fetch document content
-    const docResponse = await fetch(document_url);
-    const docText = await docResponse.text();
-    const docContent = docText.substring(0, 30000); // Increased limit
-
+    // Get API key early - needed for document extraction
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY not configured');
+    }
+
+    // Fetch document content with proper binary handling for PDF/DOCX
+    console.log(`[PPT] Fetching document from: ${document_url.substring(0, 80)}...`);
+    const docResponse = await fetch(document_url);
+    
+    if (!docResponse.ok) {
+      console.error(`[PPT] Failed to fetch document: ${docResponse.status}`);
+      throw new Error(`Failed to fetch document: ${docResponse.status}`);
+    }
+    
+    const contentType = docResponse.headers.get('content-type') || '';
+    console.log(`[PPT] Document content-type: ${contentType}`);
+    
+    let docContent = '';
+    let documentTitle = 'Generated Presentation';
+    
+    // For binary formats (PDF, DOCX), we need to send the binary to AI for processing
+    if (contentType.includes('pdf') || contentType.includes('word') || contentType.includes('officedocument')) {
+      // Get binary data and convert to base64 for multimodal processing
+      const arrayBuffer = await docResponse.arrayBuffer();
+      const base64Doc = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const mimeType = contentType.split(';')[0].trim();
+      
+      console.log(`[PPT] Processing binary document (${mimeType}), size: ${arrayBuffer.byteLength} bytes`);
+      
+      // Use Gemini's document understanding capabilities
+      const docAnalysisResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { 
+              role: 'user', 
+              content: [
+                {
+                  type: 'file',
+                  file: {
+                    filename: 'document.' + (mimeType.includes('pdf') ? 'pdf' : 'docx'),
+                    file_data: `data:${mimeType};base64,${base64Doc}`
+                  }
+                },
+                {
+                  type: 'text',
+                  text: `Extract ALL text content from this document comprehensively. Include:
+1. Title and authors (extract exactly as written)
+2. Abstract/Introduction (full text)
+3. All main sections and their complete content
+4. Methodology details with specifics
+5. Results and findings with ALL specific data, numbers, statistics
+6. Tables and their data
+7. Conclusions and recommendations
+8. References
+
+Return the complete text content in a readable format. Be thorough - extract ALL content, do not summarize or abbreviate. This will be used to create a presentation.`
+                }
+              ]
+            }
+          ],
+        }),
+      });
+
+      if (docAnalysisResponse.ok) {
+        const analysisData = await docAnalysisResponse.json();
+        docContent = analysisData.choices?.[0]?.message?.content || '';
+        console.log(`[PPT] Extracted ${docContent.length} characters from document`);
+        
+        // Try to extract title from the content
+        const titleMatch = docContent.match(/^#?\s*(.+?)[\n\r]/);
+        if (titleMatch) {
+          documentTitle = titleMatch[1].replace(/[#*]/g, '').trim().substring(0, 100);
+        }
+      } else {
+        console.error(`[PPT] Document analysis failed: ${docAnalysisResponse.status}`);
+        throw new Error('Failed to analyze document content. Please try a different file format.');
+      }
+    } else {
+      // Plain text content
+      const docText = await docResponse.text();
+      docContent = docText.substring(0, 50000);
+      console.log(`[PPT] Text document, length: ${docContent.length} characters`);
+      
+      // Extract title from text
+      const titleMatch = docContent.match(/^#?\s*(.+?)[\n\r]/);
+      if (titleMatch) {
+        documentTitle = titleMatch[1].replace(/[#*]/g, '').trim().substring(0, 100);
+      }
+    }
+    
+    if (!docContent || docContent.length < 100) {
+      throw new Error('Could not extract sufficient content from the document. Please ensure the file is not empty or corrupted.');
     }
 
     // Enhanced AI prompt for comprehensive academic presentation
@@ -1453,7 +1544,7 @@ GUIDELINES:
           { role: 'system', content: systemPrompt },
           { 
             role: 'user', 
-            content: `Analyze this document thoroughly and create a comprehensive academic presentation structure. Extract all key information including actual data, findings, and citations.\n\nDOCUMENT:\n${docContent}${docText.length > 30000 ? '\n\n[Document truncated - extract all key points from visible content]' : ''}` 
+            content: `Analyze this document thoroughly and create a comprehensive academic presentation structure. Extract all key information including actual data, findings, and citations.\n\nDOCUMENT:\n${docContent}${docContent.length > 40000 ? '\n\n[Document truncated - extract all key points from visible content]' : ''}` 
           },
         ],
       }),
@@ -1468,23 +1559,52 @@ GUIDELINES:
     const aiData = await aiResponse.json();
     const outline = aiData.choices[0].message.content;
 
-    // Parse AI response
+    // Parse AI response with robust JSON handling
     let presentationData: PresentationData;
     try {
+      // Clean the response - remove control characters that break JSON parsing
+      let cleanedOutline = outline
+        .replace(/[\x00-\x1F\x7F]/g, ' ')  // Remove control characters
+        .replace(/\n/g, '\\n')              // Escape newlines in content
+        .replace(/\r/g, '\\r')              // Escape carriage returns
+        .replace(/\t/g, '\\t');             // Escape tabs
+      
       const jsonMatch = outline.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        presentationData = JSON.parse(jsonMatch[0]);
+        // Try original first, then cleaned version
+        try {
+          presentationData = JSON.parse(jsonMatch[0]);
+        } catch {
+          // Clean control characters that break JSON parsing
+          const cleanedJson = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
+          presentationData = JSON.parse(cleanedJson);
+        }
       } else {
         presentationData = JSON.parse(outline);
       }
+      
+      // Validate the parsed data has required structure
+      if (!presentationData.slides || !Array.isArray(presentationData.slides) || presentationData.slides.length === 0) {
+        throw new Error('Invalid presentation structure');
+      }
     } catch (e) {
       console.error('Failed to parse AI response:', e);
+      console.log('[PPT] AI response (first 500 chars):', outline.substring(0, 500));
+      
+      // Fallback: Create a basic structure from the outline text
+      const lines = outline.split('\n').filter((l: string) => l.trim());
+      const bulletPoints = lines.slice(0, 10);
+      
       presentationData = {
-        title: "Generated Presentation",
+        title: documentTitle || "Generated Presentation",
         slides: [
-          { type: "content", title: "Overview", bullets: outline.split('\n').filter((l: string) => l.trim()).slice(0, 5) }
+          { type: "title", title: documentTitle || "Presentation", subtitle: "AI Generated" },
+          { type: "content", title: "Overview", bullets: bulletPoints.slice(0, 5).map((l: string) => l.replace(/^[-*•]\s*/, '')) },
+          { type: "content", title: "Key Points", bullets: bulletPoints.slice(5, 10).map((l: string) => l.replace(/^[-*•]\s*/, '')) },
+          { type: "thankyou", title: "Thank You" }
         ]
       };
+      console.log('[PPT] Using fallback presentation structure');
     }
 
     console.log(`[PPT] Generated ${presentationData.slides?.length || 0} slides`);
@@ -1552,14 +1672,22 @@ GUIDELINES:
       buildThankYouSlide(pptx, selectedTheme, presentationData.author, presentationData.institution);
     }
 
-    // Generate PPTX file
+    // Generate PPTX file with meaningful filename
     const pptxData = await pptx.write({ outputType: "base64" });
     const pptxBuffer = Uint8Array.from(atob(pptxData as string), c => c.charCodeAt(0));
     
     const pptBlob = new Blob([pptxBuffer], { 
       type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' 
     });
-    const fileName = `${user.id}/ppt-${Date.now()}.pptx`;
+    
+    // Create meaningful filename from presentation title
+    const sanitizedTitle = (presentationData.title || 'presentation')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+/g, '-')
+      .substring(0, 50);
+    const timestamp = Date.now();
+    const fileName = `${user.id}/${sanitizedTitle}-${timestamp}.pptx`;
 
     const { error: uploadError } = await supabaseClient.storage
       .from('documents')
