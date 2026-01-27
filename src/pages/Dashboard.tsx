@@ -242,13 +242,13 @@ const Dashboard = () => {
                 <CardTitle className="text-2xl">
                   Welcome Back{profile?.first_name ? `, ${profile.first_name}` : ''}!
                 </CardTitle>
-                <CardDescription className="mt-1">
+                <div className="text-sm text-muted-foreground mt-1 flex items-center">
                   Plan: <Badge className="ml-2 rounded-full">
                     {profile?.plan_type !== 'free' && expiryInfo?.isExpired 
                       ? 'FREE (Subscription Expired)' 
                       : profile?.plan_type?.toUpperCase()}
                   </Badge>
-                </CardDescription>
+                </div>
               </div>
               <Button onClick={() => navigate("/pricing")} variant="gradient" className="gap-2">
                 <CreditCard className="h-4 w-4" />
