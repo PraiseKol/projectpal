@@ -23,6 +23,7 @@ const Documents = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadedDocUrl, setUploadedDocUrl] = useState("");
   const [generatedPptUrl, setGeneratedPptUrl] = useState("");
+  const [generatedPptName, setGeneratedPptName] = useState<string>("generated-presentation.pptx");
   const [showViewer, setShowViewer] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState("random");
   const [includeImages, setIncludeImages] = useState(true);
@@ -189,7 +190,10 @@ const Documents = () => {
         return;
       }
 
-      setGeneratedPptUrl(data.ppt_url);
+       setGeneratedPptUrl(data.ppt_url);
+       if (data.download_name) {
+         setGeneratedPptName(data.download_name);
+       }
       toast({
         title: "Success!",
         description: "PowerPoint presentation generated successfully.",
@@ -338,7 +342,7 @@ const Documents = () => {
                 <h3 className="font-semibold mb-3">Presentation Ready!</h3>
                 <div className="flex gap-2">
                   <Button asChild className="flex-1">
-                    <a href={generatedPptUrl} download>
+                    <a href={generatedPptUrl} download={generatedPptName}>
                       <Download className="mr-2 h-4 w-4" />
                       Download PowerPoint
                     </a>
