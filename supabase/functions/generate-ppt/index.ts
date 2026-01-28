@@ -49,6 +49,105 @@ function extractDocxText(arrayBuffer: ArrayBuffer): string {
   return stripXmlToText(xmlText);
 }
 
+function stripMarkdownCodeFences(input: string): string {
+  const fenced = input.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  return (fenced?.[1] ?? input).trim();
+}
+
+function extractJsonCandidate(input: string): string | null {
+  const text = stripMarkdownCodeFences(input);
+  const first = text.indexOf("{");
+  const last = text.lastIndexOf("}");
+  if (first === -1 || last === -1 || last <= first) return null;
+  return text.slice(first, last + 1).trim();
+}
+
+function safeJsonParse<T>(raw: string): T {
+  // Common model-output issues: control chars, trailing commas.
+  const cleaned = raw
+    .replace(/\uFEFF/g, "")
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, " ")
+    .replace(/,\s*([}\]])/g, "$1");
+  return JSON.parse(cleaned) as T;
+}
+
+function sanitizeSlideText(input: string): string {
+  // Prevent JSON/markdown leakage into slides.
+  return input
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/^[\s>]*`{0,3}json\s*$/gim, "")
+    .replace(/^[\s>]*[{}\[\]]\s*$/gim, "")
+    .replace(/^[\s>]*["'{]{1,2}\s*/gim, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function toBullets(text: string, max = 6): string[] {
+  const sentences = text
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?])\s+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  // Prefer slightly longer, informative sentences.
+  return sentences
+    .filter(s => s.length >= 40)
+    .slice(0, max)
+    .map(sanitizeSlideText);
+}
+
+function buildFallbackFromDocContent(docContent: string, documentTitle: string): PresentationData {
+  const findSection = (labels: string[]) => {
+    const lower = docContent.toLowerCase();
+    for (const label of labels) {
+      const idx = lower.indexOf(label);
+      if (idx !== -1) {
+        // take a window after the heading
+        return docContent.slice(idx, Math.min(docContent.length, idx + 2200));
+      }
+    }
+    return "";
+  };
+
+  const abstract = findSection(["abstract", "summary"]);
+  const introduction = findSection(["introduction", "background"]);
+  const objectives = findSection(["objective", "objectives", "aim", "purpose"]);
+  const methodology = findSection(["methodology", "method", "materials and methods"]);
+  const results = findSection(["results", "findings", "discussion"]);
+  const conclusion = findSection(["conclusion"]);
+  const recommendations = findSection(["recommendation", "future work"]);
+
+  const slides: SlideData[] = [
+    { type: "title", title: documentTitle || "Presentation", subtitle: "AI Generated" },
+  ];
+
+  const pushIf = (title: string, body: string) => {
+    const bullets = toBullets(body, 6);
+    if (bullets.length) slides.push({ type: "content", title, bullets });
+  };
+
+  pushIf("Overview", abstract || docContent.slice(0, 1800));
+  pushIf("Introduction", introduction);
+  pushIf("Problem & Objectives", objectives);
+  pushIf("Methodology", methodology);
+  pushIf("Results / Findings", results);
+  pushIf("Conclusion", conclusion);
+  pushIf("Recommendations", recommendations);
+
+  // Ensure we don't end up with tiny decks.
+  if (slides.length < 6) {
+    const mid = docContent.slice(1800, 3600);
+    pushIf("Key Concepts", mid);
+  }
+
+  slides.push({ type: "thankyou", title: "Thank You" });
+
+  return {
+    title: documentTitle || "Generated Presentation",
+    slides,
+  };
+}
+
 // Design system for template variations
 interface DesignConfig {
   style: "classic" | "modern" | "minimal" | "bold" | "elegant" | "creative";
@@ -1477,7 +1576,12 @@ serve(async (req) => {
     // Enhanced AI prompt for comprehensive academic presentation
     const systemPrompt = `You are an expert academic presentation designer. Analyze research documents and create comprehensive, professional PowerPoint structures.
 
-Return a JSON with this EXACT structure (no markdown, just pure JSON):
+CRITICAL OUTPUT RULES:
+- Return ONLY valid JSON (no markdown, no code fences like \`\`\`json)
+- Do NOT include raw newlines inside JSON string values. Keep strings single-line (use spaces).
+- No trailing commas.
+
+Return a JSON with this EXACT structure:
 {
   "title": "Full Presentation Title",
   "author": "Author name if found in document",
@@ -1555,52 +1659,45 @@ GUIDELINES:
     const aiData = await aiResponse.json();
     const outline = aiData.choices[0].message.content;
 
-    // Parse AI response with robust JSON handling
+    // Parse AI response with robust JSON handling (never leak raw JSON into slides)
     let presentationData: PresentationData;
     try {
-      // Clean the response - remove control characters that break JSON parsing
-      let cleanedOutline = outline
-        .replace(/[\x00-\x1F\x7F]/g, ' ')  // Remove control characters
-        .replace(/\n/g, '\\n')              // Escape newlines in content
-        .replace(/\r/g, '\\r')              // Escape carriage returns
-        .replace(/\t/g, '\\t');             // Escape tabs
-      
-      const jsonMatch = outline.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        // Try original first, then cleaned version
-        try {
-          presentationData = JSON.parse(jsonMatch[0]);
-        } catch {
-          // Clean control characters that break JSON parsing
-          const cleanedJson = jsonMatch[0].replace(/[\x00-\x1F\x7F]/g, ' ');
-          presentationData = JSON.parse(cleanedJson);
-        }
-      } else {
-        presentationData = JSON.parse(outline);
-      }
-      
-      // Validate the parsed data has required structure
+      const candidate = extractJsonCandidate(outline);
+      if (!candidate) throw new Error("No JSON object found in AI output");
+      presentationData = safeJsonParse<PresentationData>(candidate);
+
       if (!presentationData.slides || !Array.isArray(presentationData.slides) || presentationData.slides.length === 0) {
-        throw new Error('Invalid presentation structure');
+        throw new Error("Invalid presentation structure");
+      }
+
+      // Normalize/sanitize all text fields so we never render markdown/JSON artifacts.
+      presentationData.title = sanitizeSlideText(presentationData.title || documentTitle);
+      if (presentationData.author) presentationData.author = sanitizeSlideText(presentationData.author);
+      if (presentationData.institution) presentationData.institution = sanitizeSlideText(presentationData.institution);
+
+      presentationData.slides = presentationData.slides
+        .slice(0, 15)
+        .map((s) => ({
+          ...s,
+          title: s.title ? sanitizeSlideText(s.title) : s.title,
+          subtitle: s.subtitle ? sanitizeSlideText(s.subtitle) : s.subtitle,
+          bullets: s.bullets?.map(sanitizeSlideText).filter(Boolean),
+          imagePrompt: s.imagePrompt ? sanitizeSlideText(s.imagePrompt) : s.imagePrompt,
+        }))
+        // Remove any slide that ended up empty after sanitization.
+        .filter((s) => s.type === "title" || s.type === "thankyou" || (s.title && (s.bullets?.length || s.tableData)));
+
+      // Guardrail: if model output degenerates after sanitization, fall back to doc-driven slides.
+      if (presentationData.slides.length < 6) {
+        throw new Error("AI output too small after sanitization");
       }
     } catch (e) {
       console.error('Failed to parse AI response:', e);
       console.log('[PPT] AI response (first 500 chars):', outline.substring(0, 500));
-      
-      // Fallback: Create a basic structure from the outline text
-      const lines = outline.split('\n').filter((l: string) => l.trim());
-      const bulletPoints = lines.slice(0, 10);
-      
-      presentationData = {
-        title: documentTitle || "Generated Presentation",
-        slides: [
-          { type: "title", title: documentTitle || "Presentation", subtitle: "AI Generated" },
-          { type: "content", title: "Overview", bullets: bulletPoints.slice(0, 5).map((l: string) => l.replace(/^[-*•]\s*/, '')) },
-          { type: "content", title: "Key Points", bullets: bulletPoints.slice(5, 10).map((l: string) => l.replace(/^[-*•]\s*/, '')) },
-          { type: "thankyou", title: "Thank You" }
-        ]
-      };
-      console.log('[PPT] Using fallback presentation structure');
+
+      // Fallback: build a real deck from extracted DOCX text (never from the model's raw output)
+      presentationData = buildFallbackFromDocContent(docContent, documentTitle);
+      console.log('[PPT] Using document-content fallback presentation structure');
     }
 
     console.log(`[PPT] Generated ${presentationData.slides?.length || 0} slides`);
@@ -1683,7 +1780,8 @@ GUIDELINES:
       .replace(/\s+/g, '-')
       .substring(0, 50);
     const timestamp = Date.now();
-    const fileName = `${user.id}/${sanitizedTitle}-${timestamp}.pptx`;
+    const downloadName = `${sanitizedTitle || 'presentation'}-${timestamp}.pptx`;
+    const fileName = `${user.id}/${downloadName}`;
 
     const { error: uploadError } = await supabaseClient.storage
       .from('documents')
@@ -1714,6 +1812,7 @@ GUIDELINES:
     return new Response(
       JSON.stringify({
         ppt_url: signedUrlData.signedUrl,
+        download_name: downloadName,
         credits_used: creditsToDeduct,
         images_enabled: include_images,
         theme_used: selectedTheme.name,
