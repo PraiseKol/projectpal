@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import PptxGenJS from "https://esm.sh/pptxgenjs@3.12.0";
+import { unzipSync } from "https://esm.sh/fflate@0.8.2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,6 +10,44 @@ const corsHeaders = {
 
 const BASE_CREDIT_COST = 15;
 const IMAGE_CREDIT_COST = 5;
+
+// Avoid call-stack overflow when converting large binary buffers
+function uint8ToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000; // 32KB
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function stripXmlToText(xml: string): string {
+  const withSpaces = xml
+    .replace(/<w:tab\b[^>]*\/>/g, "\t")
+    .replace(/<w:br\b[^>]*\/>/g, "\n")
+    .replace(/<\/w:p>/g, "\n")
+    .replace(/<\/w:tr>/g, "\n");
+
+  return withSpaces
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+\n/g, "\n")
+    .replace(/\n\s+/g, "\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+function extractDocxText(arrayBuffer: ArrayBuffer): string {
+  const zipped = new Uint8Array(arrayBuffer);
+  const files = unzipSync(zipped);
+  const docXml = files["word/document.xml"];
+  if (!docXml) throw new Error("DOCX missing word/document.xml");
+  const xmlText = new TextDecoder().decode(docXml);
+  return stripXmlToText(xmlText);
+}
 
 // Design system for template variations
 interface DesignConfig {
@@ -552,7 +591,7 @@ async function fetchImageAsBase64(imageUrl: string): Promise<string | null> {
     }
     
     const arrayBuffer = await response.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const base64 = uint8ToBase64(new Uint8Array(arrayBuffer));
     const contentType = response.headers.get('content-type') || 'image/png';
     
     console.log('[IMAGE] Successfully converted to base64');
@@ -1398,69 +1437,26 @@ serve(async (req) => {
     let docContent = '';
     let documentTitle = 'Generated Presentation';
     
-    // For binary formats (PDF, DOCX), we need to send the binary to AI for processing
-    if (contentType.includes('pdf') || contentType.includes('word') || contentType.includes('officedocument')) {
-      // Get binary data and convert to base64 for multimodal processing
+    // Binary formats: extract content safely server-side.
+    // DOCX is handled via ZIP extraction of word/document.xml (reliable, no AI dependency).
+    if (contentType.includes('officedocument') || contentType.includes('wordprocessingml')) {
       const arrayBuffer = await docResponse.arrayBuffer();
-      const base64Doc = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-      const mimeType = contentType.split(';')[0].trim();
-      
-      console.log(`[PPT] Processing binary document (${mimeType}), size: ${arrayBuffer.byteLength} bytes`);
-      
-      // Use Gemini's document understanding capabilities
-      const docAnalysisResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [
-            { 
-              role: 'user', 
-              content: [
-                {
-                  type: 'file',
-                  file: {
-                    filename: 'document.' + (mimeType.includes('pdf') ? 'pdf' : 'docx'),
-                    file_data: `data:${mimeType};base64,${base64Doc}`
-                  }
-                },
-                {
-                  type: 'text',
-                  text: `Extract ALL text content from this document comprehensively. Include:
-1. Title and authors (extract exactly as written)
-2. Abstract/Introduction (full text)
-3. All main sections and their complete content
-4. Methodology details with specifics
-5. Results and findings with ALL specific data, numbers, statistics
-6. Tables and their data
-7. Conclusions and recommendations
-8. References
+      console.log(`[PPT] Extracting DOCX text, size: ${arrayBuffer.byteLength} bytes`);
 
-Return the complete text content in a readable format. Be thorough - extract ALL content, do not summarize or abbreviate. This will be used to create a presentation.`
-                }
-              ]
-            }
-          ],
-        }),
-      });
+      docContent = extractDocxText(arrayBuffer).substring(0, 60000);
+      console.log(`[PPT] Extracted ${docContent.length} characters from DOCX`);
 
-      if (docAnalysisResponse.ok) {
-        const analysisData = await docAnalysisResponse.json();
-        docContent = analysisData.choices?.[0]?.message?.content || '';
-        console.log(`[PPT] Extracted ${docContent.length} characters from document`);
-        
-        // Try to extract title from the content
-        const titleMatch = docContent.match(/^#?\s*(.+?)[\n\r]/);
-        if (titleMatch) {
-          documentTitle = titleMatch[1].replace(/[#*]/g, '').trim().substring(0, 100);
-        }
-      } else {
-        console.error(`[PPT] Document analysis failed: ${docAnalysisResponse.status}`);
-        throw new Error('Failed to analyze document content. Please try a different file format.');
+      const titleMatch = docContent.match(/^(?:#?\s*)?(.+?)[\n\r]/);
+      if (titleMatch) {
+        documentTitle = titleMatch[1].replace(/[#*]/g, '').trim().substring(0, 100);
       }
+    } else if (contentType.includes('pdf')) {
+      // Avoid returning a generic 500: PDF extraction needs a dedicated parser.
+      console.error('[PPT] PDF detected but PDF text extraction is not configured.');
+      return new Response(
+        JSON.stringify({ error: 'PDF extraction is temporarily unavailable. Please upload a DOCX file for now.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     } else {
       // Plain text content
       const docText = await docResponse.text();
