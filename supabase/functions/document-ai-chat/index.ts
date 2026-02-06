@@ -14,23 +14,37 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Detect if the instruction is asking for content generation vs editing
-function isContentGenerationRequest(instruction: string): boolean {
-  const generationKeywords = [
-    "write", "generate", "create", "draft", "compose", "produce",
-    "chapter 5", "chapter five", "next chapter", "new chapter",
-    "abstract", "summary", "summarize", "conclusion", "introduction",
-    "expand", "elaborate", "develop", "continue", "extend",
-    "recommendations", "findings", "discussion", "methodology",
-    "rewrite completely", "rewrite the entire", "write from scratch"
+// Detect request type based on instruction
+function categorizeRequest(instruction: string): "edit" | "generation" | "analysis" {
+  const lowerInstruction = instruction.toLowerCase();
+  
+  // Edit suggestions - specific text improvements
+  const editKeywords = [
+    "fix grammar", "spelling error", "improve clarity", "academic tone", "simplify",
+    "correct", "proofread", "edit", "revise word", "fix punctuation", "typo"
   ];
   
-  const lowerInstruction = instruction.toLowerCase();
-  return generationKeywords.some(keyword => lowerInstruction.includes(keyword));
+  // Analysis - understanding document without generating new content
+  const analysisKeywords = [
+    "summarize", "summary", "analyze", "explain", "what is", "what are",
+    "list the", "identify", "extract key", "outline", "overview", "critique"
+  ];
+  
+  if (editKeywords.some(kw => lowerInstruction.includes(kw))) {
+    return "edit";
+  }
+  
+  if (analysisKeywords.some(kw => lowerInstruction.includes(kw))) {
+    return "analysis";
+  }
+  
+  // Default to generation for everything else (chapters, papers, content, etc.)
+  return "generation";
 }
 
-// Credit costs
+// Credit costs based on task complexity
 const EDIT_CREDIT_COST = 1;
+const ANALYSIS_CREDIT_COST = 2;
 const GENERATION_CREDIT_COST = 3;
 
 serve(async (req) => {
@@ -106,8 +120,12 @@ serve(async (req) => {
     }
 
     // Determine request type and credit cost
-    const isGeneration = isContentGenerationRequest(instruction);
-    const creditCost = isGeneration ? GENERATION_CREDIT_COST : EDIT_CREDIT_COST;
+    const requestType = categorizeRequest(instruction);
+    const creditCost = requestType === "edit" 
+      ? EDIT_CREDIT_COST 
+      : requestType === "analysis" 
+        ? ANALYSIS_CREDIT_COST 
+        : GENERATION_CREDIT_COST;
 
     // Check credits
     const totalCredits = profile.daily_credits + profile.paid_credits;
@@ -128,30 +146,15 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing ${isGeneration ? 'GENERATION' : 'EDIT'} request: ${instruction.substring(0, 50)}`);
+    console.log(`Processing ${requestType.toUpperCase()} request: ${instruction.substring(0, 80)}`);
 
-    // Different prompts for generation vs editing
+    // Build request based on type
     let systemPrompt: string;
     let tools: any[] | undefined;
     let toolChoice: any | undefined;
 
-    if (isGeneration) {
-      // Content generation mode - no tools, just generate text
-      systemPrompt = `You are an expert academic writing assistant. The user will provide a document and ask you to generate new content based on it.
-
-Your task is to generate high-quality academic content based on the user's instruction. 
-
-GUIDELINES:
-- Write in a formal, academic tone appropriate for the document
-- Maintain consistency with the existing document's style, terminology, and structure
-- If asked to write a new chapter, follow the format and depth of existing chapters
-- Include proper academic language, citations placeholders if needed, and logical flow
-- Be thorough and comprehensive in your response
-- Structure content with clear headings and paragraphs
-
-Return ONLY the generated content as plain text. Do not include explanations about what you did.`;
-    } else {
-      // Edit suggestions mode - use tool calling
+    if (requestType === "edit") {
+      // Edit suggestions mode - use tool calling for structured suggestions
       systemPrompt = `You are an expert academic writing assistant. The user will give you a document and an instruction. 
 Your job is to analyze the document and return specific text edits as structured suggestions.
 
@@ -207,6 +210,38 @@ Be thorough but focused on actionable improvements. Limit to the most impactful 
         }
       ];
       toolChoice = { type: "function", function: { name: "suggest_edits" } };
+    } else {
+      // Generation and Analysis mode - comprehensive AI assistant
+      systemPrompt = `You are ProjectPal, an expert academic document assistant. You help users with their academic documents by performing whatever task they request.
+
+YOUR CAPABILITIES:
+1. **Content Generation**: Write new chapters, sections, abstracts, conclusions, introductions, literature reviews, methodology sections, results discussions, recommendations, etc.
+2. **Document Analysis**: Summarize documents, extract key points, identify themes, outline structure, analyze arguments, find gaps
+3. **Publishing Help**: Convert to journal paper format, write abstracts for submission, create research summaries, prepare manuscripts
+4. **Academic Enhancement**: Expand sections, add depth to arguments, include citations placeholders, improve academic rigor
+
+GUIDELINES:
+- Write in formal, academic English appropriate for scholarly work
+- Maintain consistency with the document's existing style, terminology, and structure
+- If generating new chapters/sections, follow the format and depth of existing content
+- Include proper academic language, citation placeholders [Author, Year] where appropriate
+- Structure content with clear headings, subheadings, and logical flow
+- Be thorough and comprehensive - provide substantial, useful content
+- For summaries/analysis, be concise but capture all key points
+
+When generating chapters like "Chapter 5" or conclusions:
+- Reference findings and discussions from earlier parts of the document
+- Include subsections: Summary of Findings, Conclusions, Recommendations, Suggestions for Future Research (as applicable)
+- Draw specific conclusions from the data/research presented
+- Make actionable recommendations based on the findings
+
+When creating publishing papers:
+- Follow standard journal article structure (Abstract, Introduction, Methods, Results, Discussion, Conclusion)
+- Condense and restructure the content for journal format
+- Include placeholder for references section
+
+OUTPUT:
+Return ONLY the requested content as clean, well-formatted text. Use markdown formatting for structure (# for headings, ## for subheadings, - for bullet points). Do not include meta-commentary about what you're doing unless specifically asked.`;
     }
 
     const requestBody: any = {
@@ -215,7 +250,7 @@ Be thorough but focused on actionable improvements. Limit to the most impactful 
         { role: "system", content: systemPrompt },
         { 
           role: "user", 
-          content: `Document content:\n\n${documentContent}\n\n---\n\nInstruction: ${instruction}` 
+          content: `DOCUMENT CONTENT:\n\n${documentContent}\n\n---\n\nUSER REQUEST: ${instruction}` 
         }
       ],
     };
@@ -240,7 +275,7 @@ Be thorough but focused on actionable improvements. Limit to the most impactful 
       
       if (aiResponse.status === 429) {
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
+          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -252,7 +287,7 @@ Be thorough but focused on actionable improvements. Limit to the most impactful 
       }
       
       return new Response(
-        JSON.stringify({ error: "AI service error" }),
+        JSON.stringify({ error: "AI service error. Please try again." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -263,12 +298,7 @@ Be thorough but focused on actionable improvements. Limit to the most impactful 
     // Parse response based on request type
     let responseData: { suggestions?: DiffSuggestion[], generatedContent?: string };
     
-    if (isGeneration) {
-      // Extract generated content from message
-      const content = aiData.choices?.[0]?.message?.content || "";
-      responseData = { generatedContent: content };
-      console.log(`Generated content: ${content.length} characters`);
-    } else {
+    if (requestType === "edit") {
       // Parse the tool call response for suggestions
       let suggestions: DiffSuggestion[] = [];
       
@@ -294,6 +324,11 @@ Be thorough but focused on actionable improvements. Limit to the most impactful 
       
       responseData = { suggestions };
       console.log(`Returning ${suggestions.length} suggestions`);
+    } else {
+      // Extract generated content from message (both generation and analysis)
+      const content = aiData.choices?.[0]?.message?.content || "";
+      responseData = { generatedContent: content };
+      console.log(`Generated content: ${content.length} characters`);
     }
 
     // Deduct credits
@@ -318,7 +353,7 @@ Be thorough but focused on actionable improvements. Limit to the most impactful 
     return new Response(
       JSON.stringify({ 
         ...responseData,
-        requestType: isGeneration ? "generation" : "edit",
+        requestType: requestType === "edit" ? "edit" : "generation",
         creditsUsed: creditCost,
         creditsRemaining: totalCredits - creditCost
       }),
