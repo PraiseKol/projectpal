@@ -450,10 +450,10 @@ const DocumentEditor = () => {
               <CardHeader className="text-center">
                 <CardTitle className="flex items-center justify-center gap-2">
                   <Sparkles className="h-5 w-5" />
-                  AI Document Editor
+                  AI Document Assistant
                 </CardTitle>
                 <CardDescription>
-                  Upload your academic document and instruct the AI to make specific improvements
+                  Upload your document and ask the AI to help—generate chapters, create papers, summarize, or anything else
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
