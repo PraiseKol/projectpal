@@ -96,6 +96,65 @@ function toBullets(text: string, max = 6): string[] {
     .map(sanitizeSlideText);
 }
 
+// Extract text from PDF using Gemini's multimodal capabilities
+async function extractPdfTextWithGemini(
+  pdfArrayBuffer: ArrayBuffer,
+  apiKey: string
+): Promise<string> {
+  const base64Data = uint8ToBase64(new Uint8Array(pdfArrayBuffer));
+  
+  console.log('[PPT] Sending PDF to Gemini for text extraction...');
+  
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'file',
+              file: {
+                filename: 'document.pdf',
+                file_data: `data:application/pdf;base64,${base64Data}`,
+              },
+            },
+            {
+              type: 'text',
+              text: `Extract ALL text content from this PDF document. Include:
+- All headings and subheadings
+- All body text and paragraphs
+- All bullet points and numbered lists
+- All table data (as text)
+- All figure captions
+- References and citations
+
+Return ONLY the extracted text content, preserving the document structure with appropriate line breaks. Do not add any commentary or explanations.`,
+            },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('[PPT] Gemini PDF extraction failed:', response.status, errorText);
+    throw new Error(`PDF extraction failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const extractedText = data.choices?.[0]?.message?.content || '';
+  
+  console.log(`[PPT] Gemini extracted ${extractedText.length} characters from PDF`);
+  return extractedText;
+}
+
 function buildFallbackFromDocContent(docContent: string, documentTitle: string): PresentationData {
   const findSection = (labels: string[]) => {
     const lower = docContent.toLowerCase();
@@ -1550,12 +1609,24 @@ serve(async (req) => {
         documentTitle = titleMatch[1].replace(/[#*]/g, '').trim().substring(0, 100);
       }
     } else if (contentType.includes('pdf')) {
-      // Avoid returning a generic 500: PDF extraction needs a dedicated parser.
-      console.error('[PPT] PDF detected but PDF text extraction is not configured.');
-      return new Response(
-        JSON.stringify({ error: 'PDF extraction is temporarily unavailable. Please upload a DOCX file for now.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.log('[PPT] Processing PDF document...');
+      const arrayBuffer = await docResponse.arrayBuffer();
+      console.log(`[PPT] PDF size: ${arrayBuffer.byteLength} bytes`);
+      
+      try {
+        docContent = await extractPdfTextWithGemini(arrayBuffer, LOVABLE_API_KEY);
+        docContent = docContent.substring(0, 60000); // Limit for AI processing
+        console.log(`[PPT] Extracted ${docContent.length} characters from PDF via Gemini`);
+        
+        // Extract title from first line
+        const titleMatch = docContent.match(/^(?:#?\s*)?(.+?)[\n\r]/);
+        if (titleMatch) {
+          documentTitle = titleMatch[1].replace(/[#*]/g, '').trim().substring(0, 100);
+        }
+      } catch (err) {
+        console.error('[PPT] PDF extraction error:', err);
+        throw new Error('Failed to extract text from PDF. The file may be corrupted or image-only. Please try a different file or use DOCX format.');
+      }
     } else {
       // Plain text content
       const docText = await docResponse.text();
