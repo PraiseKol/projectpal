@@ -1,134 +1,167 @@
 
-# Plan: Fix PowerPoint Download Error and Update Credit Pricing
 
-## Problem Analysis
+# Plan: Add PDF Support to PowerPoint Generator
 
-### Issue 1: PowerPoint Download Fails with "Bucket not found" / 400 Error
+## Problem Summary
 
-**Root Cause Identified:**
-The `documents` storage bucket is **private** (`public: false`), but the edge function uses `getPublicUrl()` to generate the download link. This causes a 400 error because:
+The PowerPoint Generator edge function (`generate-ppt`) currently rejects PDF files with a "PDF extraction is temporarily unavailable" error. Users can only upload DOCX files, which is limiting.
 
-1. `getPublicUrl()` generates a URL pattern: `https://.../storage/v1/object/public/documents/...`
-2. The `/public/` path only works for **public buckets**
-3. Since the bucket is private, Supabase returns a 400/404 error
+**Note:** The Document Editor already supports PDF uploads using client-side extraction with `pdfjs-dist` - no changes needed there.
 
-**Evidence from database:**
-- Bucket exists: `documents` (public: false)
-- File exists in storage: `37c4a9e1-3e7d-4ffa-9f6f-78406a915f27/ppt-1769391759393.pptx`
-- Error: "Bucket not found" when accessing via public URL pattern
+---
 
-**Solution:**
-Change the edge function to use **signed URLs** instead of public URLs. Signed URLs provide temporary authenticated access to private storage objects.
+## Solution Overview
 
-### Issue 2: Credit Pricing Update
-
-Update the credit costs in both the edge function and the frontend display:
-- Base cost: 6 credits → **15 credits**
-- With AI images: 8 credits → **20 credits**
+Use Gemini's multimodal capabilities to extract text from PDF documents server-side. Gemini can directly read PDF files when sent as base64-encoded `file_data`, making it ideal for this use case.
 
 ---
 
 ## Implementation Details
 
-### File 1: `supabase/functions/generate-ppt/index.ts`
+### File: `supabase/functions/generate-ppt/index.ts`
 
-**Changes:**
+**1. Add PDF Text Extraction Function**
 
-1. **Update credit constants** (lines 10-11):
-   ```typescript
-   // Before
-   const BASE_CREDIT_COST = 6;
-   const IMAGE_CREDIT_COST = 2;
-   
-   // After
-   const BASE_CREDIT_COST = 15;
-   const IMAGE_CREDIT_COST = 5;  // 15 + 5 = 20 with images
-   ```
+Create a new helper function that sends the PDF to Gemini for comprehensive text extraction:
 
-2. **Replace getPublicUrl with createSignedUrl** (lines 1572-1574):
-   ```typescript
-   // Before
-   const { data: urlData } = supabaseClient.storage
-     .from('documents')
-     .getPublicUrl(fileName);
-   
-   // After
-   const { data: signedUrlData, error: signedUrlError } = await supabaseClient.storage
-     .from('documents')
-     .createSignedUrl(fileName, 3600); // 1 hour expiry
-   
-   if (signedUrlError || !signedUrlData?.signedUrl) {
-     throw new Error('Failed to generate download URL');
-   }
-   ```
+```typescript
+async function extractPdfTextWithGemini(
+  pdfArrayBuffer: ArrayBuffer, 
+  apiKey: string
+): Promise<string> {
+  const base64Data = uint8ToBase64(new Uint8Array(pdfArrayBuffer));
+  
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'file',
+              file: {
+                filename: 'document.pdf',
+                file_data: `data:application/pdf;base64,${base64Data}`,
+              },
+            },
+            {
+              type: 'text',
+              text: `Extract ALL text content from this PDF document. Include:
+- All headings and subheadings
+- All body text and paragraphs  
+- All bullet points and numbered lists
+- All table data (as text)
+- All figure captions
+- References and citations
 
-3. **Update response to use signed URL** (line 1588):
-   ```typescript
-   // Before
-   ppt_url: urlData.publicUrl,
-   
-   // After
-   ppt_url: signedUrlData.signedUrl,
-   ```
+Return ONLY the extracted text content, preserving the document structure with appropriate line breaks. Do not add any commentary.`,
+            },
+          ],
+        },
+      ],
+    }),
+  });
 
-### File 2: `src/pages/Documents.tsx`
+  if (!response.ok) {
+    throw new Error(`PDF extraction failed: ${response.status}`);
+  }
 
-**Changes:**
+  const data = await response.json();
+  return data.choices[0]?.message?.content || '';
+}
+```
 
-1. **Update credit display text** (line 294):
-   ```typescript
-   // Before
-   Credit cost: <span className="font-semibold">{includeImages ? 8 : 6} credits</span>
-   
-   // After
-   Credit cost: <span className="font-semibold">{includeImages ? 20 : 15} credits</span>
-   ```
+**2. Update Document Processing Logic (around lines 1552-1558)**
 
-2. **Update image toggle credit indicator** (line 290):
-   ```typescript
-   // Before
-   {includeImages ? "+2 credits" : ""}
-   
-   // After
-   {includeImages ? "+5 credits" : ""}
-   ```
+Replace the PDF rejection block with actual extraction:
+
+```typescript
+} else if (contentType.includes('pdf')) {
+  console.log('[PPT] Processing PDF document...');
+  const arrayBuffer = await docResponse.arrayBuffer();
+  console.log(`[PPT] PDF size: ${arrayBuffer.byteLength} bytes`);
+  
+  try {
+    docContent = await extractPdfTextWithGemini(arrayBuffer, LOVABLE_API_KEY);
+    docContent = docContent.substring(0, 60000); // Limit for AI processing
+    console.log(`[PPT] Extracted ${docContent.length} characters from PDF via Gemini`);
+    
+    // Extract title from first line
+    const titleMatch = docContent.match(/^(?:#?\s*)?(.+?)[\n\r]/);
+    if (titleMatch) {
+      documentTitle = titleMatch[1].replace(/[#*]/g, '').trim().substring(0, 100);
+    }
+  } catch (err) {
+    console.error('[PPT] PDF extraction error:', err);
+    throw new Error('Failed to extract text from PDF. The file may be corrupted or image-only. Please try a different file or use DOCX format.');
+  }
+}
+```
+
+---
+
+## How It Works
+
+```text
++------------------+       +-------------------+       +------------------+
+|  User uploads    |  -->  |  Edge Function    |  -->  |  Gemini extracts |
+|  PDF document    |       |  receives binary  |       |  text from PDF   |
++------------------+       +-------------------+       +------------------+
+                                    |
+                                    v
+                          +-------------------+
+                          |  AI generates     |
+                          |  slide structure  |
+                          +-------------------+
+                                    |
+                                    v
+                          +-------------------+
+                          |  PPTX created     |
+                          |  and returned     |
+                          +-------------------+
+```
 
 ---
 
 ## Technical Notes
 
-### Why Signed URLs?
-- **Security**: Files remain private in storage
-- **Time-limited**: URLs expire after 1 hour (configurable)
-- **No bucket changes needed**: No need to make the bucket public
-- **Works with existing RLS**: Respects storage policies
+### Why Gemini for PDF Extraction?
+- Gemini has native PDF understanding through its multimodal capabilities
+- No need for additional Deno-compatible PDF parsing libraries
+- Handles complex layouts, tables, and multi-column text
+- Works with both text-based and OCR-able scanned PDFs
 
-### Signed URL Expiry
-The signed URL will be valid for 1 hour (3600 seconds). This is sufficient for:
-- Immediate download after generation
-- Opening in the document viewer
-- Multiple download attempts if needed
+### Limitations to Communicate to Users
+- Very large PDFs (>50 pages) may have content truncated
+- Image-only scanned PDFs without OCR text may have limited extraction
+- Complex charts/graphs will be described textually
 
-If users need to download later, they would need to regenerate the presentation (which is the expected behavior for a generation feature).
-
----
-
-## Summary of Changes
-
-| File | Line(s) | Change |
-|------|---------|--------|
-| `supabase/functions/generate-ppt/index.ts` | 10 | Change BASE_CREDIT_COST from 6 to 15 |
-| `supabase/functions/generate-ppt/index.ts` | 11 | Change IMAGE_CREDIT_COST from 2 to 5 |
-| `supabase/functions/generate-ppt/index.ts` | 1572-1574 | Replace getPublicUrl with createSignedUrl |
-| `supabase/functions/generate-ppt/index.ts` | 1588 | Use signedUrl in response |
-| `src/pages/Documents.tsx` | 290 | Update "+2 credits" to "+5 credits" |
-| `src/pages/Documents.tsx` | 294 | Update "8 : 6" to "20 : 15" credits |
+### Credit Usage
+- PDF extraction uses one additional AI call, but this is absorbed in the existing credit cost (15-20 credits)
+- No change to pricing needed
 
 ---
 
-## Testing After Implementation
+## Files to Modify
 
-1. Upload a document and generate a PowerPoint
-2. Verify the download link works (should not show "Bucket not found")
-3. Verify the document viewer opens correctly
-4. Confirm credits deducted: 15 without images, 20 with images
+| File | Changes |
+|------|---------|
+| `supabase/functions/generate-ppt/index.ts` | Add `extractPdfTextWithGemini` function; Replace PDF rejection block with extraction logic |
+
+---
+
+## Testing Checklist
+
+After implementation:
+1. Upload a text-based PDF and verify extraction quality
+2. Upload a DOCX file and confirm it still works
+3. Verify the generated PowerPoint has actual document content
+4. Test with a large PDF to ensure truncation works gracefully
+5. Check credit deduction is correct (15 or 20 credits)
+
