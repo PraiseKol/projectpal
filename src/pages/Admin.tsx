@@ -18,6 +18,7 @@ import { AuditLog } from "@/components/Admin/AuditLog";
 import { AmbassadorManagement } from "@/components/Admin/AmbassadorManagement";
 import { EmailCampaigns } from "@/components/Admin/EmailCampaigns";
 import { AdminSkeleton } from "@/components/skeletons/AdminSkeleton";
+import { translateError, logError } from "@/utils/errorMessages";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -68,8 +69,8 @@ const Admin = () => {
       setIsAdmin(true);
       await loadAdminData();
     } catch (error) {
-      console.error("Error checking admin access:", error);
-      toast.error("Failed to verify admin access");
+      logError("Admin:checkAdminAccess", error);
+      toast.error(translateError(error));
       navigate("/dashboard");
     } finally {
       setIsLoading(false);
@@ -135,11 +136,11 @@ const Admin = () => {
         setUserGrowthData(growthData?.growthData || []);
         setRevenueData(revData?.revenueData || []);
       } catch (fnError) {
-        console.error("Error loading admin functions data:", fnError);
+        logError("Admin:loadAdminFunctionsData", fnError);
       }
     } catch (error) {
-      console.error("Error loading admin data:", error);
-      toast.error("Failed to load admin data");
+      logError("Admin:loadAdminData", error);
+      toast.error(translateError(error));
     }
   };
 

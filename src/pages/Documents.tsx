@@ -12,7 +12,7 @@ import { DocumentViewer } from "@/components/DocumentViewer";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { DocumentsSkeleton } from "@/components/skeletons/DocumentsSkeleton";
 import { ThemeSelector } from "@/components/Documents/ThemeSelector";
-import { translateError } from "@/utils/errorMessages";
+import { translateError, logError } from "@/utils/errorMessages";
 
 const Documents = () => {
   const navigate = useNavigate();
@@ -60,7 +60,7 @@ const Documents = () => {
 
       setIsCheckingPlan(false);
     } catch (error) {
-      console.error("Error checking plan:", error);
+      logError("Documents:checkUserPlan", error);
       navigate("/dashboard");
     }
   };
@@ -128,10 +128,10 @@ const Documents = () => {
         description: "Document uploaded. You can now generate a presentation.",
       });
     } catch (error: any) {
-      console.error("Upload error:", error);
+      logError("Documents:upload", error);
       toast({
         title: "Upload Failed",
-        description: error.message || "Failed to upload document",
+        description: translateError(error),
         variant: "destructive",
       });
     } finally {
@@ -199,7 +199,7 @@ const Documents = () => {
         description: "PowerPoint presentation generated successfully.",
       });
     } catch (error: any) {
-      console.error("PPT generation error:", error);
+      logError("Documents:generatePPT", error);
       const errorMessage = translateError(error);
       setGenerationError(errorMessage);
       toast({

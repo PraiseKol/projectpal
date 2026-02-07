@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { History, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { translateError, logError } from "@/utils/errorMessages";
 
 interface AuditEntry {
   id: string;
@@ -41,8 +42,8 @@ export const AuditLog = ({ emailMap }: AuditLogProps) => {
       if (response.error) throw response.error;
       setLogs(response.data?.logs || []);
     } catch (error) {
-      console.error("Error loading audit logs:", error);
-      toast.error("Failed to load audit logs");
+      logError("AuditLog:loadLogs", error);
+      toast.error(translateError(error));
     } finally {
       setIsLoading(false);
     }

@@ -31,6 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { translateError, logError } from "@/utils/errorMessages";
 
 type BillingPeriod = "monthly" | "quarterly" | "yearly";
 
@@ -130,8 +131,8 @@ const Pricing = () => {
       });
       handler.openIframe();
     } catch (error) {
-      console.error("Payment error:", error);
-      toast.error("Failed to initiate payment");
+      logError("Pricing:initializePayment", error);
+      toast.error(translateError(error));
       setIsLoading(false);
     }
   };

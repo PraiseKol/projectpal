@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { AmbassadorSkeleton } from "@/components/skeletons/AmbassadorSkeleton";
+import { translateError, logError } from "@/utils/errorMessages";
 
 interface ReferralCode {
   id: string;
@@ -124,8 +125,8 @@ const Ambassador = () => {
       setIsAmbassador(true);
       await loadAmbassadorData();
     } catch (error) {
-      console.error("Error checking ambassador access:", error);
-      toast.error("Failed to verify ambassador access");
+      logError("Ambassador:checkAccess", error);
+      toast.error(translateError(error));
       navigate("/dashboard");
     } finally {
       setIsLoading(false);
@@ -148,8 +149,8 @@ const Ambassador = () => {
       setPayouts(payoutsData?.payouts || []);
       setStats(statsData);
     } catch (error) {
-      console.error("Error loading ambassador data:", error);
-      toast.error("Failed to load ambassador data");
+      logError("Ambassador:loadData", error);
+      toast.error(translateError(error));
     }
   };
 
@@ -168,7 +169,8 @@ const Ambassador = () => {
       setShowPayoutDialog(false);
       await loadAmbassadorData();
     } catch (error: any) {
-      toast.error(error.message || "Failed to request payout");
+      logError("Ambassador:requestPayout", error);
+      toast.error(translateError(error));
     } finally {
       setIsRequestingPayout(false);
     }

@@ -5,6 +5,7 @@ import { Upload, FileSpreadsheet, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { TutorialTrigger } from "@/components/Tutorial";
+import { translateError, logError } from "@/utils/errorMessages";
 import type { ColumnConfig } from "@/pages/DataAnalysis";
 
 interface FileUploadStepProps {
@@ -86,8 +87,8 @@ export const FileUploadStep = ({ onFileProcessed }: FileUploadStepProps) => {
       toast.success(`File loaded: ${rowCount} rows, ${columnConfig.length} columns`);
       onFileProcessed(preview, columnConfig, file.name);
     } catch (error) {
-      console.error('File processing error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to process file');
+      logError("FileUploadStep:handleFile", error);
+      toast.error(translateError(error));
       setSelectedFile(null);
     } finally {
       setIsProcessing(false);
