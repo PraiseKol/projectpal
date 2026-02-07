@@ -16,6 +16,7 @@ import { AnalysisResultsStep } from "@/components/DataAnalysis/AnalysisResultsSt
 import { DataAnalysisSkeleton } from "@/components/skeletons/DataAnalysisSkeleton";
 import { TutorialProvider, TutorialOverlay, WelcomeDialog, TutorialTrigger } from "@/components/Tutorial";
 import { useTutorial } from "@/hooks/useTutorial";
+import { translateError, logError } from "@/utils/errorMessages";
 
 export interface ColumnConfig {
   name: string;
@@ -84,8 +85,8 @@ const DataAnalysisContent = () => {
       if (error) throw error;
       setProfile(profileData);
     } catch (error) {
-      console.error("Error fetching profile:", error);
-      toast.error("Failed to load profile");
+      logError("DataAnalysis:checkAuth", error);
+      toast.error(translateError(error));
     } finally {
       setIsLoading(false);
     }
@@ -119,7 +120,7 @@ const DataAnalysisContent = () => {
         }
       }
     } catch (error) {
-      console.error('Error creating session:', error);
+      logError("DataAnalysis:createSession", error);
     }
     
     setCurrentStep(2);
@@ -162,8 +163,8 @@ const DataAnalysisContent = () => {
       setCurrentStep(4);
       checkAuth();
     } catch (error) {
-      console.error('Analysis error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to run analysis');
+      logError("DataAnalysis:runAnalysis", error);
+      toast.error(translateError(error));
     } finally {
       setIsAnalyzing(false);
     }

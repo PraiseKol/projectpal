@@ -10,7 +10,7 @@ import { SEO } from "@/components/SEO";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SuggestionsPanel, DiffSuggestion } from "@/components/DocumentEditor/SuggestionsPanel";
 import { AIInstructionInput } from "@/components/DocumentEditor/AIInstructionInput";
-import { translateError } from "@/utils/errorMessages";
+import { translateError, logError } from "@/utils/errorMessages";
 import { 
   ArrowLeft, 
   Upload, 
@@ -170,11 +170,11 @@ const DocumentEditor = () => {
           const result = await mammoth.extractRawText({ arrayBuffer });
           extractedContent = result.value;
           
-          if (result.messages.length > 0) {
+          if (result.messages.length > 0 && import.meta.env.DEV) {
             console.log("Mammoth warnings:", result.messages);
           }
         } catch (err) {
-          console.error("DOCX parsing error:", err);
+          logError("DocumentEditor:parseDOCX", err);
           toast.error("Failed to extract text from DOCX. Please try pasting the content manually.");
           extractedContent = "";
         }
@@ -187,7 +187,7 @@ const DocumentEditor = () => {
             toast.warning("Could not extract text. The PDF may be scanned or image-based. Please paste content manually.");
           }
         } catch (err) {
-          console.error("PDF parsing error:", err);
+          logError("DocumentEditor:parsePDF", err);
           toast.error("Failed to extract text from PDF. Please try pasting the content manually.");
           extractedContent = "";
         }
@@ -225,8 +225,8 @@ const DocumentEditor = () => {
       }
 
     } catch (error: any) {
-      console.error("Upload error:", error);
-      toast.error(error.message || "Failed to upload document");
+      logError("DocumentEditor:upload", error);
+      toast.error(translateError(error));
     } finally {
       setIsLoading(false);
       if (fileInputRef.current) {
@@ -273,7 +273,7 @@ const DocumentEditor = () => {
       checkUserAccess();
 
     } catch (error: any) {
-      console.error("AI request error:", error);
+      logError("DocumentEditor:AIRequest", error);
       toast.error(translateError(error));
     } finally {
       setIsProcessing(false);
@@ -359,8 +359,8 @@ const DocumentEditor = () => {
 
       toast.success("Document exported as DOCX!");
     } catch (error) {
-      console.error("Export error:", error);
-      toast.error("Failed to export document");
+      logError("DocumentEditor:exportDocx", error);
+      toast.error(translateError(error));
     } finally {
       setIsExporting(false);
     }
@@ -393,8 +393,8 @@ const DocumentEditor = () => {
       pdf.save(`${currentDocument?.file_name?.replace(/\.[^.]+$/, '') || 'document'}_edited.pdf`);
       toast.success("Document exported as PDF!");
     } catch (error) {
-      console.error("Export error:", error);
-      toast.error("Failed to export document");
+      logError("DocumentEditor:exportPdf", error);
+      toast.error(translateError(error));
     } finally {
       setIsExporting(false);
     }

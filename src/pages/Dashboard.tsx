@@ -14,6 +14,7 @@ import { SEO } from "@/components/SEO";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
 import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton";
+import { translateError, logError } from "@/utils/errorMessages";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -82,8 +83,8 @@ const Dashboard = () => {
 
       setRecentParaphrases(paraphrasesData || []);
     } catch (error) {
-      console.error("Error fetching profile:", error);
-      toast.error("Failed to load profile");
+      logError("Dashboard:checkAuth", error);
+      toast.error(translateError(error));
     } finally {
       setIsLoading(false);
     }

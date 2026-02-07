@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Mail, Plus, Send, Eye, Trash2, Loader2, Users, CheckCircle, XCircle, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { translateError, logError } from "@/utils/errorMessages";
 
 interface Campaign {
   id: string;
@@ -76,8 +77,8 @@ export const EmailCampaigns = () => {
       if (logsError) throw logsError;
       setEmailLogs(logsData || []);
     } catch (error) {
-      console.error("Error loading campaigns:", error);
-      toast.error("Failed to load campaigns");
+      logError("EmailCampaigns:loadCampaigns", error);
+      toast.error(translateError(error));
     } finally {
       setIsLoading(false);
     }
@@ -111,8 +112,8 @@ export const EmailCampaigns = () => {
       setNewCampaign({ name: "", subject: "", content: "", email_type: "marketing" });
       loadCampaigns();
     } catch (error: any) {
-      console.error("Error creating campaign:", error);
-      toast.error(error.message || "Failed to create campaign");
+      logError("EmailCampaigns:createCampaign", error);
+      toast.error(translateError(error));
     } finally {
       setIsCreating(false);
     }
@@ -133,8 +134,8 @@ export const EmailCampaigns = () => {
       toast.success(`Campaign sent! ${data.sent} emails delivered, ${data.failed} failed`);
       loadCampaigns();
     } catch (error: any) {
-      console.error("Error sending campaign:", error);
-      toast.error(error.message || "Failed to send campaign");
+      logError("EmailCampaigns:sendCampaign", error);
+      toast.error(translateError(error));
     } finally {
       setIsSending(false);
     }

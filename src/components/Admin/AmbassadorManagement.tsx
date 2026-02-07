@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Users, Coins, Wallet, TrendingUp, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { TableRowSkeleton } from "@/components/skeletons/TableRowSkeleton";
+import { translateError, logError } from "@/utils/errorMessages";
 
 interface Ambassador {
   id: string;
@@ -101,8 +102,8 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
       setSummary(overviewData?.summary || null);
       setPayouts(payoutsData?.payouts || []);
     } catch (error) {
-      console.error("Error loading ambassador data:", error);
-      toast.error("Failed to load ambassador data");
+      logError("AmbassadorManagement:loadData", error);
+      toast.error(translateError(error));
     } finally {
       setIsLoading(false);
     }

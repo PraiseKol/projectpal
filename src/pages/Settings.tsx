@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SettingsSkeleton } from "@/components/skeletons/SettingsSkeleton";
 import { EmailPreferences } from "@/components/Settings/EmailPreferences";
+import { translateError, logError } from "@/utils/errorMessages";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -40,8 +41,8 @@ const Settings = () => {
       if (error) throw error;
       setProfile(profileData);
     } catch (error) {
-      console.error("Error loading user data:", error);
-      toast.error("Failed to load settings");
+      logError("Settings:loadUserData", error);
+      toast.error(translateError(error));
     } finally {
       setIsLoading(false);
     }

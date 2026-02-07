@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Copy, Download, Loader2, AlertTriangle, Sparkles } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ParaphraserSkeleton } from "@/components/skeletons/ParaphraserSkeleton";
+import { translateError, logError } from "@/utils/errorMessages";
 
 const FREE_WORD_LIMIT = 120;
 
@@ -74,7 +75,7 @@ const Paraphraser = () => {
 
       setIsCheckingAuth(false);
     } catch (error) {
-      console.error("Error checking auth:", error);
+      logError("Paraphraser:checkAuth", error);
       navigate("/dashboard");
     }
   };
@@ -148,10 +149,10 @@ const Paraphraser = () => {
         setDailyParaphraseCount(data.profile.daily_paraphrase_count);
       }
     } catch (error: any) {
-      console.error("Paraphrase error:", error);
+      logError("Paraphraser:paraphrase", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to paraphrase text",
+        title: "Paraphrase Error",
+        description: translateError(error),
         variant: "destructive",
       });
     } finally {

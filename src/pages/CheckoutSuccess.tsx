@@ -40,9 +40,9 @@ const CheckoutSuccess = () => {
       setStatus("success");
       setMessage(`Payment successful! You've received ${data.credits_added} credits.`);
     } catch (error: any) {
-      console.error("Verification error:", error);
+      if (import.meta.env.DEV) console.error("Verification error:", error);
       setStatus("error");
-      setMessage(error.message || "Failed to verify payment");
+      setMessage("Payment verification failed. Please contact support if credits weren't added.");
     }
   };
 

@@ -23,6 +23,7 @@ import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ExportOptions } from "@/components/ExportOptions";
+import { translateError, logError } from "@/utils/errorMessages";
 
 interface Message {
   id: string;
@@ -123,8 +124,8 @@ const Chat = () => {
         setSessionId(session.id);
       }
     } catch (error) {
-      console.error("Error initializing chat:", error);
-      toast.error("Failed to initialize chat");
+      logError("Chat:initializeChat", error);
+      toast.error(translateError(error));
     }
   };
 
@@ -140,7 +141,7 @@ const Chat = () => {
       if (error) throw error;
       setChatSessions(data || []);
     } catch (error) {
-      console.error("Error loading chat sessions:", error);
+      logError("Chat:loadChatSessions", error);
     }
   };
 
@@ -163,8 +164,8 @@ const Chat = () => {
         setShowSidebar(false);
       }
     } catch (error) {
-      console.error("Error loading session:", error);
-      toast.error("Failed to load chat session");
+      logError("Chat:loadSession", error);
+      toast.error(translateError(error));
     }
   };
 
@@ -191,8 +192,8 @@ const Chat = () => {
         setShowSidebar(false);
       }
     } catch (error) {
-      console.error("Error creating new chat:", error);
-      toast.error("Failed to create new chat");
+      logError("Chat:createNewChat", error);
+      toast.error(translateError(error));
     }
   };
 
@@ -214,7 +215,7 @@ const Chat = () => {
         .eq("session_id", sessionToDelete);
 
       if (messagesError) {
-        console.error("Error deleting messages:", messagesError);
+        logError("Chat:deleteMessages", messagesError);
       }
 
       // Then delete the session
@@ -240,8 +241,8 @@ const Chat = () => {
         navigate("/chat");
       }
     } catch (error) {
-      console.error("Error deleting session:", error);
-      toast.error("Failed to delete chat");
+      logError("Chat:deleteSession", error);
+      toast.error(translateError(error));
       setDeleteSessionId(null);
     } finally {
       setIsDeleting(false);
@@ -268,8 +269,8 @@ const Chat = () => {
       );
       toast.success("Chat renamed");
     } catch (error) {
-      console.error("Error renaming session:", error);
-      toast.error("Failed to rename chat");
+      logError("Chat:renameSession", error);
+      toast.error(translateError(error));
     } finally {
       setEditingSessionId(null);
     }
@@ -360,8 +361,8 @@ const Chat = () => {
       // Update profile credits
       setProfile((prev: any) => ({ ...prev, ...data.profile }));
     } catch (error: any) {
-      console.error("Error sending message:", error);
-      toast.error(error.message || "Failed to send message");
+      logError("Chat:sendMessage", error);
+      toast.error(translateError(error));
     } finally {
       setIsLoading(false);
     }

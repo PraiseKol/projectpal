@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Download } from "lucide-react";
 import { toast } from "sonner";
 import { TransactionHistorySkeleton } from "@/components/skeletons/TransactionHistorySkeleton";
+import { translateError, logError } from "@/utils/errorMessages";
 
 const TransactionHistory = () => {
   const navigate = useNavigate();
@@ -36,8 +37,8 @@ const TransactionHistory = () => {
       if (error) throw error;
       setTransactions(data || []);
     } catch (error) {
-      console.error("Error loading transactions:", error);
-      toast.error("Failed to load transaction history");
+      logError("TransactionHistory:loadTransactions", error);
+      toast.error(translateError(error));
     } finally {
       setIsLoading(false);
     }
