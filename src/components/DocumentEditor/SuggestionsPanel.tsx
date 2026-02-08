@@ -2,8 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckCircle, X, Sparkles, Loader2, Copy, FileText } from "lucide-react";
-import { toast } from "sonner";
+import { CheckCircle, X, Sparkles, Loader2 } from "lucide-react";
 
 export interface DiffSuggestion {
   id: string;
@@ -15,12 +14,12 @@ export interface DiffSuggestion {
 
 interface SuggestionsPanelProps {
   suggestions: DiffSuggestion[];
-  generatedContent?: string;
+  generatedContent?: string; // kept for backwards compatibility but not used here anymore
   onApply: (id: string) => void;
   onDismiss: (id: string) => void;
   onApplyAll: () => void;
-  onInsertContent?: (content: string) => void;
-  onClearGenerated?: () => void;
+  onInsertContent?: (content: string) => void; // kept for backwards compatibility
+  onClearGenerated?: () => void; // kept for backwards compatibility
   isLoading: boolean;
 }
 
@@ -42,29 +41,11 @@ const typeLabels: Record<DiffSuggestion["type"], string> = {
 
 export function SuggestionsPanel({
   suggestions,
-  generatedContent,
   onApply,
   onDismiss,
   onApplyAll,
-  onInsertContent,
-  onClearGenerated,
   isLoading,
 }: SuggestionsPanelProps) {
-  
-  const handleCopyContent = () => {
-    if (generatedContent) {
-      navigator.clipboard.writeText(generatedContent);
-      toast.success("Content copied to clipboard!");
-    }
-  };
-
-  const handleInsertContent = () => {
-    if (generatedContent && onInsertContent) {
-      onInsertContent(generatedContent);
-      toast.success("Content inserted into document!");
-    }
-  };
-
   if (isLoading) {
     return (
       <Card className="h-full">
@@ -84,58 +65,6 @@ export function SuggestionsPanel({
     );
   }
 
-  // Show generated content if available
-  if (generatedContent) {
-    return (
-      <Card className="h-full flex flex-col">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-              <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
-              Generated Content
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={onClearGenerated}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        
-        <CardContent className="flex-1 overflow-hidden flex flex-col gap-3 sm:gap-4">
-          <ScrollArea className="flex-1 pr-2 sm:pr-4">
-            <div className="p-3 sm:p-4 border border-border rounded-lg bg-muted/30">
-              <pre className="whitespace-pre-wrap text-sm font-sans text-foreground">
-                {generatedContent}
-              </pre>
-            </div>
-          </ScrollArea>
-
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={handleCopyContent}
-              className="flex-1"
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Copy
-            </Button>
-            <Button
-              onClick={handleInsertContent}
-              className="flex-1"
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Insert at End
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   if (suggestions.length === 0) {
     return (
       <Card className="h-full">
@@ -147,7 +76,7 @@ export function SuggestionsPanel({
         </CardHeader>
         <CardContent className="flex items-center justify-center h-48 sm:h-64">
           <p className="text-sm sm:text-base text-muted-foreground text-center px-4">
-            Type an instruction below to get AI suggestions or generate new content for your document.
+            Type an instruction above to get AI suggestions. Generated content will appear in the Results tab.
           </p>
         </CardContent>
       </Card>

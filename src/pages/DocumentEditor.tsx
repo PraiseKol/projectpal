@@ -4,12 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SuggestionsPanel, DiffSuggestion } from "@/components/DocumentEditor/SuggestionsPanel";
 import { AIInstructionInput } from "@/components/DocumentEditor/AIInstructionInput";
+import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { translateError, logError } from "@/utils/errorMessages";
 import { 
   ArrowLeft, 
@@ -19,33 +22,41 @@ import {
   Loader2, 
   Sparkles,
   GraduationCap,
-  Trash2
+  Trash2,
+  Copy,
+  CheckCircle
 } from "lucide-react";
 import { Document, Packer, Paragraph, TextRun } from "docx";
 import jsPDF from "jspdf";
 import mammoth from "mammoth";
 import * as pdfjsLib from "pdfjs-dist";
 
-// Configure pdf.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Configure pdf.js worker - use local file to avoid CDN version mismatch
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
-// Helper function to extract text from PDF
+// Helper function to extract text from PDF with enhanced error handling
 const extractPdfText = async (file: File): Promise<string> => {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  
-  let fullText = '';
-  
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const textContent = await page.getTextContent();
-    const pageText = textContent.items
-      .map((item: any) => item.str)
-      .join(' ');
-    fullText += pageText + '\n\n';
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    
+    let fullText = '';
+    const totalPages = Math.min(pdf.numPages, 100); // Limit to 100 pages
+    
+    for (let i = 1; i <= totalPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ');
+      fullText += pageText + '\n\n';
+    }
+    
+    return fullText.trim();
+  } catch (error) {
+    console.error('PDF extraction error:', error);
+    throw new Error('Failed to extract text from PDF. Please ensure the file is not corrupted.');
   }
-  
-  return fullText.trim();
 };
 
 interface DocumentData {
@@ -68,6 +79,7 @@ const DocumentEditor = () => {
   const [editableContent, setEditableContent] = useState("");
   const [suggestions, setSuggestions] = useState<DiffSuggestion[]>([]);
   const [generatedContent, setGeneratedContent] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<"document" | "results">("document");
 
   const [userProfile, setUserProfile] = useState<{
     plan_type: string;
@@ -283,11 +295,21 @@ const DocumentEditor = () => {
   const handleInsertContent = (content: string) => {
     setEditableContent(prev => prev + "\n\n" + content);
     setGeneratedContent("");
+    setActiveTab("document");
+    toast.success("Content inserted into document!");
   };
 
   const handleClearGenerated = () => {
     setGeneratedContent("");
+    setActiveTab("document");
   };
+
+  // Auto-switch to results tab when content is generated
+  useEffect(() => {
+    if (generatedContent) {
+      setActiveTab("results");
+    }
+  }, [generatedContent]);
 
   const handleApplySuggestion = (id: string) => {
     const suggestion = suggestions.find(s => s.id === id);
@@ -575,7 +597,7 @@ const DocumentEditor = () => {
               </div>
             </div>
 
-            {/* Right: Document Editor */}
+            {/* Right: Document Editor with Tabs */}
             <div className="lg:order-2 order-1">
               <Card>
                 <CardHeader className="pb-3">
@@ -585,9 +607,6 @@ const DocumentEditor = () => {
                         <FileText className="h-5 w-5" />
                         {currentDocument.file_name}
                       </CardTitle>
-                      <CardDescription>
-                        Edit your document content below
-                      </CardDescription>
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -601,14 +620,76 @@ const DocumentEditor = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Textarea
-                    value={editableContent}
-                    onChange={(e) => setEditableContent(e.target.value)}
-                    className="min-h-[350px] sm:min-h-[450px] font-mono text-sm"
-                    placeholder="Your document content will appear here..."
-                  />
-
-                  <div className="flex flex-wrap gap-2">
+                  <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "document" | "results")}>
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="document" className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Document
+                      </TabsTrigger>
+                      <TabsTrigger value="results" className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4" />
+                        Results
+                        {generatedContent && (
+                          <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">New</Badge>
+                        )}
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    {/* Document Tab */}
+                    <TabsContent value="document" className="mt-4">
+                      <Textarea
+                        value={editableContent}
+                        onChange={(e) => setEditableContent(e.target.value)}
+                        className="min-h-[350px] sm:min-h-[450px] font-mono text-sm"
+                        placeholder="Your document content will appear here..."
+                      />
+                    </TabsContent>
+                    
+                    {/* Results Tab */}
+                    <TabsContent value="results" className="mt-4">
+                      {generatedContent ? (
+                        <div className="space-y-4">
+                          <ScrollArea className="h-[350px] sm:h-[450px] border border-border rounded-lg p-4">
+                            <MarkdownRenderer 
+                              content={generatedContent} 
+                              className="prose-sm dark:prose-invert"
+                            />
+                          </ScrollArea>
+                          
+                          {/* Action buttons */}
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                navigator.clipboard.writeText(generatedContent);
+                                toast.success("Copied to clipboard!");
+                              }}
+                            >
+                              <Copy className="h-4 w-4 mr-2" />
+                              Copy
+                            </Button>
+                            <Button onClick={() => handleInsertContent(generatedContent)}>
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Insert into Document
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-[350px] sm:h-[450px] text-center">
+                          <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
+                          <p className="text-muted-foreground">
+                            Generated content will appear here
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            Use the AI Assistant to generate chapters, papers, summaries, and more
+                          </p>
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                  
+                  {/* Export buttons - always visible */}
+                  <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                     <Button
                       variant="outline"
                       onClick={exportAsDocx}
