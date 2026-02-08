@@ -1,150 +1,262 @@
 
 
-# Plan: Add PDF Support to PowerPoint Generator
+# Plan: Fix PDF Upload and Add Tabbed Results View in Document Editor
 
 ## Problem Summary
 
-The PowerPoint Generator edge function (`generate-ppt`) currently rejects PDF files with a "PDF extraction is temporarily unavailable" error. Users can only upload DOCX files, which is limiting.
+1. **PDF Upload Fails**: The PDF.js worker configuration uses a CDN URL with version mismatch issues. The current config uses `.js` extension but pdfjs-dist 5.4.530 uses `.mjs` files.
 
-**Note:** The Document Editor already supports PDF uploads using client-side extraction with `pdfjs-dist` - no changes needed there.
+2. **No Dedicated Results View**: Generated AI content (chapters, papers, summaries) is currently shown in the left panel. Users want a proper tabbed interface on the right side to switch between their uploaded document and generated results.
 
 ---
 
 ## Solution Overview
 
-Use Gemini's multimodal capabilities to extract text from PDF documents server-side. Gemini can directly read PDF files when sent as base64-encoded `file_data`, making it ideal for this use case.
+### Fix 1: Correct PDF.js Worker Configuration
+
+Copy the PDF worker file to the `public` folder and update the worker source path to use a stable local file instead of CDN.
+
+### Fix 2: Tabbed Document/Results Interface
+
+Add a tabbed interface on the right panel with:
+- **Document Tab**: The editable document content (current view)
+- **Results Tab**: AI-generated content with proper markdown rendering
 
 ---
 
 ## Implementation Details
 
-### File: `supabase/functions/generate-ppt/index.ts`
+### 1. Copy PDF Worker to Public Folder
 
-**1. Add PDF Text Extraction Function**
+**File: `public/pdf.worker.min.mjs`**
 
-Create a new helper function that sends the PDF to Gemini for comprehensive text extraction:
+Copy from `node_modules/pdfjs-dist/build/pdf.worker.min.mjs` to `public/` folder.
+
+This ensures version consistency and eliminates CDN issues.
+
+### 2. Update PDF.js Worker Configuration
+
+**File: `src/pages/DocumentEditor.tsx`**
 
 ```typescript
-async function extractPdfTextWithGemini(
-  pdfArrayBuffer: ArrayBuffer, 
-  apiKey: string
-): Promise<string> {
-  const base64Data = uint8ToBase64(new Uint8Array(pdfArrayBuffer));
-  
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'file',
-              file: {
-                filename: 'document.pdf',
-                file_data: `data:application/pdf;base64,${base64Data}`,
-              },
-            },
-            {
-              type: 'text',
-              text: `Extract ALL text content from this PDF document. Include:
-- All headings and subheadings
-- All body text and paragraphs  
-- All bullet points and numbered lists
-- All table data (as text)
-- All figure captions
-- References and citations
+// BEFORE (line 30):
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
-Return ONLY the extracted text content, preserving the document structure with appropriate line breaks. Do not add any commentary.`,
-            },
-          ],
-        },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`PDF extraction failed: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.choices[0]?.message?.content || '';
-}
+// AFTER:
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 ```
 
-**2. Update Document Processing Logic (around lines 1552-1558)**
+This uses the local worker file from the public folder, ensuring version consistency.
 
-Replace the PDF rejection block with actual extraction:
+### 3. Add Enhanced Error Handling for PDF Extraction
+
+**File: `src/pages/DocumentEditor.tsx`**
+
+Improve the `extractPdfText` function with better error handling:
 
 ```typescript
-} else if (contentType.includes('pdf')) {
-  console.log('[PPT] Processing PDF document...');
-  const arrayBuffer = await docResponse.arrayBuffer();
-  console.log(`[PPT] PDF size: ${arrayBuffer.byteLength} bytes`);
-  
+const extractPdfText = async (file: File): Promise<string> => {
   try {
-    docContent = await extractPdfTextWithGemini(arrayBuffer, LOVABLE_API_KEY);
-    docContent = docContent.substring(0, 60000); // Limit for AI processing
-    console.log(`[PPT] Extracted ${docContent.length} characters from PDF via Gemini`);
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     
-    // Extract title from first line
-    const titleMatch = docContent.match(/^(?:#?\s*)?(.+?)[\n\r]/);
-    if (titleMatch) {
-      documentTitle = titleMatch[1].replace(/[#*]/g, '').trim().substring(0, 100);
+    let fullText = '';
+    const totalPages = Math.min(pdf.numPages, 100); // Limit to 100 pages
+    
+    for (let i = 1; i <= totalPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ');
+      fullText += pageText + '\n\n';
     }
-  } catch (err) {
-    console.error('[PPT] PDF extraction error:', err);
-    throw new Error('Failed to extract text from PDF. The file may be corrupted or image-only. Please try a different file or use DOCX format.');
+    
+    return fullText.trim();
+  } catch (error) {
+    console.error('PDF extraction error:', error);
+    throw new Error('Failed to extract text from PDF. Please ensure the file is not corrupted.');
   }
-}
+};
+```
+
+### 4. Create Tabbed Interface on Right Panel
+
+**File: `src/pages/DocumentEditor.tsx`**
+
+Replace the current right panel (just a document editor) with a tabbed interface:
+
+```typescript
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { MarkdownRenderer } from "@/components/MarkdownRenderer";
+
+// In the component, track active tab
+const [activeTab, setActiveTab] = useState<"document" | "results">("document");
+
+// Auto-switch to results tab when content is generated
+useEffect(() => {
+  if (generatedContent) {
+    setActiveTab("results");
+  }
+}, [generatedContent]);
+```
+
+**Updated Right Panel JSX:**
+
+```tsx
+{/* Right: Document Editor with Tabs */}
+<div className="lg:order-2 order-1">
+  <Card>
+    <CardHeader className="pb-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            {currentDocument.file_name}
+          </CardTitle>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleClear}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </CardHeader>
+    
+    <CardContent className="space-y-4">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "document" | "results")}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="document" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Document
+          </TabsTrigger>
+          <TabsTrigger value="results" className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            Results
+            {generatedContent && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">New</Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+        
+        {/* Document Tab */}
+        <TabsContent value="document" className="mt-4">
+          <Textarea
+            value={editableContent}
+            onChange={(e) => setEditableContent(e.target.value)}
+            className="min-h-[350px] sm:min-h-[450px] font-mono text-sm"
+            placeholder="Your document content will appear here..."
+          />
+        </TabsContent>
+        
+        {/* Results Tab */}
+        <TabsContent value="results" className="mt-4">
+          {generatedContent ? (
+            <div className="space-y-4">
+              <ScrollArea className="h-[350px] sm:h-[450px] border border-border rounded-lg p-4">
+                <MarkdownRenderer 
+                  content={generatedContent} 
+                  className="prose-sm dark:prose-invert"
+                />
+              </ScrollArea>
+              
+              {/* Action buttons */}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedContent);
+                    toast.success("Copied to clipboard!");
+                  }}
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy
+                </Button>
+                <Button onClick={handleInsertContent}>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Insert into Document
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-[350px] sm:h-[450px] text-center">
+              <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">
+                Generated content will appear here
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Use the AI Assistant to generate chapters, papers, summaries, and more
+              </p>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+      
+      {/* Export buttons - always visible */}
+      <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+        <Button variant="outline" onClick={exportAsDocx} disabled={isExporting || !editableContent}>
+          <Download className="h-4 w-4 mr-2" />
+          DOCX
+        </Button>
+        <Button variant="outline" onClick={exportAsPdf} disabled={isExporting || !editableContent}>
+          <Download className="h-4 w-4 mr-2" />
+          PDF
+        </Button>
+      </div>
+    </CardContent>
+  </Card>
+</div>
+```
+
+### 5. Update Insert Content Handler
+
+Modify the `handleInsertContent` function to switch back to document tab after inserting:
+
+```typescript
+const handleInsertContent = (content: string) => {
+  setEditableContent(prev => prev + "\n\n" + content);
+  setGeneratedContent("");
+  setActiveTab("document");
+  toast.success("Content inserted into document!");
+};
+```
+
+### 6. Remove Duplicate Generated Content Display from SuggestionsPanel
+
+Update `SuggestionsPanel.tsx` to only show edit suggestions since generated content now has its own tab:
+
+```typescript
+// In SuggestionsPanel, remove the generatedContent display block
+// Only keep the suggestions functionality
 ```
 
 ---
 
-## How It Works
+## Architecture Diagram
 
 ```text
-+------------------+       +-------------------+       +------------------+
-|  User uploads    |  -->  |  Edge Function    |  -->  |  Gemini extracts |
-|  PDF document    |       |  receives binary  |       |  text from PDF   |
-+------------------+       +-------------------+       +------------------+
-                                    |
-                                    v
-                          +-------------------+
-                          |  AI generates     |
-                          |  slide structure  |
-                          +-------------------+
-                                    |
-                                    v
-                          +-------------------+
-                          |  PPTX created     |
-                          |  and returned     |
-                          +-------------------+
++----------------------------------+    +----------------------------------+
+|         LEFT PANEL               |    |          RIGHT PANEL             |
++----------------------------------+    +----------------------------------+
+|                                  |    |  +----------------------------+  |
+|  +---------------------------+   |    |  | [Document] | [Results ●]   |  |
+|  |     AI Assistant          |   |    |  +----------------------------+  |
+|  |                           |   |    |                                  |
+|  |  Quick Actions:           |   |    |  +----------------------------+  |
+|  |  [Grammar] [Summarize]... |   |    |  |                            |  |
+|  |                           |   |    |  |  Document Tab:             |  |
+|  |  Custom Instruction:      |   |    |  |  - Editable textarea       |  |
+|  |  [__________________]     |   |    |  |  - Raw document content    |  |
+|  |                           |   |    |  |                            |  |
+|  +---------------------------+   |    |  |  Results Tab:              |  |
+|                                  |    |  |  - Markdown rendered       |  |
+|  +---------------------------+   |    |  |  - Copy/Insert buttons     |  |
+|  |   Edit Suggestions        |   |    |  |                            |  |
+|  |   (if any)                |   |    |  +----------------------------+  |
+|  +---------------------------+   |    |                                  |
+|                                  |    |  [Export DOCX] [Export PDF]      |
++----------------------------------+    +----------------------------------+
 ```
-
----
-
-## Technical Notes
-
-### Why Gemini for PDF Extraction?
-- Gemini has native PDF understanding through its multimodal capabilities
-- No need for additional Deno-compatible PDF parsing libraries
-- Handles complex layouts, tables, and multi-column text
-- Works with both text-based and OCR-able scanned PDFs
-
-### Limitations to Communicate to Users
-- Very large PDFs (>50 pages) may have content truncated
-- Image-only scanned PDFs without OCR text may have limited extraction
-- Complex charts/graphs will be described textually
-
-### Credit Usage
-- PDF extraction uses one additional AI call, but this is absorbed in the existing credit cost (15-20 credits)
-- No change to pricing needed
 
 ---
 
@@ -152,16 +264,38 @@ Replace the PDF rejection block with actual extraction:
 
 | File | Changes |
 |------|---------|
-| `supabase/functions/generate-ppt/index.ts` | Add `extractPdfTextWithGemini` function; Replace PDF rejection block with extraction logic |
+| `public/pdf.worker.min.mjs` | **NEW** - Copy PDF.js worker from node_modules |
+| `src/pages/DocumentEditor.tsx` | Fix worker config, add Tabs interface, update handlers |
+| `src/components/DocumentEditor/SuggestionsPanel.tsx` | Remove generated content display (moved to Results tab) |
 
 ---
 
 ## Testing Checklist
 
 After implementation:
-1. Upload a text-based PDF and verify extraction quality
+1. Upload a PDF file and verify text extraction works
 2. Upload a DOCX file and confirm it still works
-3. Verify the generated PowerPoint has actual document content
-4. Test with a large PDF to ensure truncation works gracefully
-5. Check credit deduction is correct (15 or 20 credits)
+3. Use AI to generate content (e.g., "Write Chapter 5")
+4. Verify the Results tab appears with markdown-rendered content
+5. Test Copy and Insert buttons work correctly
+6. Verify switching between Document and Results tabs
+7. Test export functionality still works
+
+---
+
+## Technical Notes
+
+### Why Copy Worker to Public Folder?
+- Eliminates version mismatch issues with CDN
+- Ensures consistent behavior across deployments
+- Avoids Vite's asset hashing that can break worker loading
+- Best practice recommended by pdf.js maintainers
+
+### Markdown Rendering
+Using the existing `MarkdownRenderer` component ensures:
+- Proper heading styles
+- Code block formatting
+- Table rendering
+- List formatting
+- Consistent dark/light theme support
 
