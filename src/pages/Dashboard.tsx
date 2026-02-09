@@ -4,7 +4,32 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, FileText, Sparkles, LogOut, CreditCard, Settings as SettingsIcon, Receipt, AlertTriangle, Clock, RefreshCw, Lock, BarChart3, Users } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  MessageSquare,
+  FileText,
+  Sparkles,
+  LogOut,
+  CreditCard,
+  Settings as SettingsIcon,
+  Receipt,
+  AlertTriangle,
+  Clock,
+  RefreshCw,
+  Lock,
+  BarChart3,
+  Users,
+  Trash2,
+} from "lucide-react";
 import { ProjectPalLogo } from "@/components/ProjectPalLogo";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
@@ -24,11 +49,13 @@ const Dashboard = () => {
   const [recentParaphrases, setRecentParaphrases] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAmbassador, setIsAmbassador] = useState(false);
+  const [deleteChatId, setDeleteChatId] = useState<string | null>(null);
+  const [isDeletingChat, setIsDeletingChat] = useState(false);
   const [upgradeDialog, setUpgradeDialog] = useState<{
     open: boolean;
     feature: string;
     description: string;
-    requiredPlan: 'pro' | 'scholar';
+    requiredPlan: "pro" | "scholar";
   } | null>(null);
 
   useEffect(() => {
@@ -95,6 +122,36 @@ const Dashboard = () => {
     navigate("/auth");
     toast.success("Signed out successfully");
   };
+
+  const handleDeleteChat = async () => {
+    const chatId = deleteChatId;
+    if (!chatId) return;
+
+    setIsDeletingChat(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate("/auth");
+        return;
+      }
+
+      // Delete messages first (FK)
+      await supabase.from("messages").delete().eq("session_id", chatId);
+
+      const { error } = await supabase.from("chat_sessions").delete().eq("id", chatId);
+      if (error) throw error;
+
+      setRecentChats((prev) => prev.filter((c) => c.id !== chatId));
+      toast.success("Chat deleted");
+    } catch (error) {
+      logError("Dashboard:deleteChat", error);
+      toast.error(translateError(error));
+    } finally {
+      setIsDeletingChat(false);
+      setDeleteChatId(null);
+    }
+  };
+
 
   // Format expiry date
   const formatExpiryDate = (dateString: string | null) => {
@@ -190,11 +247,33 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO 
+      <SEO
         title="Dashboard | ProjectPal"
         description="Manage your academic projects, track credits, and access AI-powered writing tools."
         keywords="academic writing, AI assistant, research projects, thesis writing"
       />
+
+      <AlertDialog open={!!deleteChatId} onOpenChange={(open) => !open && setDeleteChatId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete chat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this chat and all its messages. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingChat}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteChat}
+              disabled={isDeletingChat}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingChat ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Header */}
       <header className="border-b border-border">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
@@ -415,18 +494,36 @@ const Dashboard = () => {
                 </div>
                 <div className="grid gap-3">
                   {recentChats.map((chat) => (
-                    <Card key={chat.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate(`/chat?session_id=${chat.id}`)}>
+                    <Card
+                      key={chat.id}
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => navigate(`/chat?session_id=${chat.id}`)}
+                    >
                       <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
                             <h4 className="font-semibold truncate">{chat.title}</h4>
                             <p className="text-sm text-muted-foreground">
                               {new Date(chat.created_at).toLocaleDateString()}
                             </p>
                           </div>
-                          <Button size="sm" className="rounded-full">
-                            Resume
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 rounded-full"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteChatId(chat.id);
+                              }}
+                              aria-label={`Delete chat: ${chat.title}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                            <Button size="sm" className="rounded-full">
+                              Resume
+                            </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

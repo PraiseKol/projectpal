@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -16,7 +16,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Send, ArrowLeft, GraduationCap, Sparkles, MessageSquare, Plus, Menu, X, Trash2, Copy, Check, FastForward } from "lucide-react";
+import {
+  Send,
+  ArrowLeft,
+  GraduationCap,
+  Sparkles,
+  MessageSquare,
+  Plus,
+  Menu,
+  X,
+  Trash2,
+  Copy,
+  Check,
+  FastForward,
+} from "lucide-react";
 import { toast } from "sonner";
 import { TypingEffect } from "@/components/TypingEffect";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
@@ -24,6 +37,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ExportOptions } from "@/components/ExportOptions";
 import { translateError, logError } from "@/utils/errorMessages";
+import { cn } from "@/lib/utils";
 
 interface Message {
   id: string;
@@ -457,8 +471,28 @@ const Chat = () => {
             {chatSessions.map((session) => (
               <div
                 key={session.id}
-                className={`group flex items-center gap-1 rounded-xl ${session.id === sessionId ? 'bg-secondary' : 'hover:bg-accent/50'}`}
+                className={cn(
+                  "group flex items-center gap-1 rounded-xl",
+                  session.id === sessionId ? "bg-secondary" : "hover:bg-accent/50",
+                )}
               >
+                {/* Left icons (always visible) */}
+                <div className="flex items-center gap-1 pl-2">
+                  <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteSessionId(session.id);
+                    }}
+                    aria-label={`Delete chat: ${session.title}`}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+
                 {editingSessionId === session.id ? (
                   <Input
                     value={editingTitle}
@@ -474,7 +508,7 @@ const Chat = () => {
                 ) : (
                   <Button
                     variant="ghost"
-                    className="flex-1 justify-start text-left h-auto py-2 px-3 rounded-xl"
+                    className="flex-1 justify-start text-left h-auto py-2 px-2 rounded-xl"
                     onClick={() => {
                       navigate(`/chat?session_id=${session.id}`);
                       loadSession(session.id);
@@ -485,23 +519,12 @@ const Chat = () => {
                       setEditingTitle(session.title);
                     }}
                   >
-                    <MessageSquare className="h-4 w-4 mr-2 shrink-0" />
                     <span className="truncate text-sm">{session.title}</span>
                   </Button>
                 )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 mr-1"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeleteSessionId(session.id);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
               </div>
             ))}
+
           </div>
         </ScrollArea>
       </div>
