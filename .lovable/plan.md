@@ -1,261 +1,169 @@
 
 
-# Plan: Fix PDF Upload and Add Tabbed Results View in Document Editor
+# Plan: Fix PDF Upload and Enhance Chat Features
 
-## Problem Summary
+## Issues Identified
 
-1. **PDF Upload Fails**: The PDF.js worker configuration uses a CDN URL with version mismatch issues. The current config uses `.js` extension but pdfjs-dist 5.4.530 uses `.mjs` files.
+### 1. PDF Upload Fails in Document Editor
+**Root Cause:** The `public/pdf.worker.min.mjs` file is incomplete - it only contains 28 lines (the license header) instead of the full worker code (~180KB). The PDF.js library needs this worker file to process PDF documents.
 
-2. **No Dedicated Results View**: Generated AI content (chapters, papers, summaries) is currently shown in the left panel. Users want a proper tabbed interface on the right side to switch between their uploaded document and generated results.
+**Solution:** Replace the incomplete file with the correctly configured worker. Since we can't copy from node_modules directly, we'll configure PDF.js to use the legacy CDN approach with the correct file extension (`.mjs` for version 5.x) as a reliable fallback.
 
----
+### 2. Chat Names Are Not Intelligent
+**Current Behavior:** The `generateTitle` function just truncates the first 35 characters of the user's message.
 
-## Solution Overview
+**Solution:** Use AI to generate a concise, meaningful title (3-5 words) that summarizes the conversation intent. This will be done through a quick API call after the first message.
 
-### Fix 1: Correct PDF.js Worker Configuration
+### 3. Delete Icon Visibility
+**Current Behavior:** The delete functionality exists but the icon only appears on hover (`opacity-0 group-hover:opacity-100`).
 
-Copy the PDF worker file to the `public` folder and update the worker source path to use a stable local file instead of CDN.
-
-### Fix 2: Tabbed Document/Results Interface
-
-Add a tabbed interface on the right panel with:
-- **Document Tab**: The editable document content (current view)
-- **Results Tab**: AI-generated content with proper markdown rendering
+**Solution:** Make the delete icon always visible (at least on mobile) and ensure the confirmation dialog works smoothly.
 
 ---
 
 ## Implementation Details
 
-### 1. Copy PDF Worker to Public Folder
-
-**File: `public/pdf.worker.min.mjs`**
-
-Copy from `node_modules/pdfjs-dist/build/pdf.worker.min.mjs` to `public/` folder.
-
-This ensures version consistency and eliminates CDN issues.
-
-### 2. Update PDF.js Worker Configuration
+### Fix 1: Correct PDF.js Worker Configuration
 
 **File: `src/pages/DocumentEditor.tsx`**
 
-```typescript
-// BEFORE (line 30):
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+Replace the local worker path with a properly versioned CDN URL that uses the `.mjs` extension for pdfjs-dist 5.x:
 
-// AFTER:
+```typescript
+// BEFORE (line 35):
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+
+// AFTER - Use unpkg CDN with correct version and extension:
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 ```
 
-This uses the local worker file from the public folder, ensuring version consistency.
+**Why unpkg instead of cdnjs?**
+- unpkg directly mirrors npm packages, guaranteeing version match
+- It uses the correct `.mjs` extension for ES modules in version 5.x
+- More reliable than cdnjs which may have version/extension mismatches
 
-### 3. Add Enhanced Error Handling for PDF Extraction
+Also delete the incomplete `public/pdf.worker.min.mjs` file since it's no longer needed.
 
-**File: `src/pages/DocumentEditor.tsx`**
+### Fix 2: AI-Powered Intelligent Chat Naming
 
-Improve the `extractPdfText` function with better error handling:
+**File: `supabase/functions/chat-ai/index.ts`**
+
+Add a helper function to generate intelligent titles using a quick AI call:
 
 ```typescript
-const extractPdfText = async (file: File): Promise<string> => {
+async function generateIntelligentTitle(userMessage: string, apiKey: string): Promise<string> {
   try {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-lite', // Fast, cheap model for simple task
+        messages: [
+          {
+            role: 'system',
+            content: 'Generate a 3-5 word title that summarizes the user\'s request. Be concise and descriptive. No quotes, no punctuation at the end. Examples: "Research Topic Ideas", "Chapter 2 Literature Review", "APA Citation Help", "Methodology Guidance"'
+          },
+          {
+            role: 'user',
+            content: userMessage
+          }
+        ],
+        max_tokens: 20, // Very short response
+        temperature: 0.3, // Consistent outputs
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Title generation failed');
+    }
+
+    const data = await response.json();
+    const title = data.choices[0]?.message?.content?.trim() || '';
     
-    let fullText = '';
-    const totalPages = Math.min(pdf.numPages, 100); // Limit to 100 pages
-    
-    for (let i = 1; i <= totalPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(' ');
-      fullText += pageText + '\n\n';
+    // Fallback to truncation if AI fails or returns empty
+    if (!title || title.length > 50) {
+      return userMessage.substring(0, 35).trim() + (userMessage.length > 35 ? '...' : '');
     }
     
-    return fullText.trim();
+    return title;
   } catch (error) {
-    console.error('PDF extraction error:', error);
-    throw new Error('Failed to extract text from PDF. Please ensure the file is not corrupted.');
+    console.error('Title generation error:', error);
+    // Fallback to simple truncation
+    return userMessage.substring(0, 35).trim() + (userMessage.length > 35 ? '...' : '');
   }
-};
+}
 ```
 
-### 4. Create Tabbed Interface on Right Panel
-
-**File: `src/pages/DocumentEditor.tsx`**
-
-Replace the current right panel (just a document editor) with a tabbed interface:
+Modify the main handler to return the generated title in the response:
 
 ```typescript
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { MarkdownRenderer } from "@/components/MarkdownRenderer";
+// At end of successful AI response, generate title if first message
+const isFirstMessage = (previousMessages?.length || 0) === 0;
+let generatedTitle = null;
 
-// In the component, track active tab
-const [activeTab, setActiveTab] = useState<"document" | "results">("document");
+if (isFirstMessage) {
+  generatedTitle = await generateIntelligentTitle(message, LOVABLE_API_KEY);
+}
 
-// Auto-switch to results tab when content is generated
-useEffect(() => {
-  if (generatedContent) {
-    setActiveTab("results");
-  }
-}, [generatedContent]);
+return new Response(
+  JSON.stringify({
+    response: aiMessage,
+    credits_used: creditCost,
+    action_type: actionType,
+    generated_title: generatedTitle, // NEW: Include AI-generated title
+    profile: { ... }
+  }),
+  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+);
 ```
 
-**Updated Right Panel JSX:**
+**File: `src/pages/Chat.tsx`**
 
-```tsx
-{/* Right: Document Editor with Tabs */}
-<div className="lg:order-2 order-1">
-  <Card>
-    <CardHeader className="pb-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            {currentDocument.file_name}
-          </CardTitle>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleClear}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-    </CardHeader>
-    
-    <CardContent className="space-y-4">
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "document" | "results")}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="document" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Document
-          </TabsTrigger>
-          <TabsTrigger value="results" className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4" />
-            Results
-            {generatedContent && (
-              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">New</Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
-        
-        {/* Document Tab */}
-        <TabsContent value="document" className="mt-4">
-          <Textarea
-            value={editableContent}
-            onChange={(e) => setEditableContent(e.target.value)}
-            className="min-h-[350px] sm:min-h-[450px] font-mono text-sm"
-            placeholder="Your document content will appear here..."
-          />
-        </TabsContent>
-        
-        {/* Results Tab */}
-        <TabsContent value="results" className="mt-4">
-          {generatedContent ? (
-            <div className="space-y-4">
-              <ScrollArea className="h-[350px] sm:h-[450px] border border-border rounded-lg p-4">
-                <MarkdownRenderer 
-                  content={generatedContent} 
-                  className="prose-sm dark:prose-invert"
-                />
-              </ScrollArea>
-              
-              {/* Action buttons */}
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    navigator.clipboard.writeText(generatedContent);
-                    toast.success("Copied to clipboard!");
-                  }}
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy
-                </Button>
-                <Button onClick={handleInsertContent}>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Insert into Document
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-[350px] sm:h-[450px] text-center">
-              <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">
-                Generated content will appear here
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Use the AI Assistant to generate chapters, papers, summaries, and more
-              </p>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
-      
-      {/* Export buttons - always visible */}
-      <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-        <Button variant="outline" onClick={exportAsDocx} disabled={isExporting || !editableContent}>
-          <Download className="h-4 w-4 mr-2" />
-          DOCX
-        </Button>
-        <Button variant="outline" onClick={exportAsPdf} disabled={isExporting || !editableContent}>
-          <Download className="h-4 w-4 mr-2" />
-          PDF
-        </Button>
-      </div>
-    </CardContent>
-  </Card>
-</div>
-```
-
-### 5. Update Insert Content Handler
-
-Modify the `handleInsertContent` function to switch back to document tab after inserting:
+Update the client to use the AI-generated title:
 
 ```typescript
-const handleInsertContent = (content: string) => {
-  setEditableContent(prev => prev + "\n\n" + content);
-  setGeneratedContent("");
-  setActiveTab("document");
-  toast.success("Content inserted into document!");
-};
+// In handleSend, after receiving AI response (around line 346-359):
+if (isFirstMessage && sessionId) {
+  // Use AI-generated title if available, otherwise fallback to local generation
+  const title = data.generated_title || generateTitle(userMessage);
+  
+  await supabase
+    .from("chat_sessions")
+    .update({ title })
+    .eq("id", sessionId);
+  
+  setChatSessions(prev => 
+    prev.map(s => s.id === sessionId ? { ...s, title } : s)
+  );
+}
 ```
 
-### 6. Remove Duplicate Generated Content Display from SuggestionsPanel
+Remove the local `generateTitle` function since it's now a fallback handled by the edge function.
 
-Update `SuggestionsPanel.tsx` to only show edit suggestions since generated content now has its own tab:
+### Fix 3: Improve Delete Icon Visibility
+
+**File: `src/pages/Chat.tsx`**
+
+Make delete icon always visible on mobile, show on hover for desktop:
 
 ```typescript
-// In SuggestionsPanel, remove the generatedContent display block
-// Only keep the suggestions functionality
-```
-
----
-
-## Architecture Diagram
-
-```text
-+----------------------------------+    +----------------------------------+
-|         LEFT PANEL               |    |          RIGHT PANEL             |
-+----------------------------------+    +----------------------------------+
-|                                  |    |  +----------------------------+  |
-|  +---------------------------+   |    |  | [Document] | [Results ●]   |  |
-|  |     AI Assistant          |   |    |  +----------------------------+  |
-|  |                           |   |    |                                  |
-|  |  Quick Actions:           |   |    |  +----------------------------+  |
-|  |  [Grammar] [Summarize]... |   |    |  |                            |  |
-|  |                           |   |    |  |  Document Tab:             |  |
-|  |  Custom Instruction:      |   |    |  |  - Editable textarea       |  |
-|  |  [__________________]     |   |    |  |  - Raw document content    |  |
-|  |                           |   |    |  |                            |  |
-|  +---------------------------+   |    |  |  Results Tab:              |  |
-|                                  |    |  |  - Markdown rendered       |  |
-|  +---------------------------+   |    |  |  - Copy/Insert buttons     |  |
-|  |   Edit Suggestions        |   |    |  |                            |  |
-|  |   (if any)                |   |    |  +----------------------------+  |
-|  +---------------------------+   |    |                                  |
-|                                  |    |  [Export DOCX] [Export PDF]      |
-+----------------------------------+    +----------------------------------+
+// Around line 491-500, update the delete button:
+<Button
+  variant="ghost"
+  size="icon"
+  className={`h-8 w-8 shrink-0 mr-1 transition-opacity ${
+    isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+  }`}
+  onClick={(e) => {
+    e.stopPropagation();
+    setDeleteSessionId(session.id);
+  }}
+>
+  <Trash2 className="h-4 w-4 text-destructive" />
+</Button>
 ```
 
 ---
@@ -264,38 +172,40 @@ Update `SuggestionsPanel.tsx` to only show edit suggestions since generated cont
 
 | File | Changes |
 |------|---------|
-| `public/pdf.worker.min.mjs` | **NEW** - Copy PDF.js worker from node_modules |
-| `src/pages/DocumentEditor.tsx` | Fix worker config, add Tabs interface, update handlers |
-| `src/components/DocumentEditor/SuggestionsPanel.tsx` | Remove generated content display (moved to Results tab) |
+| `src/pages/DocumentEditor.tsx` | Fix PDF.js worker URL to use unpkg CDN with correct version |
+| `public/pdf.worker.min.mjs` | **DELETE** - incomplete file no longer needed |
+| `supabase/functions/chat-ai/index.ts` | Add `generateIntelligentTitle` function and return title in response |
+| `src/pages/Chat.tsx` | Use AI-generated title from response; improve delete icon visibility |
+
+---
+
+## Technical Notes
+
+### PDF.js Worker Loading
+- Version 5.x of pdfjs-dist uses `.mjs` ES module files
+- unpkg CDN directly mirrors npm, ensuring version consistency
+- The worker must match the exact version installed (`5.4.530`)
+
+### Intelligent Title Generation
+- Uses the cheapest/fastest model (`gemini-2.5-flash-lite`) for minimal latency
+- Does NOT cost extra credits (it's a backend operation, not user-facing)
+- Has fallback to simple truncation if AI call fails
+- Title generation happens in parallel with the main response
+
+### Delete Button UX
+- Mobile: Always visible (touch interfaces need visible targets)
+- Desktop: Appears on hover (cleaner interface)
+- Confirmation dialog prevents accidental deletion
 
 ---
 
 ## Testing Checklist
 
 After implementation:
-1. Upload a PDF file and verify text extraction works
-2. Upload a DOCX file and confirm it still works
-3. Use AI to generate content (e.g., "Write Chapter 5")
-4. Verify the Results tab appears with markdown-rendered content
-5. Test Copy and Insert buttons work correctly
-6. Verify switching between Document and Results tabs
-7. Test export functionality still works
-
----
-
-## Technical Notes
-
-### Why Copy Worker to Public Folder?
-- Eliminates version mismatch issues with CDN
-- Ensures consistent behavior across deployments
-- Avoids Vite's asset hashing that can break worker loading
-- Best practice recommended by pdf.js maintainers
-
-### Markdown Rendering
-Using the existing `MarkdownRenderer` component ensures:
-- Proper heading styles
-- Code block formatting
-- Table rendering
-- List formatting
-- Consistent dark/light theme support
+1. Upload a PDF file to Document Editor and verify text extraction works
+2. Upload a DOCX file to confirm it still works
+3. Start a new chat and send a message - verify the chat gets an intelligent title
+4. Verify the delete icon is visible (always on mobile, on hover for desktop)
+5. Delete a chat and confirm it's removed from the sidebar
+6. Test on mobile to ensure the sidebar and delete functionality work correctly
 
