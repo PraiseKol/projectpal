@@ -31,8 +31,8 @@ import jsPDF from "jspdf";
 import mammoth from "mammoth";
 import * as pdfjsLib from "pdfjs-dist";
 
-// Configure pdf.js worker - use local file to avoid CDN version mismatch
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+// Configure pdf.js worker - use unpkg CDN with exact version for ES module compatibility
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 // Helper function to extract text from PDF with enhanced error handling
 const extractPdfText = async (file: File): Promise<string> => {
