@@ -346,7 +346,8 @@ const Chat = () => {
       // Auto-name the chat if this is the first message
       const isFirstMessage = messages.length === 0;
       if (isFirstMessage && sessionId) {
-        const title = generateTitle(userMessage);
+        // Use AI-generated title from response, fallback to local generation
+        const title = data.generated_title || generateTitle(userMessage);
         await supabase
           .from("chat_sessions")
           .update({ title })
@@ -491,7 +492,9 @@ const Chat = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mr-1"
+                  className={`h-8 w-8 shrink-0 mr-1 transition-opacity ${
+                    isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  }`}
                   onClick={(e) => {
                     e.stopPropagation();
                     setDeleteSessionId(session.id);

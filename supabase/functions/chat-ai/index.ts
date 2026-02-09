@@ -6,6 +6,50 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Generate an intelligent chat title using AI
+async function generateIntelligentTitle(userMessage: string, apiKey: string): Promise<string> {
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-lite',
+        messages: [
+          {
+            role: 'system',
+            content: 'Generate a 3-5 word title that summarizes the user\'s request. Be concise and descriptive. No quotes, no punctuation at the end. Examples: "Research Topic Ideas", "Chapter 2 Literature Review", "APA Citation Help", "Methodology Guidance"'
+          },
+          {
+            role: 'user',
+            content: userMessage
+          }
+        ],
+        max_tokens: 20,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Title generation failed');
+    }
+
+    const data = await response.json();
+    const title = data.choices[0]?.message?.content?.trim() || '';
+    
+    if (!title || title.length > 50) {
+      return userMessage.substring(0, 35).trim() + (userMessage.length > 35 ? '...' : '');
+    }
+    
+    return title;
+  } catch (error) {
+    console.error('Title generation error:', error);
+    return userMessage.substring(0, 35).trim() + (userMessage.length > 35 ? '...' : '');
+  }
+}
+
 // Detect if user wants to search for articles
 function isArticleSearchRequest(message: string): { isSearch: boolean; query: string } {
   const msgLower = message.toLowerCase();
@@ -509,12 +553,25 @@ serve(async (req) => {
       console.error('Error updating credits:', updateError);
     }
 
+    // Generate intelligent title for first message
+    const isFirstMessage = (previousMessages?.length || 0) === 0;
+    let generatedTitle: string | null = null;
+    
+    if (isFirstMessage) {
+      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+      if (LOVABLE_API_KEY) {
+        generatedTitle = await generateIntelligentTitle(message, LOVABLE_API_KEY);
+        console.log(`[TITLE] Generated title for first message: "${generatedTitle}"`);
+      }
+    }
+
     // Return response
     return new Response(
       JSON.stringify({
         response: aiMessage,
         credits_used: creditCost,
         action_type: actionType,
+        generated_title: generatedTitle,
         profile: {
           daily_credits: dailyCredits,
           monthly_credits: monthlyCredits,
