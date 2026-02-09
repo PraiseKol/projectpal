@@ -492,9 +492,7 @@ const Chat = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={`h-8 w-8 shrink-0 mr-1 transition-opacity ${
-                    isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                  }`}
+                  className="h-8 w-8 shrink-0 mr-1"
                   onClick={(e) => {
                     e.stopPropagation();
                     setDeleteSessionId(session.id);
