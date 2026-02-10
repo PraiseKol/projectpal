@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SettingsSkeleton } from "@/components/skeletons/SettingsSkeleton";
 import { EmailPreferences } from "@/components/Settings/EmailPreferences";
+import { AmbassadorRequestCard } from "@/components/Settings/AmbassadorRequestCard";
+import { ReferralCodeCard } from "@/components/Settings/ReferralCodeCard";
 import { translateError, logError } from "@/utils/errorMessages";
 
 const Settings = () => {
@@ -16,6 +18,8 @@ const Settings = () => {
   const [profile, setProfile] = useState<any>(null);
   const [userEmail, setUserEmail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isAmbassador, setIsAmbassador] = useState(false);
+  const [userId, setUserId] = useState("");
 
   useEffect(() => {
     loadUserData();
@@ -31,7 +35,7 @@ const Settings = () => {
       }
 
       setUserEmail(user.email || "");
-
+      setUserId(user.id);
       const { data: profileData, error } = await supabase
         .from("profiles")
         .select("*")
@@ -40,6 +44,15 @@ const Settings = () => {
 
       if (error) throw error;
       setProfile(profileData);
+
+      // Check ambassador role
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "ambassador")
+        .maybeSingle();
+      setIsAmbassador(!!roleData);
     } catch (error) {
       logError("Settings:loadUserData", error);
       toast.error(translateError(error));
@@ -241,6 +254,12 @@ const Settings = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Ambassador Request */}
+        <AmbassadorRequestCard userId={userId} isAmbassador={isAmbassador} />
+
+        {/* Referral Code */}
+        <ReferralCodeCard referredBy={profile?.referred_by} onUpdate={loadUserData} />
 
         {/* Email Preferences */}
         <EmailPreferences />
