@@ -440,6 +440,126 @@ serve(async (req) => {
         break;
       }
 
+      case "requestAmbassadorRole": {
+        // Check if already an ambassador
+        const { data: existingRole } = await supabaseAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "ambassador")
+          .maybeSingle();
+
+        if (existingRole) {
+          return new Response(JSON.stringify({ error: "You are already an ambassador" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Check for existing pending request
+        const { data: existingReq } = await supabaseAdmin
+          .from("ambassador_requests")
+          .select("id, status")
+          .eq("user_id", user.id)
+          .eq("status", "pending")
+          .maybeSingle();
+
+        if (existingReq) {
+          return new Response(JSON.stringify({ error: "You already have a pending request" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { error: insertErr } = await supabaseAdmin
+          .from("ambassador_requests")
+          .insert({ user_id: user.id, status: "pending" });
+
+        if (insertErr) throw insertErr;
+
+        result = { success: true };
+        break;
+      }
+
+      case "getMyAmbassadorRequest": {
+        const { data: reqData } = await supabaseAdmin
+          .from("ambassador_requests")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        result = { request: reqData };
+        break;
+      }
+
+      case "setReferralCode": {
+        const { code } = params;
+
+        if (!code) {
+          return new Response(JSON.stringify({ error: "Referral code is required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Check if user already has a referral set
+        const { data: profile } = await supabaseAdmin
+          .from("profiles")
+          .select("referred_by")
+          .eq("id", user.id)
+          .single();
+
+        if (profile?.referred_by) {
+          return new Response(JSON.stringify({ error: "Referral code already set" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Validate code
+        const { data: codeData } = await supabaseAdmin
+          .from("referral_codes")
+          .select("user_id, code")
+          .eq("code", code.toUpperCase())
+          .eq("is_active", true)
+          .maybeSingle();
+
+        if (!codeData) {
+          return new Response(JSON.stringify({ error: "Invalid or inactive referral code" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Prevent self-referral
+        if (codeData.user_id === user.id) {
+          return new Response(JSON.stringify({ error: "Cannot use your own referral code" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Update profile
+        await supabaseAdmin
+          .from("profiles")
+          .update({ referred_by: codeData.user_id })
+          .eq("id", user.id);
+
+        // Create referral record
+        await supabaseAdmin
+          .from("referrals")
+          .insert({
+            ambassador_user_id: codeData.user_id,
+            referred_user_id: user.id,
+            referral_code_used: code.toUpperCase(),
+          });
+
+        result = { success: true };
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown action" }), {
           status: 400,

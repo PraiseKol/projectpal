@@ -91,6 +91,39 @@ export type Database = {
           },
         ]
       }
+      ambassador_requests: {
+        Row: {
+          admin_notes: string | null
+          created_at: string | null
+          id: string
+          reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       analysis_sessions: {
         Row: {
           analyses_run: Json | null

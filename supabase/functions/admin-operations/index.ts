@@ -658,6 +658,120 @@ serve(async (req) => {
         break;
       }
 
+      case "getAmbassadorRequests": {
+        const { status: reqStatus = "pending" } = params;
+
+        const query = supabaseAdmin
+          .from("ambassador_requests")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (reqStatus !== "all") {
+          query.eq("status", reqStatus);
+        }
+
+        const { data: requests, error: reqErr } = await query;
+        if (reqErr) throw reqErr;
+
+        // Get user profiles
+        const userIds = [...new Set(requests?.map(r => r.user_id) || [])];
+        const { data: profiles } = await supabaseAdmin
+          .from("profiles")
+          .select("id, first_name, last_name")
+          .in("id", userIds);
+
+        // Get emails
+        const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+        const emailMap: Record<string, string> = {};
+        authUsers?.users?.forEach(u => { emailMap[u.id] = u.email || ''; });
+
+        const requestsWithInfo = requests?.map(r => {
+          const profile = profiles?.find(p => p.id === r.user_id);
+          return {
+            ...r,
+            user_name: profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "Unknown",
+            user_email: emailMap[r.user_id] || "",
+          };
+        });
+
+        result = { requests: requestsWithInfo };
+        break;
+      }
+
+      case "approveAmbassadorRequest": {
+        const { requestId } = params;
+
+        // Get the request
+        const { data: request, error: getErr } = await supabaseAdmin
+          .from("ambassador_requests")
+          .select("*")
+          .eq("id", requestId)
+          .single();
+
+        if (getErr || !request) throw getErr || new Error("Request not found");
+
+        // Update request status
+        await supabaseAdmin
+          .from("ambassador_requests")
+          .update({ status: "approved", reviewed_by: user.id, reviewed_at: new Date().toISOString() })
+          .eq("id", requestId);
+
+        // Add ambassador role
+        await supabaseAdmin
+          .from("user_roles")
+          .insert({ user_id: request.user_id, role: "ambassador" });
+
+        // Generate referral code
+        const { data: profile } = await supabaseAdmin
+          .from("profiles")
+          .select("first_name")
+          .eq("id", request.user_id)
+          .single();
+
+        const prefix = ((profile?.first_name || "AMB") as string).toUpperCase().slice(0, 4);
+        const suffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const code = `${prefix}${suffix}`;
+
+        await supabaseAdmin
+          .from("referral_codes")
+          .upsert({ user_id: request.user_id, code }, { onConflict: "user_id" });
+
+        // Log
+        await supabaseAdmin.from("admin_audit_log").insert({
+          admin_user_id: user.id,
+          action_type: "approve_ambassador_request",
+          target_user_id: request.user_id,
+          details: { requestId }
+        });
+
+        result = { success: true };
+        break;
+      }
+
+      case "declineAmbassadorRequest": {
+        const { requestId, notes } = params;
+
+        await supabaseAdmin
+          .from("ambassador_requests")
+          .update({ 
+            status: "declined", 
+            reviewed_by: user.id, 
+            reviewed_at: new Date().toISOString(),
+            admin_notes: notes || null
+          })
+          .eq("id", requestId);
+
+        // Log
+        await supabaseAdmin.from("admin_audit_log").insert({
+          admin_user_id: user.id,
+          action_type: "decline_ambassador_request",
+          details: { requestId, notes }
+        });
+
+        result = { success: true };
+        break;
+      }
+
       case "getRoleHierarchy": {
         result = {
           hierarchy: roleHierarchy,

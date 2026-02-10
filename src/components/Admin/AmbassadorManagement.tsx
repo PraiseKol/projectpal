@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Users, Coins, Wallet, TrendingUp, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { Users, Coins, Wallet, TrendingUp, CheckCircle2, Clock, XCircle, UserPlus } from "lucide-react";
 import { TableRowSkeleton } from "@/components/skeletons/TableRowSkeleton";
 import { translateError, logError } from "@/utils/errorMessages";
 
@@ -54,6 +54,17 @@ interface Summary {
   pendingPayouts: number;
 }
 
+interface AmbassadorRequest {
+  id: string;
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  reason: string | null;
+  status: string;
+  admin_notes: string | null;
+  created_at: string;
+}
+
 interface AmbassadorManagementProps {
   emailMap: Record<string, string>;
 }
@@ -71,10 +82,13 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
   const [paymentReference, setPaymentReference] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [payoutFilter, setPayoutFilter] = useState("pending");
+  const [requests, setRequests] = useState<AmbassadorRequest[]>([]);
+  const [requestFilter, setRequestFilter] = useState("pending");
+  const [isProcessingRequest, setIsProcessingRequest] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
-  }, [payoutFilter]);
+  }, [payoutFilter, requestFilter]);
 
   const callAdminOperation = async (action: string, params: Record<string, any> = {}) => {
     const response = await supabase.functions.invoke("admin-operations", {
@@ -87,9 +101,10 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
 
   const loadData = async () => {
     try {
-      const [overviewData, payoutsData] = await Promise.all([
+      const [overviewData, payoutsData, requestsData] = await Promise.all([
         callAdminOperation("getAmbassadorOverview"),
         callAdminOperation("getPayoutRequests", { status: payoutFilter }),
+        callAdminOperation("getAmbassadorRequests", { status: requestFilter }),
       ]);
 
       // Add emails to ambassadors
@@ -101,6 +116,7 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
       setAmbassadors(ambassadorsWithEmails);
       setSummary(overviewData?.summary || null);
       setPayouts(payoutsData?.payouts || []);
+      setRequests(requestsData?.requests || []);
     } catch (error) {
       logError("AmbassadorManagement:loadData", error);
       toast.error(translateError(error));
@@ -217,6 +233,10 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
       <Tabs defaultValue="ambassadors" className="space-y-4">
         <TabsList>
           <TabsTrigger value="ambassadors">Ambassadors</TabsTrigger>
+          <TabsTrigger value="requests">
+            <UserPlus className="h-4 w-4 mr-1" />
+            Requests
+          </TabsTrigger>
           <TabsTrigger value="payouts">Payout Requests</TabsTrigger>
         </TabsList>
 
@@ -270,6 +290,115 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                           No ambassadors yet
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="requests">
+          <Card className="shadow-md rounded-2xl">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Ambassador Requests</CardTitle>
+                  <CardDescription>Review and approve ambassador role requests</CardDescription>
+                </div>
+                <Select value={requestFilter} onValueChange={setRequestFilter}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="declined">Declined</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Requested</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRowSkeleton columns={4} rows={5} />
+                    ) : requests.length > 0 ? (
+                      requests.map((request) => (
+                        <TableRow key={request.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{request.user_name || "Unknown"}</p>
+                              <p className="text-xs text-muted-foreground">{request.user_email}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {request.status === "pending" && <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Pending</Badge>}
+                            {request.status === "approved" && <Badge className="bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" />Approved</Badge>}
+                            {request.status === "declined" && <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Declined</Badge>}
+                          </TableCell>
+                          <TableCell>{new Date(request.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell className="text-right">
+                            {request.status === "pending" && (
+                              <div className="flex gap-2 justify-end">
+                                <Button
+                                  size="sm"
+                                  disabled={isProcessingRequest === request.id}
+                                  onClick={async () => {
+                                    setIsProcessingRequest(request.id);
+                                    try {
+                                      await callAdminOperation("approveAmbassadorRequest", { requestId: request.id });
+                                      toast.success("Request approved!");
+                                      await loadData();
+                                    } catch (e: any) {
+                                      toast.error(e.message || "Failed to approve");
+                                    } finally {
+                                      setIsProcessingRequest(null);
+                                    }
+                                  }}
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  disabled={isProcessingRequest === request.id}
+                                  onClick={async () => {
+                                    setIsProcessingRequest(request.id);
+                                    try {
+                                      await callAdminOperation("declineAmbassadorRequest", { requestId: request.id });
+                                      toast.success("Request declined");
+                                      await loadData();
+                                    } catch (e: any) {
+                                      toast.error(e.message || "Failed to decline");
+                                    } finally {
+                                      setIsProcessingRequest(null);
+                                    }
+                                  }}
+                                >
+                                  Decline
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                          No requests found
                         </TableCell>
                       </TableRow>
                     )}
