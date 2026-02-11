@@ -22,6 +22,7 @@ import Admin from "./pages/Admin";
 import Ambassador from "./pages/Ambassador";
 import NotFound from "./pages/NotFound";
 import DataAnalysis from "./pages/DataAnalysis";
+import QuestionnaireBuilder from "./pages/QuestionnaireBuilder";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,7 @@ const App = () => (
               <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
               <Route path="/ambassador" element={<ProtectedRoute><Ambassador /></ProtectedRoute>} />
               <Route path="/data-analysis" element={<ProtectedRoute><DataAnalysis /></ProtectedRoute>} />
+              <Route path="/questionnaire-builder" element={<ProtectedRoute><QuestionnaireBuilder /></ProtectedRoute>} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>

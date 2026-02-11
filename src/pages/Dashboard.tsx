@@ -29,6 +29,7 @@ import {
   BarChart3,
   Users,
   Trash2,
+  ClipboardList,
 } from "lucide-react";
 import { ProjectPalLogo } from "@/components/ProjectPalLogo";
 import { Progress } from "@/components/ui/progress";
@@ -651,47 +652,90 @@ const Dashboard = () => {
             </CardHeader>
           </Card>
 
-          {/* Document Editor - Visible to all, Scholar Only access */}
+          {/* Document Editor - Visible to all, Pro & Scholar access */}
           <Card 
-            variant={canAccessFeature('scholar') ? "glass" : "default"} 
+            variant={canAccessFeature('pro') ? "glass" : "default"} 
             className={`hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in ${
-              !canAccessFeature('scholar') ? 'opacity-80' : ''
+              !canAccessFeature('pro') ? 'opacity-80' : ''
             }`}
             onClick={() => handleFeatureClick(
               'Document Editor',
               '/document-editor',
-              'scholar',
-              'AI-powered document analysis with grammar, tone, and style suggestions. This premium feature is exclusively available for Scholar plan users.'
+              'pro',
+              'Upload documents to edit, generate or analyze. Available for Pro and Scholar plan users.'
             )}
           >
             <CardHeader>
               <FileText className="h-12 w-12 mb-4 text-secondary" />
               <div className="flex items-center gap-2">
                 <CardTitle>Document Editor</CardTitle>
-                {!canAccessFeature('scholar') && (
+                {!canAccessFeature('pro') && (
                   <Badge variant="outline" className="text-xs gap-1">
                     <Lock className="h-3 w-3" />
-                    Scholar Only
+                    Pro & Scholar
                   </Badge>
                 )}
               </div>
               <CardDescription>
-                AI-powered document analysis and editing
+                Upload documents to edit, generate or analyze
               </CardDescription>
             </CardHeader>
           </Card>
 
-          {/* Data Analysis - Available to all with different limits */}
+          {/* Questionnaire Builder - Pro & Scholar access */}
           <Card 
-            className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in"
-            onClick={() => navigate("/data-analysis")}
+            variant={canAccessFeature('pro') ? "glass" : "default"} 
+            className={`hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in ${
+              !canAccessFeature('pro') ? 'opacity-80' : ''
+            }`}
+            onClick={() => handleFeatureClick(
+              'Questionnaire Builder',
+              '/questionnaire-builder',
+              'pro',
+              'Design and export professional questionnaires with multiple question types. Available for Pro and Scholar plan users.'
+            )}
+          >
+            <CardHeader>
+              <ClipboardList className="h-12 w-12 mb-4 text-primary" />
+              <div className="flex items-center gap-2">
+                <CardTitle>Questionnaire Builder</CardTitle>
+                {!canAccessFeature('pro') && (
+                  <Badge variant="outline" className="text-xs gap-1">
+                    <Lock className="h-3 w-3" />
+                    Pro & Scholar
+                  </Badge>
+                )}
+              </div>
+              <CardDescription>
+                Design questionnaires with sections, rating scales, and export to PDF/DOCX
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          {/* Data Analysis - Scholar Only */}
+          <Card 
+            variant={canAccessFeature('scholar') ? "glass" : "default"} 
+            className={`hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in ${
+              !canAccessFeature('scholar') ? 'opacity-80' : ''
+            }`}
+            onClick={() => handleFeatureClick(
+              'Data Analysis',
+              '/data-analysis',
+              'scholar',
+              'Analyze survey data with statistical methods for Chapter 4. This premium feature is exclusively available for Scholar plan users.'
+            )}
           >
             <CardHeader>
               <BarChart3 className="h-12 w-12 mb-4 text-primary" />
               <div className="flex items-center gap-2">
                 <CardTitle>Data Analysis</CardTitle>
-                {profile?.plan_type === 'free' && (
-                  <Badge variant="secondary" className="text-xs">1 Free/Month</Badge>
+                {!canAccessFeature('scholar') ? (
+                  <Badge variant="outline" className="text-xs gap-1">
+                    <Lock className="h-3 w-3" />
+                    Scholar Only
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-xs">Scholar</Badge>
                 )}
               </div>
               <CardDescription>
