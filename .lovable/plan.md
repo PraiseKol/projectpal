@@ -1,19 +1,30 @@
 
 
-# Plan: Switch Paystack to Live Keys
+# Fix: Authentication Redirect to Old Domain
 
-## Step 1: Update Live Secret Key
+## Problem
+After signing in (Google or email), users are redirected to `https://scholar-ai-snowy.vercel.app/dashboard` instead of the current domain `https://projectpal.site`. This happens because the authentication Site URL is still configured to the old Vercel domain.
 
-I'll request your **live secret key** (`sk_live_...`) using the secure secrets tool. This will update the `PAYSTACK_SECRET_KEY` used by the `verify-payment` and `paystack-webhook` backend functions.
+## Solution
 
-## Step 2: Update Live Public Key
+### 1. Update Authentication Site URL
+Update the Site URL in the authentication settings from the old Vercel domain to `https://projectpal.site`. This controls where email confirmation links and OAuth redirects point to.
 
-I'll request your **live public key** (`pk_live_...`) and update it in the `app_settings` database table, replacing the current test public key value.
+### 2. Update Redirect URLs
+Add `https://projectpal.site` as an allowed redirect URL in the authentication settings so that OAuth flows and email links redirect correctly.
 
-## What You Need Ready
+### 3. Migrate Google OAuth to Lovable Cloud Auth
+Update `src/pages/Auth.tsx` to use the Lovable Cloud managed auth for Google sign-in instead of calling the database auth client directly. This ensures proper OAuth handling through Lovable Cloud.
 
-- Your Paystack **live secret key** (from Paystack Dashboard > Settings > API Keys & Webhooks)
-- Your Paystack **live public key** (from the same page)
+## Technical Details
 
-I'll prompt you securely for each key during implementation.
+**File: `src/pages/Auth.tsx`**
+
+- Import the Lovable Cloud auth module
+- Replace `supabase.auth.signInWithOAuth({ provider: "google", ... })` with `lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })`
+- The `emailRedirectTo` values in `signUp` and `resend` already use `window.location.origin`, which is correct
+
+**Auth Configuration Changes (via configure-auth tool):**
+- Set Site URL to `https://projectpal.site`
+- Add `https://projectpal.site/**` as a redirect URL
 
