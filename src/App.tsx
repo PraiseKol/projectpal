@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -26,8 +26,25 @@ import NotFound from "./pages/NotFound";
 import DataAnalysis from "./pages/DataAnalysis";
 import QuestionnaireBuilder from "./pages/QuestionnaireBuilder";
 import OAuthCallback from "./components/OAuthCallback";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const queryClient = new QueryClient();
+
+const AuthEventHandler = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        navigate("/reset-password", { replace: true });
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  return null;
+};
 
 const App = () => (
   <ErrorBoundary>
@@ -37,6 +54,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <AuthEventHandler />
             <MaintenanceBanner />
             <Routes>
               {/* Public routes */}
@@ -44,7 +62,7 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/pricing" element={<Pricing />} />
-              <Route path="/~oauth" element={<OAuthCallback />} />
+              <Route path="/~oauth/*" element={<OAuthCallback />} />
               {/* Protected routes */}
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><FeatureGate feature="chat"><Chat /></FeatureGate></ProtectedRoute>} />

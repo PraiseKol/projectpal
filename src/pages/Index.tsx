@@ -17,6 +17,10 @@ const Index = () => {
   }, []);
 
   const checkAuth = async () => {
+    const hash = window.location.hash;
+    if (hash && hash.includes("type=recovery")) {
+      return;
+    }
     const {
       data: { user },
     } = await supabase.auth.getUser();
