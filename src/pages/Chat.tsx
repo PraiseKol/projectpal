@@ -69,7 +69,10 @@ const Chat = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
+  const [showAllChats, setShowAllChats] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const displayedSessions = showAllChats ? chatSessions : chatSessions.slice(0, 3);
 
   // Generate a title from the first user message
   const generateTitle = (message: string): string => {
@@ -468,7 +471,7 @@ const Chat = () => {
         </div>
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-1">
-            {chatSessions.map((session) => (
+            {displayedSessions.map((session) => (
               <div
                 key={session.id}
                 className={cn(
@@ -525,6 +528,16 @@ const Chat = () => {
               </div>
             ))}
 
+            {chatSessions.length > 3 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-muted-foreground text-xs mt-1"
+                onClick={() => setShowAllChats(!showAllChats)}
+              >
+                {showAllChats ? "Show Less" : `View All (${chatSessions.length})`}
+              </Button>
+            )}
           </div>
         </ScrollArea>
       </div>
