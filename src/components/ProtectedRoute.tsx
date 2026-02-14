@@ -15,6 +15,11 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (event === "PASSWORD_RECOVERY") {
+          navigate("/reset-password");
+          setIsLoading(false);
+          return;
+        }
         if (session) {
           setIsAuthenticated(true);
         } else {

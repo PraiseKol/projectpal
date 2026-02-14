@@ -23,6 +23,7 @@ import Ambassador from "./pages/Ambassador";
 import NotFound from "./pages/NotFound";
 import DataAnalysis from "./pages/DataAnalysis";
 import QuestionnaireBuilder from "./pages/QuestionnaireBuilder";
+import OAuthCallback from "./components/OAuthCallback";
 
 const queryClient = new QueryClient();
 
@@ -40,7 +41,7 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/pricing" element={<Pricing />} />
-              
+              <Route path="/~oauth" element={<OAuthCallback />} />
               {/* Protected routes */}
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
