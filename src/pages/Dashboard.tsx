@@ -52,6 +52,7 @@ const Dashboard = () => {
   const [isAmbassador, setIsAmbassador] = useState(false);
   const [deleteChatId, setDeleteChatId] = useState<string | null>(null);
   const [isDeletingChat, setIsDeletingChat] = useState(false);
+  const [showAllChats, setShowAllChats] = useState(false);
   const [upgradeDialog, setUpgradeDialog] = useState<{
     open: boolean;
     feature: string;
@@ -97,7 +98,7 @@ const Dashboard = () => {
         .select("id, title, created_at")
         .eq("user_id", user.id)
         .order("updated_at", { ascending: false })
-        .limit(5);
+        .limit(20);
 
       setRecentChats(chatsData || []);
 
@@ -489,12 +490,9 @@ const Dashboard = () => {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-semibold">Recent Chats</h3>
-                  <Button onClick={() => navigate("/chat")} variant="ghost" size="sm">
-                    View All
-                  </Button>
                 </div>
                 <div className="grid gap-3">
-                  {recentChats.map((chat) => (
+                  {(showAllChats ? recentChats : recentChats.slice(0, 3)).map((chat) => (
                     <Card
                       key={chat.id}
                       className="hover:shadow-md transition-shadow cursor-pointer"
@@ -530,6 +528,16 @@ const Dashboard = () => {
                     </Card>
                   ))}
                 </div>
+                {recentChats.length > 3 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-muted-foreground text-xs mt-2"
+                    onClick={() => setShowAllChats(!showAllChats)}
+                  >
+                    {showAllChats ? "Show Less" : `View All (${recentChats.length})`}
+                  </Button>
+                )}
               </div>
             )}
 
