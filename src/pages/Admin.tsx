@@ -87,14 +87,10 @@ const Admin = () => {
 
   const loadAdminData = async () => {
     try {
-      // Load profiles
-      const { data: usersData, error: usersError } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (usersError) throw usersError;
-      setUsers(usersData || []);
+      // Load profiles via edge function (bypasses RLS)
+      const profilesResult = await callAdminOperation("getAllProfiles");
+      const usersData = profilesResult?.profiles || [];
+      setUsers(usersData);
 
       // Load transactions
       const { data: transactionsData, error: transactionsError } = await supabase

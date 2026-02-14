@@ -85,6 +85,16 @@ serve(async (req) => {
     let result;
 
     switch (action) {
+      case "getAllProfiles": {
+        const { data, error } = await supabaseAdmin
+          .from("profiles")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        result = { profiles: data };
+        break;
+      }
+
       case "getUserEmails": {
         // Fetch user emails from auth.users (requires service role)
         const { data: authUsers, error } = await supabaseAdmin.auth.admin.listUsers({

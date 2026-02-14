@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { MaintenanceBanner } from "@/components/MaintenanceBanner";
+import { FeatureGate } from "@/components/FeatureGate";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
@@ -35,6 +37,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <MaintenanceBanner />
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<Index />} />
@@ -44,16 +47,16 @@ const App = () => (
               <Route path="/~oauth" element={<OAuthCallback />} />
               {/* Protected routes */}
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+              <Route path="/chat" element={<ProtectedRoute><FeatureGate feature="chat"><Chat /></FeatureGate></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-              <Route path="/paraphraser" element={<ProtectedRoute><Paraphraser /></ProtectedRoute>} />
+              <Route path="/paraphraser" element={<ProtectedRoute><FeatureGate feature="paraphraser"><Paraphraser /></FeatureGate></ProtectedRoute>} />
               <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
-              <Route path="/document-editor" element={<ProtectedRoute><DocumentEditor /></ProtectedRoute>} />
+              <Route path="/document-editor" element={<ProtectedRoute><FeatureGate feature="document_editor"><DocumentEditor /></FeatureGate></ProtectedRoute>} />
               <Route path="/checkout-success" element={<ProtectedRoute><CheckoutSuccess /></ProtectedRoute>} />
               <Route path="/transactions" element={<ProtectedRoute><TransactionHistory /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
               <Route path="/ambassador" element={<ProtectedRoute><Ambassador /></ProtectedRoute>} />
-              <Route path="/data-analysis" element={<ProtectedRoute><DataAnalysis /></ProtectedRoute>} />
+              <Route path="/data-analysis" element={<ProtectedRoute><FeatureGate feature="data_analysis"><DataAnalysis /></FeatureGate></ProtectedRoute>} />
               <Route path="/questionnaire-builder" element={<ProtectedRoute><QuestionnaireBuilder /></ProtectedRoute>} />
               
               <Route path="*" element={<NotFound />} />
