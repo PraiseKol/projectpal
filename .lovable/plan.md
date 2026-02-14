@@ -1,72 +1,94 @@
 
 
-# Fix Password Reset Redirect and Google OAuth "Page Not Found"
+# Fix Google OAuth Infinite "Completing Sign In" Spinner
 
-## Root Cause Analysis
+## Root Cause
 
-### Issue 1: Password Reset Goes to Dashboard
-When a user clicks the reset password link in their email, the authentication system processes the recovery token and creates a session. The user lands on the site root (`/`), where `Index.tsx` detects the session via `getUser()` and immediately redirects to `/dashboard`. The `PASSWORD_RECOVERY` event fires on `onAuthStateChange`, but only `Auth.tsx` and `ProtectedRoute.tsx` listen for it -- and neither is mounted when the user lands on `/`. So the recovery event is missed entirely.
+The `OAuthCallback` component at `/~oauth/*` is purely a static loading spinner. After Google OAuth completes, the Lovable auth module processes the tokens and sets the Supabase session. However, the `OAuthCallback` component never listens for the session to be established and never navigates the user to the dashboard. Result: infinite spinner.
 
-**Fix**: Add a global auth event listener at the `App.tsx` level that catches `PASSWORD_RECOVERY` on ANY page and redirects to `/reset-password`. This runs before any page-level logic can redirect to the dashboard.
+## Fix
 
-### Issue 2: Google OAuth Shows "Page Not Found"
-The Google sign-in library navigates the browser to `/~oauth/initiate?provider=google&...`. This path is meant to be handled by the Lovable infrastructure (server-side proxy). However, the React Router only has a route for `/~oauth` (exact match), not `/~oauth/initiate`. If the infrastructure proxy doesn't intercept, the React app catches the request and the `*` wildcard route shows the "Page Not Found" component.
+### File: `src/components/OAuthCallback.tsx`
+Update the component to:
+1. Listen for `onAuthStateChange` events -- specifically `SIGNED_IN`
+2. When a session is detected, navigate to `/dashboard`
+3. Add a timeout fallback (e.g., 10 seconds) that redirects to `/auth` with an error message if no session is established
+4. Add `console.log` statements at key points for debugging:
+   - Component mount
+   - Auth state change events received
+   - Session detected / timeout triggered
 
-**Fix**: Change the route from `/~oauth` to `/~oauth/*` so it catches ALL sub-paths under `/~oauth` (including `/~oauth/initiate`). This ensures a loading spinner is shown instead of "Not Found" while the infrastructure processes the OAuth flow.
-
-## Changes
-
-### File: `src/App.tsx`
-1. Create a new `AuthEventHandler` component inside the file that:
-   - Uses `useNavigate()` and `useLocation()` from react-router
-   - Sets up `supabase.auth.onAuthStateChange` on mount
-   - When `PASSWORD_RECOVERY` event fires, navigates to `/reset-password` (regardless of current page)
-   - Only acts on recovery events, doesn't interfere with normal auth flow
-2. Render `AuthEventHandler` inside the `BrowserRouter` (it needs router context for `useNavigate`)
-3. Change route from `path="/~oauth"` to `path="/~oauth/*"` to catch sub-paths
-
-### File: `src/pages/Index.tsx`
-- Add a check in `checkAuth`: before redirecting to dashboard, check if the current URL hash contains `type=recovery`. If so, skip the dashboard redirect and let the global handler take over.
-
-### No changes needed to:
-- `src/components/ProtectedRoute.tsx` -- already handles `PASSWORD_RECOVERY` correctly
-- `src/pages/Auth.tsx` -- already handles `PASSWORD_RECOVERY` correctly
-- `src/components/OAuthCallback.tsx` -- just a loading spinner, works as-is
-- `src/pages/ResetPassword.tsx` -- works fine once users actually reach it
-
-## Technical Details
-
-### AuthEventHandler Component (in App.tsx)
 ```typescript
-const AuthEventHandler = () => {
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
+const OAuthCallback = () => {
   const navigate = useNavigate();
-  const location = useLocation();
+  const [hasRedirected, setHasRedirected] = useState(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        navigate("/reset-password", { replace: true });
+    console.log("[OAuthCallback] Component mounted, waiting for session...");
+    console.log("[OAuthCallback] Current URL:", window.location.href);
+
+    // Check if session already exists
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("[OAuthCallback] Initial session check:", session ? "found" : "none");
+      if (session && !hasRedirected) {
+        setHasRedirected(true);
+        console.log("[OAuthCallback] Redirecting to dashboard (existing session)");
+        navigate("/dashboard", { replace: true });
       }
     });
-    return () => subscription.unsubscribe();
-  }, [navigate]);
 
-  return null; // renders nothing, just listens
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("[OAuthCallback] Auth event:", event, "Session:", session ? "exists" : "none");
+      if (event === "SIGNED_IN" && session && !hasRedirected) {
+        setHasRedirected(true);
+        console.log("[OAuthCallback] SIGNED_IN detected, redirecting to dashboard");
+        navigate("/dashboard", { replace: true });
+      }
+    });
+
+    // Timeout fallback - if no session after 15 seconds, redirect to auth
+    const timeout = setTimeout(() => {
+      if (!hasRedirected) {
+        console.log("[OAuthCallback] Timeout reached, redirecting to /auth");
+        toast.error("Sign in took too long. Please try again.");
+        navigate("/auth", { replace: true });
+      }
+    }, 15000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
+  }, [navigate, hasRedirected]);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Completing sign in...</p>
+      </div>
+    </div>
+  );
 };
+
+export default OAuthCallback;
 ```
 
-### Index.tsx Recovery Check
-```typescript
-// In checkAuth function, before redirecting:
-const hash = window.location.hash;
-if (hash && hash.includes("type=recovery")) {
-  return; // Let the global AuthEventHandler handle it
-}
-```
+### Key behaviors:
+- On mount, immediately checks if a session already exists (in case the token was already processed)
+- Listens for `SIGNED_IN` events from the auth state change listener
+- Has a 15-second safety timeout that redirects back to `/auth` with an error toast if something goes wrong
+- Console logs at every step for easy debugging
 
-### Route Change
-```
-- <Route path="/~oauth" element={<OAuthCallback />} />
-+ <Route path="/~oauth/*" element={<OAuthCallback />} />
-```
+### No other files need changes
+- `src/App.tsx` already has the correct `/~oauth/*` route
+- `src/integrations/lovable/index.ts` handles the token exchange automatically
+- The `AuthEventHandler` in `App.tsx` handles `PASSWORD_RECOVERY` separately
 
