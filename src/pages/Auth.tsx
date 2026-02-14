@@ -55,6 +55,10 @@ const Auth = () => {
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        navigate("/reset-password", { replace: true });
+        return;
+      }
       if (session && event === "SIGNED_IN") {
         // Only redirect if email is confirmed
         if (session.user.email_confirmed_at) {
@@ -197,7 +201,7 @@ const Auth = () => {
 
       // Check if user already exists (Supabase returns user with identities: [] for existing users)
       if (data.user && data.user.identities && data.user.identities.length === 0) {
-        toast.error("An account with this email already exists. Please sign in instead.");
+        toast.error("An account with this email already exists. If you signed up with Google, please use the 'Sign in with Google' button.");
         return;
       }
 
@@ -237,6 +241,11 @@ const Auth = () => {
           setPendingEmail(email.trim());
           setPendingVerification(true);
           toast.error("Please verify your email before signing in. Check your inbox for the verification link.");
+          return;
+        }
+        // Check if user might have signed up with Google
+        if (error.message.toLowerCase().includes('invalid login credentials')) {
+          toast.error("Invalid login credentials. If you signed up with Google, please use the 'Sign in with Google' button instead.");
           return;
         }
         throw error;
