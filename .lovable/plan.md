@@ -1,30 +1,27 @@
 
 
-# Fix: Authentication Redirect to Old Domain
+# Intelligent Chat Naming + Limited Chat Display
 
-## Problem
-After signing in (Google or email), users are redirected to `https://scholar-ai-snowy.vercel.app/dashboard` instead of the current domain `https://projectpal.site`. This happens because the authentication Site URL is still configured to the old Vercel domain.
+## What Already Works
+The intelligent chat naming system is **already implemented**. The `chat-ai` backend function uses AI (gemini-2.5-flash-lite) to generate a concise 3-5 word title on the first message of each conversation, and the frontend already applies it. No changes needed here.
 
-## Solution
+## What Will Change
 
-### 1. Update Authentication Site URL
-Update the Site URL in the authentication settings from the old Vercel domain to `https://projectpal.site`. This controls where email confirmation links and OAuth redirects point to.
+### Sidebar: Show Only 3 Recent Chats + "View All"
 
-### 2. Update Redirect URLs
-Add `https://projectpal.site` as an allowed redirect URL in the authentication settings so that OAuth flows and email links redirect correctly.
+**File: `src/pages/Chat.tsx`**
 
-### 3. Migrate Google OAuth to Lovable Cloud Auth
-Update `src/pages/Auth.tsx` to use the Lovable Cloud managed auth for Google sign-in instead of calling the database auth client directly. This ensures proper OAuth handling through Lovable Cloud.
+1. **Add state for expanded view** -- a new `showAllChats` toggle (default: false)
+2. **Limit displayed chats** -- when collapsed, only show the 3 most recent sessions from `chatSessions`
+3. **Add "View All" button** -- below the 3 chats, show a "View All (X)" button that expands to show all sessions
+4. **Add "Show Less" option** -- when expanded, show a "Show Less" button to collapse back to 3
 
-## Technical Details
+### Technical Details
 
-**File: `src/pages/Auth.tsx`**
-
-- Import the Lovable Cloud auth module
-- Replace `supabase.auth.signInWithOAuth({ provider: "google", ... })` with `lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })`
-- The `emailRedirectTo` values in `signUp` and `resend` already use `window.location.origin`, which is correct
-
-**Auth Configuration Changes (via configure-auth tool):**
-- Set Site URL to `https://projectpal.site`
-- Add `https://projectpal.site/**` as a redirect URL
-
+- Add `const [showAllChats, setShowAllChats] = useState(false);` state
+- Create `const displayedSessions = showAllChats ? chatSessions : chatSessions.slice(0, 3);`
+- Replace `chatSessions.map(...)` with `displayedSessions.map(...)` in the sidebar rendering
+- Add a toggle button after the chat list:
+  - When collapsed and more than 3 chats exist: "View All (N total)" button
+  - When expanded: "Show Less" button
+- The full list of 20 sessions is still loaded from the database (no backend change needed)
