@@ -141,7 +141,7 @@ serve(async (req: Request): Promise<Response> => {
         const emailContent = generateEmailContent(recipient, type, campaignContent);
         
         await resend.emails.send({
-          from: "ProjectPal <onboarding@resend.dev>",
+          from: "ProjectPal <noreply@projectpal.site>",
           to: [recipient.email],
           subject: emailContent.subject,
           html: emailContent.html,
@@ -216,7 +216,7 @@ async function sendTestEmail(email: string, type: string) {
   const emailContent = generateEmailContent(testRecipient, type, null);
   
   const result = await resend.emails.send({
-    from: "ProjectPal <onboarding@resend.dev>",
+    from: "ProjectPal <noreply@projectpal.site>",
     to: [email],
     subject: `[TEST] ${emailContent.subject}`,
     html: emailContent.html,
@@ -231,7 +231,7 @@ function generateEmailContent(
   campaignContent: any
 ): { subject: string; html: string } {
   const firstName = recipient.firstName || "there";
-  const baseUrl = Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", ".lovable.app") || "https://projectpal.lovable.app";
+  const baseUrl = "https://projectpal.site";
 
   if (campaignContent) {
     return {
