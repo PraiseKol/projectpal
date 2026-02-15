@@ -1,127 +1,142 @@
 
 
-# Multi-Feature Update: Fully Wrap, Ambassador Gating, Referral Tooltip, and Landing Page
+# Mobile and Desktop Responsiveness Audit and Fix
 
-## 1. Fully Wrap Project -- Remove Certification/Declaration, Add Warning
+## Summary
 
-**File: `src/components/DocumentEditor/AIInstructionInput.tsx`**
-- Update the "Fully Wrap Project" quick action instruction text to exclude "Certification" and "Declaration" from the generated sections
-- Add a warning note in the instruction: "Important: Only use this if your document contains the full project (Chapters 1-5)."
-- Add a visual warning banner above or beside the "Fully Wrap Project" button (or show a confirmation dialog when clicked) warning users not to use it unless they have uploaded chapters 1-5
+After reviewing all 17 pages and key components, the app is generally well-structured for desktop but has several mobile responsiveness issues. Most pages use `container mx-auto px-4` which is good, but specific elements need fixes for small screens (< 480px). The custom `xs: 480px` breakpoint is already configured in Tailwind.
 
-**File: `supabase/functions/document-ai-chat/index.ts`**
-- Update the system prompt for wrap project requests to remove Certification and Declaration from the generated structure. The output will now be: Title Page, Dedication, Acknowledgement, Abstract, Table of Contents, List of Tables, List of Figures, then References and Appendices after Chapter 5.
+## Pages and Issues Found
 
-## 2. Ambassador Request -- Require Paid Plan
+### 1. Index.tsx (Landing Page) -- Minor fixes
+- Hero title `text-5xl` is too large on very small screens; needs `text-3xl xs:text-4xl md:text-5xl` progression
+- CTA buttons stack on small screens: `flex-col xs:flex-row`
+- CTA section Card `p-12` is too much padding on mobile: `p-6 sm:p-12`
 
-**File: `src/components/Settings/AmbassadorRequestCard.tsx`**
-- Accept a new prop `planType: string` from the parent Settings page
-- Check if `planType` is `'pro'` or `'scholar'` (and subscription is active)
-- If user is on a free plan: instead of the request button, show the ambassador perks list and an "Upgrade to a Paid Plan" button that navigates to `/pricing`
-- Ambassador perks to list:
-  - Earn 5% commission on referral subscriptions
-  - Get a unique shareable referral code
-  - Access to the Ambassador Portal with analytics
-  - Track referrals and earnings in real-time
+### 2. Dashboard.tsx -- Moderate fixes
+- Welcome card header: title + upgrade button need stacking on mobile with `flex-col xs:flex-row`
+- Quick action cards grid: `grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-3` (already partially handled)
+- Credit display text `text-3xl` is fine but the expiry info tooltip/progress area gets cramped
+- Recent chat cards: the "Resume" button + delete icon row can overflow on narrow screens
 
-**File: `src/pages/Settings.tsx`**
-- Pass `profile?.plan_type` as a prop to `AmbassadorRequestCard`
-- Also pass credit expiry info so the component can determine if the paid plan is still active
+### 3. Chat.tsx -- Well handled already
+- Has `useIsMobile` hook, sidebar overlay, hamburger menu
+- Quick actions grid: `md:grid-cols-2` is fine, but on mobile the empty state heading `text-2xl` could be slightly smaller
+- Message cards use `ml-4 md:ml-12` and `mr-4 md:mr-12` which is good
 
-## 3. Ambassador Claim -- Require Active Paid Plan
+### 4. Auth.tsx -- Good (max-w-md centered)
+- Already responsive with `p-4` wrapper
 
-**File: `src/pages/Ambassador.tsx`**
-- After loading ambassador data, also fetch the user's profile to check `plan_type` and `credits_expiry_date`
-- In the "Claim Commission" section (lines 453-506): add a check -- if the user is on a free plan (or their paid plan has expired), replace the claim button with a disabled state and a message: "Upgrade to a paid plan to claim your commission"
-- The rest of the Ambassador page (stats, referrals, commissions, payouts) remains fully accessible
+### 5. Pricing.tsx -- Moderate fixes
+- Billing period toggle buttons can overflow on very small screens; needs `flex-wrap` or `text-xs` on mobile
+- Plan cards grid `md:grid-cols-2 lg:grid-cols-4` -- needs `grid-cols-1 xs:grid-cols-2` for small screens
+- Desktop comparison table is hidden on mobile (good), mobile cards view exists (good)
+- Page title `text-4xl` needs `text-2xl sm:text-3xl md:text-4xl`
 
-## 4. Referral Code Tooltip on Sign Up Page
+### 6. Settings.tsx -- Good (already has xs/sm breakpoints)
+- Already uses responsive padding and sizing
 
-**File: `src/pages/Auth.tsx`**
-- Import `Tooltip, TooltipTrigger, TooltipContent, TooltipProvider` from `@/components/ui/tooltip`
-- Import `Info` icon from `lucide-react`
-- Next to the "Referral Code (Optional)" label (line 688), add an info icon wrapped in a Tooltip
-- Tooltip content: "Get 5% off your first subscription upgrade when you sign up with a valid referral code!"
+### 7. Ambassador.tsx -- Moderate fixes
+- Header: `text-2xl` title + back button need mobile treatment; hide "Back" text on mobile
+- Stats grid: `grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6` -- on mobile `grid-cols-2` would be better than `grid-cols-1` for the stat cards since they're compact
+- Referral code section: the code display `text-2xl` + 3 buttons need wrapping on mobile
+- Commission tables: already have `overflow-x-auto` (good)
+- Earnings breakdown: `grid-cols-1 md:grid-cols-3` -- use `grid-cols-3` on all sizes since values are just numbers
 
-## 5. Landing Page Feature List Update
+### 8. DocumentEditor.tsx -- Good (already responsive)
+- Uses `grid-cols-1 lg:grid-cols-2`, responsive padding, sticky header
 
-**File: `src/pages/Index.tsx`**
-- Update the `features` array to include the new/missing features:
-  1. "Generate project topics instantly"
-  2. "Write comprehensive proposals"
-  3. "Create chapters 1-5 with AI assistance"
-  4. "Get accurate academic references"
-  5. "Edit, improve, and paraphrase your work"
-  6. "Fully wrap your project with preliminary pages and references"
-  7. "Analyze research data with built-in statistical tools"
-  8. "Build custom questionnaires for your research"
-  9. "Generate PowerPoint presentations from your documents"
-  10. "AI-powered document editor with grammar, clarity, and tone tools"
+### 9. Documents.tsx (PPT Generator) -- Minor fixes
+- Upload section: `flex gap-4` for file input + button needs `flex-col sm:flex-row`
+- Page title + back button layout needs mobile treatment
+- Credit cost text (`20 or 15 credits`) -- update to match new costs (10 or 15)
 
----
+### 10. Paraphraser.tsx -- Good (already responsive)
+- Uses `sm:` breakpoints throughout, grid cols responsive
+
+### 11. DataAnalysis.tsx -- Minor fixes  
+- Progress steps: step labels and circles get cramped on mobile; hide description text, reduce circle size on small screens
+- Header credits/tutorial buttons need tighter spacing on mobile
+
+### 12. QuestionnaireBuilder.tsx -- Minor fixes
+- Header buttons (Sample, New, PDF, DOCX) get crowded on mobile; hide text labels, show only icons on small screens
+
+### 13. TransactionHistory.tsx -- Good
+- Already has mobile scroll indicator and `overflow-x-auto`
+- Header back button: hide "Back to Dashboard" text on mobile
+
+### 14. Admin.tsx -- Minor fixes
+- TabsList with 9 tabs overflows on mobile; needs `overflow-x-auto` scrollable tabs
+- Tab trigger text: hide labels on mobile, show only icons
+
+### 15. ResetPassword.tsx -- Good (max-w-md centered)
+### 16. CheckoutSuccess.tsx -- Good (max-w-md centered)
+### 17. NotFound.tsx -- Good (max-w-md centered)
+
+### 18. AIInstructionInput.tsx -- Good (already has ScrollArea horizontal)
+
+## Files to Modify
+
+| File | Priority | Changes |
+|------|----------|---------|
+| `src/pages/Index.tsx` | Medium | Responsive hero text, stacking CTA buttons, CTA card padding |
+| `src/pages/Dashboard.tsx` | Medium | Welcome card flex stacking, recent chat card layout |
+| `src/pages/Pricing.tsx` | High | Billing toggle overflow, plan card grid, page title sizing |
+| `src/pages/Ambassador.tsx` | Medium | Header mobile text, stats grid cols, referral code wrapping, earnings grid |
+| `src/pages/Documents.tsx` | Medium | Upload flex direction, header layout, credit cost text fix |
+| `src/pages/DataAnalysis.tsx` | Medium | Progress steps mobile sizing, header spacing |
+| `src/pages/QuestionnaireBuilder.tsx` | Low | Header buttons icon-only on mobile |
+| `src/pages/TransactionHistory.tsx` | Low | Back button text hidden on mobile |
+| `src/pages/Admin.tsx` | Medium | Tab list scrollable overflow on mobile, icon-only tabs |
+| `src/pages/Chat.tsx` | Low | Minor text sizing tweaks |
 
 ## Technical Details
 
-### AmbassadorRequestCard prop changes
+### Index.tsx Changes
+- Line 63: `text-5xl md:text-6xl` -> `text-3xl xs:text-4xl md:text-5xl lg:text-6xl`
+- Line 64: `text-xl` -> `text-base sm:text-xl`
+- Line 68: `flex gap-4` -> `flex flex-col xs:flex-row gap-3 xs:gap-4`
+- Line 116: `p-12` -> `p-6 sm:p-8 md:p-12`
 
-```text
-interface AmbassadorRequestCardProps {
-  userId: string;
-  isAmbassador: boolean;
-  planType: string;       // NEW
-  creditsExpiry: string | null;  // NEW
-}
-```
+### Dashboard.tsx Changes
+- Line 332: Welcome header: wrap title+button in `flex-col xs:flex-row` with gap
+- Line 345: Upgrade button: add `w-full xs:w-auto` so it stacks on mobile
+- Line 504: Recent chats grid: ensure card content doesn't overflow
 
-The component checks:
-- `planType !== 'free'` AND expiry date is in the future = paid user, show request button
-- Otherwise = free user, show perks + upgrade button
+### Pricing.tsx Changes
+- Line 288: Title `text-4xl` -> `text-2xl sm:text-3xl md:text-4xl`
+- Line 306: Billing toggle: add `flex-wrap` or reduce button padding on mobile
+- Lines 383/432: Plan grids: `grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-4`
 
-### Ambassador.tsx claim gating
+### Ambassador.tsx Changes  
+- Line 257: Title `text-2xl` -> `text-lg sm:text-2xl`; hide "Back" text on mobile
+- Line 317: Stats grid: `grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6`
+- Line 286-309: Referral code + buttons: `flex-col` always, buttons wrap
+- Line 539: Earnings breakdown: `grid-cols-3` on all sizes (numbers are compact)
 
-After `checkAmbassadorAccess`, fetch profile:
-```text
-const { data: profileData } = await supabase
-  .from("profiles")
-  .select("plan_type, credits_expiry_date")
-  .eq("id", user.id)
-  .single();
-```
+### Documents.tsx Changes
+- Line 245: Upload flex: `flex flex-col sm:flex-row gap-3 sm:gap-4`
+- Line 227-235: Header: `flex-col sm:flex-row` with responsive text
+- Line 298: Credit cost text -- should show 10/15 credits not 20/15
 
-Store in state, then in the claim section:
-- If `plan_type === 'free'` or expiry is past: show "Upgrade to claim" message with button to `/pricing`
-- Otherwise: show normal claim flow
+### DataAnalysis.tsx Changes
+- Lines 220-255: Progress steps: reduce circle `w-12 h-12` to `w-8 h-8 sm:w-12 sm:h-12`, hide step name text on `xs`, show on `sm+`
+- Line 205: Header gap: `gap-2 sm:gap-4`
 
-### Fully Wrap instruction update (AIInstructionInput.tsx)
+### QuestionnaireBuilder.tsx Changes
+- Lines 145-157: Header buttons: use `sm:` prefix for text, show only icons on mobile
 
-The instruction string changes from including "Certification, Declaration" to excluding them. The new instruction will specify: Title Page, Dedication, Acknowledgement, Abstract, Table of Contents, List of Tables, List of Figures, References, Appendices.
+### TransactionHistory.tsx Changes
+- Line 91: Back button: hide "Back to Dashboard" text on mobile with `hidden sm:inline`
 
-### Auth.tsx tooltip addition
+### Admin.tsx Changes
+- Line 174: TabsList: add `overflow-x-auto` and `flex-nowrap` with horizontal scroll
+- Tab triggers: hide text on mobile (`hidden sm:inline`), keep icons
 
-Add next to the label on line 688-691:
-```text
-<Label className="flex items-center gap-2">
-  <Gift /> Referral Code (Optional)
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger><Info className="h-3.5 w-3.5" /></TooltipTrigger>
-      <TooltipContent>Get 5% off your first subscription!</TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
-</Label>
-```
+### Chat.tsx Changes
+- Line 599: Empty state heading: `text-xl sm:text-2xl`
+- Line 604: Quick actions grid: already `md:grid-cols-2`, fine
 
----
-
-## Summary of Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/components/DocumentEditor/AIInstructionInput.tsx` | Remove Certification/Declaration from wrap instruction; add warning |
-| `supabase/functions/document-ai-chat/index.ts` | Update system prompt to exclude Certification/Declaration |
-| `src/components/Settings/AmbassadorRequestCard.tsx` | Gate request behind paid plan; show perks + upgrade CTA for free users |
-| `src/pages/Settings.tsx` | Pass `planType` and `creditsExpiry` props to AmbassadorRequestCard |
-| `src/pages/Ambassador.tsx` | Gate claim button behind active paid plan |
-| `src/pages/Auth.tsx` | Add info tooltip next to referral code field |
-| `src/pages/Index.tsx` | Update features list with new capabilities |
+### Documents.tsx Credit Cost Fix
+- Line 298: Change `{includeImages ? 20 : 15}` to `{includeImages ? 15 : 10}` to match new PPT credit costs
 
