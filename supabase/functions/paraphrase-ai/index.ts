@@ -116,26 +116,33 @@ serve(async (req) => {
       );
     }
 
-    // Credit deduction logic - 1 credit per paraphrase
+    // Credit deduction logic - 2 credits per paraphrase
+    const paraphraseCost = 2;
     let canProceed = false;
     let creditSource = '';
 
     if (isActiveSubscriber) {
       // Active subscribers: daily credits → paid credits
-      if (dailyCredits > 0) {
-        dailyCredits -= 1;
+      if (dailyCredits >= paraphraseCost) {
+        dailyCredits -= paraphraseCost;
         canProceed = true;
         creditSource = 'daily';
-      } else if (paidCredits > 0) {
-        paidCredits -= 1;
+      } else if (dailyCredits > 0 && paidCredits >= (paraphraseCost - dailyCredits)) {
+        const fromPaid = paraphraseCost - dailyCredits;
+        dailyCredits = 0;
+        paidCredits -= fromPaid;
+        canProceed = true;
+        creditSource = 'daily+paid';
+      } else if (paidCredits >= paraphraseCost) {
+        paidCredits -= paraphraseCost;
         canProceed = true;
         creditSource = 'paid';
       }
     } else {
       // Free users: use daily credits from monthly pool
-      if (dailyCredits > 0 && monthlyCredits > 0) {
-        dailyCredits -= 1;
-        monthlyCredits -= 1;
+      if (dailyCredits >= paraphraseCost && monthlyCredits >= paraphraseCost) {
+        dailyCredits -= paraphraseCost;
+        monthlyCredits -= paraphraseCost;
         canProceed = true;
         creditSource = 'daily (from monthly pool)';
       }
@@ -149,7 +156,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[PARAPHRASE] Deducted 1 credit from: ${creditSource}. After - Daily: ${dailyCredits}, Monthly: ${monthlyCredits}, Paid: ${paidCredits}`);
+    console.log(`[PARAPHRASE] Deducted ${paraphraseCost} credits from: ${creditSource}. After - Daily: ${dailyCredits}, Monthly: ${monthlyCredits}, Paid: ${paidCredits}`);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
