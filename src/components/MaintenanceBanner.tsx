@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle } from "lucide-react";
 
@@ -10,13 +10,11 @@ export const MaintenanceBanner = () => {
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [checked, setChecked] = useState(false);
-  const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     const check = async () => {
       try {
-        // Fetch maintenance_mode setting
         const { data } = await supabase
           .from("app_settings")
           .select("value")
@@ -27,7 +25,6 @@ export const MaintenanceBanner = () => {
         setIsMaintenanceMode(maintenance);
 
         if (maintenance) {
-          // Check if current user is admin
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
             const { data: roleData } = await supabase
@@ -54,13 +51,13 @@ export const MaintenanceBanner = () => {
   const isPublicPath = PUBLIC_PATHS.includes(location.pathname);
   const isAdminPath = location.pathname.startsWith(ADMIN_PATH);
 
-  // Block non-admin users from feature pages during maintenance
+  // Show unclosable overlay modal for non-admin users on feature pages
   if (!isAdmin && !isPublicPath && !isAdminPath) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="text-center max-w-md space-y-4">
-          <AlertTriangle className="h-16 w-16 text-yellow-500 mx-auto" />
-          <h1 className="text-2xl font-bold">Under Maintenance</h1>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+        <div className="bg-card border border-border rounded-2xl shadow-lg p-8 max-w-md mx-4 text-center space-y-4">
+          <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto" />
+          <h2 className="text-xl font-bold">Under Maintenance</h2>
           <p className="text-muted-foreground">
             The app is currently undergoing maintenance. Please check back later.
           </p>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Shield, Plus, Trash2, Search } from "lucide-react";
 import { TableRowSkeleton } from "@/components/skeletons/TableRowSkeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Role {
   id: string;
@@ -33,6 +34,7 @@ export const RoleManagement = ({ emailMap, users }: RoleManagementProps) => {
   const [selectedRole, setSelectedRole] = useState<"admin" | "moderator" | "super_admin" | "ambassador">("moderator");
   const [userRoleHierarchy, setUserRoleHierarchy] = useState<{ isSuperAdmin: boolean }>({ isSuperAdmin: false });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dialogUserSearch, setDialogUserSearch] = useState("");
 
   useEffect(() => {
     loadRoles();
@@ -95,6 +97,7 @@ export const RoleManagement = ({ emailMap, users }: RoleManagementProps) => {
       toast.success("Role assigned successfully");
       setIsAddDialogOpen(false);
       setSelectedUserId("");
+      setDialogUserSearch("");
       loadRoles();
     } catch (error: any) {
       toast.error(error.message || "Failed to assign role");
@@ -148,16 +151,49 @@ export const RoleManagement = ({ emailMap, users }: RoleManagementProps) => {
     }
   };
 
-  const filteredRoles = roles.filter(role => {
-    const userDisplay = getUserDisplay(role.user_id).toLowerCase();
-    return userDisplay.includes(searchTerm.toLowerCase()) || 
-           role.role.includes(searchTerm.toLowerCase());
-  });
+  // Group roles by type
+  const roleGroups = useMemo(() => {
+    const groups: Record<string, Role[]> = {
+      super_admin: [],
+      admin: [],
+      moderator: [],
+      ambassador: [],
+    };
+    
+    const filtered = roles.filter(role => {
+      const userDisplay = getUserDisplay(role.user_id).toLowerCase();
+      return userDisplay.includes(searchTerm.toLowerCase()) || 
+             role.role.includes(searchTerm.toLowerCase());
+    });
 
-  // Users without special roles for assignment dropdown
+    filtered.forEach(role => {
+      if (groups[role.role]) {
+        groups[role.role].push(role);
+      }
+    });
+
+    return groups;
+  }, [roles, searchTerm, emailMap, users]);
+
+  const groupLabels: Record<string, string> = {
+    super_admin: "Super Admins",
+    admin: "Admins",
+    moderator: "Moderators",
+    ambassador: "Ambassadors",
+  };
+
+  // Users without the selected role for assignment
   const usersWithoutRole = users.filter(u => 
     !roles.some(r => r.user_id === u.id && r.role === selectedRole)
   );
+
+  const filteredDialogUsers = usersWithoutRole.filter(u => {
+    if (!dialogUserSearch) return true;
+    const display = getUserDisplay(u.id).toLowerCase();
+    return display.includes(dialogUserSearch.toLowerCase());
+  });
+
+  const hasAnyRoles = Object.values(roleGroups).some(g => g.length > 0);
 
   return (
     <Card className="shadow-md rounded-2xl">
@@ -170,7 +206,7 @@ export const RoleManagement = ({ emailMap, users }: RoleManagementProps) => {
             </CardTitle>
             <CardDescription>Assign and manage user roles and permissions</CardDescription>
           </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => { setIsAddDialogOpen(open); if (!open) { setDialogUserSearch(""); setSelectedUserId(""); } }}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
@@ -185,7 +221,7 @@ export const RoleManagement = ({ emailMap, users }: RoleManagementProps) => {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 pt-4">
-              <div>
+                <div>
                   <Label>Role</Label>
                   <Select 
                     value={selectedRole} 
@@ -206,18 +242,37 @@ export const RoleManagement = ({ emailMap, users }: RoleManagementProps) => {
                 </div>
                 <div>
                   <Label>User</Label>
-                  <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a user" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {usersWithoutRole.map(user => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {getUserDisplay(user.id)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="relative mt-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search users by name or email..."
+                      value={dialogUserSearch}
+                      onChange={(e) => setDialogUserSearch(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <ScrollArea className="h-48 mt-2 border rounded-md">
+                    <div className="p-1">
+                      {filteredDialogUsers.length > 0 ? (
+                        filteredDialogUsers.map(user => (
+                          <button
+                            key={user.id}
+                            type="button"
+                            onClick={() => setSelectedUserId(user.id)}
+                            className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                              selectedUserId === user.id
+                                ? "bg-primary text-primary-foreground"
+                                : "hover:bg-muted"
+                            }`}
+                          >
+                            {getUserDisplay(user.id)}
+                          </button>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">No users found</p>
+                      )}
+                    </div>
+                  </ScrollArea>
                 </div>
                 <Button 
                   onClick={handleAssignRole} 
@@ -243,8 +298,8 @@ export const RoleManagement = ({ emailMap, users }: RoleManagementProps) => {
           />
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
+        {/* Grouped role sections */}
+        {isLoading ? (
           <Table>
             <TableHeader>
               <TableRow>
@@ -255,40 +310,62 @@ export const RoleManagement = ({ emailMap, users }: RoleManagementProps) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
-                <TableRowSkeleton columns={4} rows={5} />
-              ) : filteredRoles.length > 0 ? (
-                filteredRoles.map((role) => (
-                  <TableRow key={role.id}>
-                    <TableCell className="font-medium">
-                      {getUserDisplay(role.user_id)}
-                    </TableCell>
-                    <TableCell>{getRoleBadge(role.role)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(role.created_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveRole(role)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                    {searchTerm ? "No roles found matching your search" : "No roles assigned yet"}
-                  </TableCell>
-                </TableRow>
-              )}
+              <TableRowSkeleton columns={4} rows={5} />
             </TableBody>
           </Table>
-        </div>
+        ) : hasAnyRoles ? (
+          <div className="space-y-6">
+            {Object.entries(roleGroups).map(([roleKey, roleList]) => {
+              if (roleList.length === 0) return null;
+              return (
+                <div key={roleKey}>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                    {groupLabels[roleKey]} ({roleList.length})
+                  </h3>
+                  <div className="overflow-x-auto border rounded-lg">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>User</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Assigned</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {roleList.map((role) => (
+                          <TableRow key={role.id}>
+                            <TableCell className="font-medium">
+                              {getUserDisplay(role.user_id)}
+                            </TableCell>
+                            <TableCell>{getRoleBadge(role.role)}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {new Date(role.created_at).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveRole(role)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            {searchTerm ? "No roles found matching your search" : "No roles assigned yet"}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
