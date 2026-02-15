@@ -124,8 +124,9 @@ The JSON must match this exact TypeScript structure:
           "id": "UUID string",
           "text": "string",
           "helperText": "optional string",
-          "type": "yes_no" | "short_text" | "long_text" | "rating_scale",
-          "scaleDirection": "1to5" | "5to1" (only for rating_scale type)
+          "type": "yes_no" | "short_text" | "long_text" | "rating_scale" | "multiple_choice",
+          "scaleDirection": "1to5" | "5to1" (only for rating_scale type),
+          "options": ["string", "string", ...] (required for multiple_choice type, at least 2 options)
         }
       ]
     }

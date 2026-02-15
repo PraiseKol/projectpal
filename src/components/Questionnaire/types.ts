@@ -1,4 +1,4 @@
-export type QuestionType = 'yes_no' | 'short_text' | 'long_text' | 'rating_scale';
+export type QuestionType = 'yes_no' | 'short_text' | 'long_text' | 'rating_scale' | 'multiple_choice';
 export type ScaleDirection = '1to5' | '5to1';
 
 export interface Question {
@@ -7,6 +7,7 @@ export interface Question {
   helperText?: string;
   type: QuestionType;
   scaleDirection?: ScaleDirection;
+  options?: string[];
 }
 
 export interface Section {

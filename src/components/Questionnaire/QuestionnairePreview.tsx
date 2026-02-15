@@ -77,26 +77,18 @@ export const QuestionnairePreview = ({ data }: Props) => {
 
                   {q.type === "rating_scale" && (
                     <div className="overflow-x-auto">
-                      <table className="text-xs border-collapse">
-                        <thead>
-                          <tr>
-                            {getScaleLabels(q.scaleDirection || "1to5").map(({ value, label }) => (
-                              <th key={value} className="px-3 py-1 text-center font-medium border border-border">
-                                {value}<br /><span className="font-normal text-muted-foreground">{label}</span>
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            {getScaleLabels(q.scaleDirection || "1to5").map(({ value }) => (
-                              <td key={value} className="px-3 py-2 text-center border border-border">
-                                <span className="w-4 h-4 rounded-full border-2 border-muted-foreground inline-block" />
-                              </td>
-                            ))}
-                          </tr>
-                        </tbody>
-                      </table>
+...
+                    </div>
+                  )}
+
+                  {q.type === "multiple_choice" && (
+                    <div className="space-y-1.5">
+                      {(q.options || []).map((opt, i) => (
+                        <label key={i} className="flex items-center gap-2 text-sm">
+                          <span className="w-4 h-4 rounded-full border-2 border-muted-foreground inline-block shrink-0" />
+                          {opt || `Option ${i + 1}`}
+                        </label>
+                      ))}
                     </div>
                   )}
                 </div>
