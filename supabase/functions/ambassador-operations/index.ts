@@ -329,6 +329,40 @@ serve(async (req) => {
           });
         }
 
+        // Self-performance check: warn if at risk of removal
+        let performanceWarning: string | null = null;
+        const { data: approvedReq } = await supabaseAdmin
+          .from("ambassador_requests")
+          .select("reviewed_at")
+          .eq("user_id", user.id)
+          .eq("status", "approved")
+          .order("reviewed_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (approvedReq?.reviewed_at) {
+          const approvalDate = new Date(approvedReq.reviewed_at);
+          const now = new Date();
+          const daysSinceApproval = Math.floor((now.getTime() - approvalDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (daysSinceApproval >= 0) {
+            // Current window start
+            const completePeriods = Math.max(0, Math.floor(daysSinceApproval / 30));
+            const windowStart = new Date(approvalDate.getTime() + completePeriods * 30 * 24 * 60 * 60 * 1000);
+            
+            const { count: windowReferrals } = await supabaseAdmin
+              .from("referrals")
+              .select("*", { count: "exact", head: true })
+              .eq("ambassador_user_id", user.id)
+              .gte("created_at", windowStart.toISOString());
+
+            const daysLeft = 30 - (daysSinceApproval % 30);
+            if ((windowReferrals ?? 0) < 10 && daysLeft <= 10) {
+              performanceWarning = `You need ${10 - (windowReferrals ?? 0)} more referrals in the next ${daysLeft} days to maintain your ambassador status.`;
+            }
+          }
+        }
+
         // Get referral count
         const { count: totalReferrals } = await supabaseAdmin
           .from("referrals")
@@ -416,7 +450,8 @@ serve(async (req) => {
           thisMonthEarnings,
           totalTransactionValue,
           commissionCount,
-          monthlyEarnings
+          monthlyEarnings,
+          performanceWarning
         };
         break;
       }

@@ -31,6 +31,7 @@ export const AppSettings = () => {
     feature_chat_enabled: "true",
     feature_questionnaire_builder_enabled: "true",
     feature_powerpoint_generator_enabled: "true",
+    ambassador_claim_status: "open",
   };
 
   useEffect(() => {

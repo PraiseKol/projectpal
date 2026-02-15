@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Users, Coins, Wallet, TrendingUp, CheckCircle2, Clock, XCircle, UserPlus } from "lucide-react";
+import { Users, Coins, Wallet, TrendingUp, CheckCircle2, Clock, XCircle, UserPlus, ShieldAlert, Settings } from "lucide-react";
 import { TableRowSkeleton } from "@/components/skeletons/TableRowSkeleton";
 import { translateError, logError } from "@/utils/errorMessages";
 
@@ -85,10 +85,17 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
   const [requests, setRequests] = useState<AmbassadorRequest[]>([]);
   const [requestFilter, setRequestFilter] = useState("pending");
   const [isProcessingRequest, setIsProcessingRequest] = useState<string | null>(null);
+  const [claimStatus, setClaimStatus] = useState<string>("open");
+  const [isUpdatingClaimStatus, setIsUpdatingClaimStatus] = useState(false);
+  const [isCheckingPerformance, setIsCheckingPerformance] = useState(false);
 
   useEffect(() => {
     loadData();
   }, [payoutFilter, requestFilter]);
+
+  useEffect(() => {
+    loadClaimStatus();
+  }, []);
 
   const callAdminOperation = async (action: string, params: Record<string, any> = {}) => {
     const response = await supabase.functions.invoke("admin-operations", {
@@ -122,6 +129,53 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
       toast.error(translateError(error));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadClaimStatus = async () => {
+    try {
+      const { data } = await supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", "ambassador_claim_status")
+        .maybeSingle();
+      if (data?.value) setClaimStatus(data.value);
+    } catch (e) {
+      // default open
+    }
+  };
+
+  const handleUpdateClaimStatus = async (newStatus: string) => {
+    setIsUpdatingClaimStatus(true);
+    try {
+      await callAdminOperation("updateAppSetting", {
+        key: "ambassador_claim_status",
+        value: newStatus,
+        reason: `Claim status set to ${newStatus}`
+      });
+      setClaimStatus(newStatus);
+      toast.success(`Claim status updated to "${newStatus}"`);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update claim status");
+    } finally {
+      setIsUpdatingClaimStatus(false);
+    }
+  };
+
+  const handleCheckPerformance = async () => {
+    setIsCheckingPerformance(true);
+    try {
+      const result = await callAdminOperation("checkAmbassadorPerformance");
+      if (result.removedCount > 0) {
+        toast.success(`Removed ${result.removedCount} underperforming ambassador(s)`);
+        await loadData();
+      } else {
+        toast.info("All ambassadors meet the performance threshold");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to check performance");
+    } finally {
+      setIsCheckingPerformance(false);
     }
   };
 
@@ -226,6 +280,58 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
               </div>
               <Wallet className="h-10 w-10 text-primary opacity-50" />
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Admin Controls */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="shadow-md rounded-2xl">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Commission Claim Status
+            </CardTitle>
+            <CardDescription className="text-xs">Control whether ambassadors can claim commissions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-2">
+              {[
+                { value: "open", label: "Open" },
+                { value: "closed", label: "Closed" },
+                { value: "coming_soon", label: "Coming Soon" },
+              ].map((option) => (
+                <Button
+                  key={option.value}
+                  size="sm"
+                  variant={claimStatus === option.value ? "default" : "outline"}
+                  disabled={isUpdatingClaimStatus}
+                  onClick={() => handleUpdateClaimStatus(option.value)}
+                >
+                  {option.label}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-md rounded-2xl">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4" />
+              Performance Check
+            </CardTitle>
+            <CardDescription className="text-xs">Remove ambassadors with fewer than 10 referrals in their last 30-day window</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={isCheckingPerformance}
+              onClick={handleCheckPerformance}
+            >
+              {isCheckingPerformance ? "Checking..." : "Run Performance Check"}
+            </Button>
           </CardContent>
         </Card>
       </div>

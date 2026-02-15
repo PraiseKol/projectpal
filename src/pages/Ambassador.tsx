@@ -73,6 +73,7 @@ interface Stats {
   totalTransactionValue: number;
   commissionCount: number;
   monthlyEarnings: MonthlyEarning[];
+  performanceWarning?: string | null;
 }
 
 const Ambassador = () => {
@@ -86,6 +87,7 @@ const Ambassador = () => {
   const [stats, setStats] = useState<Stats | null>(null);
   const [isRequestingPayout, setIsRequestingPayout] = useState(false);
   const [showPayoutDialog, setShowPayoutDialog] = useState(false);
+  const [claimStatus, setClaimStatus] = useState<string>("open");
 
   useEffect(() => {
     checkAmbassadorAccess();
@@ -123,7 +125,7 @@ const Ambassador = () => {
       }
 
       setIsAmbassador(true);
-      await loadAmbassadorData();
+      await Promise.all([loadAmbassadorData(), loadClaimStatus()]);
     } catch (error) {
       logError("Ambassador:checkAccess", error);
       toast.error(translateError(error));
@@ -151,6 +153,19 @@ const Ambassador = () => {
     } catch (error) {
       logError("Ambassador:loadData", error);
       toast.error(translateError(error));
+    }
+  };
+
+  const loadClaimStatus = async () => {
+    try {
+      const { data } = await supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", "ambassador_claim_status")
+        .maybeSingle();
+      if (data?.value) setClaimStatus(data.value);
+    } catch (e) {
+      // default to open
     }
   };
 
@@ -225,6 +240,16 @@ const Ambassador = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-8">
+        {/* Performance Warning */}
+        {stats?.performanceWarning && (
+          <Card className="shadow-md rounded-2xl border-destructive/50 bg-destructive/5">
+            <CardContent className="pt-6 flex items-center gap-3">
+              <Clock className="h-5 w-5 text-destructive flex-shrink-0" />
+              <p className="text-sm font-medium">{stats.performanceWarning}</p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Referral Code Section */}
         <Card className="shadow-md rounded-2xl bg-gradient-to-r from-primary/10 to-secondary/10">
           <CardHeader>
@@ -426,7 +451,7 @@ const Ambassador = () => {
         </div>
 
         {/* Claim Commission Section */}
-        {(stats?.pendingCommission || 0) > 0 && (
+        {claimStatus === "open" && (stats?.pendingCommission || 0) > 0 && (
           <Card className="shadow-md rounded-2xl border-primary/50">
             <CardContent className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div>
@@ -460,6 +485,22 @@ const Ambassador = () => {
                   </div>
                 </DialogContent>
               </Dialog>
+            </CardContent>
+          </Card>
+        )}
+        {claimStatus === "coming_soon" && (
+          <Card className="shadow-md rounded-2xl border-primary/50">
+            <CardContent className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <p className="text-lg font-semibold">Claim Commission</p>
+                <p className="text-muted-foreground">
+                  Commission claiming will be available soon.
+                </p>
+              </div>
+              <Button size="lg" variant="outline" disabled className="gap-2">
+                <Wallet className="h-5 w-5" />
+                Coming Soon
+              </Button>
             </CardContent>
           </Card>
         )}
