@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, FileDown, FileText, Eye, Hammer, RotateCcw, BookOpen, MessageSquare } from "lucide-react";
+import { ArrowLeft, FileDown, FileText, Eye, Hammer, RotateCcw, BookOpen, MessageSquare, Lock, Crown, ArrowRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
@@ -42,6 +43,7 @@ const QuestionnaireBuilder = () => {
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showSampleDialog, setShowSampleDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("builder");
+  const [planType, setPlanType] = useState<string>("");
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -67,6 +69,7 @@ const QuestionnaireBuilder = () => {
           navigate("/pricing");
           return;
         }
+        setPlanType(profile.plan_type);
         setIsCheckingAccess(false);
       } catch {
         navigate("/dashboard");
@@ -202,6 +205,11 @@ const QuestionnaireBuilder = () => {
           <TabsList className="mb-6">
             <TabsTrigger value="ai-assistant">
               <MessageSquare className="h-4 w-4 mr-1.5" /> AI Assistant
+              {planType !== 'scholar' && (
+                <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
+                  <Crown className="h-3 w-3 mr-0.5" /> Scholar
+                </Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger value="builder">
               <Hammer className="h-4 w-4 mr-1.5" /> Builder
@@ -212,14 +220,32 @@ const QuestionnaireBuilder = () => {
           </TabsList>
 
           <TabsContent value="ai-assistant">
-            <QuestionnaireChat
-              currentQuestionnaire={data}
-              onQuestionnaireGenerated={(newData) => {
-                setData(newData);
-                setErrors({});
-                toast.success("Questionnaire updated from AI!");
-              }}
-            />
+            {planType === 'scholar' ? (
+              <QuestionnaireChat
+                currentQuestionnaire={data}
+                onQuestionnaireGenerated={(newData) => {
+                  setData(newData);
+                  setErrors({});
+                  toast.success("Questionnaire updated from AI!");
+                }}
+              />
+            ) : (
+              <Card className="max-w-md mx-auto mt-8">
+                <CardContent className="flex flex-col items-center text-center py-10 space-y-4">
+                  <div className="p-3 rounded-full bg-muted">
+                    <Lock className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-semibold">Scholar Plan Feature</h3>
+                  <p className="text-muted-foreground text-sm">
+                    The AI Assistant helps you generate and refine questionnaires using natural language. Upgrade to the Scholar plan to unlock this feature.
+                  </p>
+                  <Button variant="gradient" onClick={() => navigate("/pricing?plan=scholar")} className="gap-2">
+                    <Crown className="h-4 w-4" /> Upgrade to Scholar
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="builder" className="space-y-6">
