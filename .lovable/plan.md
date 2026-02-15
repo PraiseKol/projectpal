@@ -1,90 +1,87 @@
 
-# Fix Dynamic Credit Limits in Edge Functions and Settings Page
+# Gate Questionnaire Builder with Credit Deduction
 
-## Problem
+## Overview
 
-The admin can update `default_daily_credits` and `default_monthly_credits` in the App Settings panel, which saves to the `app_settings` table. However, all 5 edge functions and the Settings page hardcode `8` (daily) and `40` (monthly) when resetting credits. So admin changes have no effect on actual credit allocation.
+Currently the Questionnaire Builder lets users build, preview, and export (PDF/DOCX) entirely for free -- only the AI Assistant chat costs credits. We need to charge **5 credits per export** so users can't just design and download without any cost. The AI Assistant will also be updated to cost **5 credits** per message (instead of 2).
 
-## Solution
+## Approach
 
-Each edge function that resets credits needs to fetch the current defaults from `app_settings` before using them. The Settings page also needs to fetch these values.
+Since the Builder and Preview tabs are just local editing tools, the natural credit gate is at the **export step** (PDF/DOCX download). Users can freely build and preview, but downloading the final document costs 5 credits. This mirrors how other tools work (e.g., PPT Generator charges on generation, not on editing).
 
-## Files to Modify
+## Changes
 
-| File | Hardcoded Values |
-|------|-----------------|
-| `supabase/functions/chat-ai/index.ts` | `dailyCredits = 8`, `monthlyCredits = 40`, `Math.min(8, ...)` |
-| `supabase/functions/paraphrase-ai/index.ts` | `dailyCredits = 8`, `monthlyCredits = 40`, `Math.min(8, ...)` |
-| `supabase/functions/questionnaire-ai/index.ts` | `dailyCredits = 8`, `monthlyCredits = 40`, `Math.min(8, ...)` |
-| `supabase/functions/generate-ppt/index.ts` | `dailyCredits = 8` |
-| `supabase/functions/rewrite-section/index.ts` | `dailyCredits = 8`, `daily_credits: 8` |
-| `src/pages/Settings.tsx` | `8` used in `getSmartDailyCredits()` |
+### 1. New Edge Function: `supabase/functions/questionnaire-export/index.ts`
 
-## Implementation
+A lightweight edge function that:
+- Authenticates the user
+- Checks they have at least 5 credits available
+- Deducts 5 credits from their profile (daily first, then paid)
+- Returns success so the frontend can proceed with the client-side export
 
-### In each edge function
+This keeps the actual PDF/DOCX generation client-side (no need to move heavy libraries to Deno) while still gating exports behind credits.
 
-Add a helper fetch early in the request (after auth, before credit logic) using the **service role client** (since `app_settings` RLS requires authenticated user but we need reliable access):
+### 2. Update `src/pages/QuestionnaireBuilder.tsx`
 
-```typescript
-// Fetch dynamic credit defaults from app_settings
-const { data: settingsData } = await supabaseAdmin
-  .from('app_settings')
-  .select('key, value')
-  .in('key', ['default_daily_credits', 'default_monthly_credits']);
+Modify `handleExportPdf` and `handleExportDocx` to:
+- Call the new `questionnaire-export` edge function first
+- Only proceed with the actual export if the edge function returns success
+- Show appropriate error messages for insufficient credits (with link to pricing)
+- Show a loading state while the credit check is in progress
 
-let DEFAULT_DAILY = 8;
-let DEFAULT_MONTHLY = 40;
-settingsData?.forEach((s: { key: string; value: string }) => {
-  if (s.key === 'default_daily_credits') DEFAULT_DAILY = parseInt(s.value) || 8;
-  if (s.key === 'default_monthly_credits') DEFAULT_MONTHLY = parseInt(s.value) || 40;
-});
+### 3. Update `supabase/functions/questionnaire-ai/index.ts`
+
+- Change `CREDIT_COST = 2` to `CREDIT_COST = 5`
+
+### 4. Update `src/components/Questionnaire/QuestionnaireChat.tsx`
+
+- Change the info text from "Each message costs 2 credits" to "Each message costs 5 credits"
+
+### 5. Update `supabase/config.toml`
+
+- Add `verify_jwt = false` entry for the new `questionnaire-export` function (auth validated in code)
+
+## Technical Details
+
+### New Edge Function Structure
+
+```
+supabase/functions/questionnaire-export/index.ts
 ```
 
-Then replace all hardcoded `8` with `DEFAULT_DAILY` and `40` with `DEFAULT_MONTHLY`.
+The function will:
+1. Handle CORS preflight
+2. Validate auth token
+3. Fetch user profile (plan_type, daily_credits, monthly_credits, paid_credits, daily_reset_date, credits_expiry_date)
+4. Fetch dynamic credit defaults from app_settings
+5. Reset daily credits if needed (same pattern as other functions)
+6. Check total available credits >= 5
+7. Block free users with zero monthly credits (402)
+8. Deduct 5 credits (daily first, then paid)
+9. Update profile
+10. Return success with remaining credit info
 
-**Note:** Some edge functions (chat-ai, paraphrase-ai, questionnaire-ai) already create a user-scoped Supabase client. For the `app_settings` query, we need a **service role client** to avoid RLS issues (the existing user client should work since `app_settings` has a permissive SELECT policy for authenticated users, but service role is safer). For functions that already have a service role client (like those importing `SUPABASE_SERVICE_ROLE_KEY`), we use that. For others, we can use the user's authenticated client since the RLS policy on `app_settings` allows all authenticated reads.
+### Frontend Export Flow
 
-### Specific changes per function
-
-**chat-ai/index.ts (lines 220-246):**
-- Replace `dailyCredits = 8` with `dailyCredits = DEFAULT_DAILY`
-- Replace `monthlyCredits = 40` with `monthlyCredits = DEFAULT_MONTHLY`
-- Replace `Math.min(8, monthlyCredits)` with `Math.min(DEFAULT_DAILY, monthlyCredits)`
-
-**paraphrase-ai/index.ts (lines 68-85):**
-- Replace `dailyCredits = 8` with `dailyCredits = DEFAULT_DAILY`
-- Replace `monthlyCredits = 40` with `monthlyCredits = DEFAULT_MONTHLY`
-- Replace `Math.min(8, monthlyCredits)` with `Math.min(DEFAULT_DAILY, monthlyCredits)`
-
-**questionnaire-ai/index.ts (lines 80-88):**
-- Replace `dailyCredits = 8` with `dailyCredits = DEFAULT_DAILY`
-- Replace `monthlyCredits = 40` with `monthlyCredits = DEFAULT_MONTHLY`
-- Replace `Math.min(8, monthlyCredits)` with `Math.min(DEFAULT_DAILY, monthlyCredits)`
-
-**generate-ppt/index.ts (line 1525):**
-- Replace `dailyCredits = 8` with `dailyCredits = DEFAULT_DAILY`
-
-**rewrite-section/index.ts (lines 77-81):**
-- Replace both `8` references with `DEFAULT_DAILY`
-
-**Settings.tsx (lines 86-98):**
-- Fetch `default_daily_credits` from `app_settings` (similar to how Dashboard.tsx already does)
-- Use the fetched value instead of hardcoded `8` in `getSmartDailyCredits()`
-
-### handle_new_user database function
-
-The `handle_new_user()` trigger also hardcodes `monthly_credits = 40` and `daily_credits = 8`. This will be updated via a migration to read from `app_settings` dynamically using a subquery:
-
-```sql
-CREATE OR REPLACE FUNCTION public.handle_new_user() ...
-  -- Replace hardcoded values with:
-  COALESCE((SELECT value::int FROM app_settings WHERE key = 'default_daily_credits'), 8)
-  COALESCE((SELECT value::int FROM app_settings WHERE key = 'default_monthly_credits'), 40)
+```
+User clicks "PDF" or "DOCX"
+  -> Validate questionnaire (existing logic)
+  -> Call questionnaire-export edge function
+  -> If success: proceed with client-side export
+  -> If 402: show "insufficient credits" toast with upgrade link
+  -> If error: show generic error toast
 ```
 
-## Summary of All Changes
+### Credit Cost Display
 
-1. **5 edge functions** -- add `app_settings` lookup, replace hardcoded `8`/`40` with dynamic values
-2. **Settings.tsx** -- fetch defaults from `app_settings` for smart credit display
-3. **handle_new_user() DB trigger** -- use dynamic defaults from `app_settings` for new user creation
+Add a small note in the header or export buttons area indicating "Export costs 5 credits" so users know before clicking.
+
+## Summary
+
+| Change | File |
+|--------|------|
+| New edge function for export credit gate | `supabase/functions/questionnaire-export/index.ts` |
+| Gate exports behind credit check | `src/pages/QuestionnaireBuilder.tsx` |
+| AI Assistant cost: 2 -> 5 credits | `supabase/functions/questionnaire-ai/index.ts` |
+| Update AI cost display text | `src/components/Questionnaire/QuestionnaireChat.tsx` |
+| Register new function | `supabase/config.toml` |
