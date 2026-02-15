@@ -246,6 +246,13 @@ const Ambassador = () => {
                   <Copy className="h-4 w-4" />
                   Copy Referral Link
                 </Button>
+                <Button onClick={() => {
+                  navigator.clipboard.writeText(referralCode.code);
+                  toast.success("Referral code copied to clipboard!");
+                }} variant="outline" className="gap-2">
+                  <Copy className="h-4 w-4" />
+                  Copy Code
+                </Button>
                 <Button
                   onClick={() => window.open(`${window.location.origin}/auth?ref=${referralCode.code}`, "_blank")}
                   variant="ghost"

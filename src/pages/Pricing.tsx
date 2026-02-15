@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, ArrowLeft, Sparkles, CreditCard, Calendar, Coins, Info, GraduationCap } from "lucide-react";
+import { Check, X, ArrowLeft, Sparkles, CreditCard, Calendar, Coins, Info, GraduationCap, Tag } from "lucide-react";
 import { ProjectPalLogo } from "@/components/ProjectPalLogo";
 import {
   Table,
@@ -58,6 +58,7 @@ const Pricing = () => {
   const [paystackKey, setPaystackKey] = useState<string | undefined>(
     import.meta.env.VITE_PAYSTACK_PUBLIC_KEY as string | undefined
   );
+  const [hasReferralDiscount, setHasReferralDiscount] = useState(false);
   
   // Get pre-selected values from URL params (for renewals)
   const preSelectedPlan = searchParams.get("plan") as "pro" | "scholar" | null;
@@ -69,6 +70,7 @@ const Pricing = () => {
     loadPaystackScript();
     getUserEmail();
     loadPaystackKey();
+    checkReferralDiscount();
   }, []);
 
   const loadPaystackKey = async () => {
@@ -100,6 +102,31 @@ const Pricing = () => {
     }
   };
 
+  const checkReferralDiscount = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("referred_by")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.referred_by) return;
+
+      const { count } = await supabase
+        .from("transactions")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("status", "success");
+
+      setHasReferralDiscount((count ?? 0) === 0);
+    } catch (error) {
+      logError("Pricing:checkReferralDiscount", error);
+    }
+  };
+
   const openConfirmModal = (planType: string, price: number, credits: number, durationDays: number) => {
     if (!userEmail) {
       toast.error("Please log in to purchase credits");
@@ -113,7 +140,8 @@ const Pricing = () => {
   const confirmPurchase = () => {
     if (!selectedPurchase) return;
     setShowConfirmModal(false);
-    handlePurchase(selectedPurchase.planType, selectedPurchase.price, selectedPurchase.credits, selectedPurchase.durationDays);
+    const finalPrice = hasReferralDiscount ? Math.round(selectedPurchase.price * 0.95) : selectedPurchase.price;
+    handlePurchase(selectedPurchase.planType, finalPrice, selectedPurchase.credits, selectedPurchase.durationDays);
   };
 
   const handlePurchase = async (planType: string, price: number, credits: number, durationDays: number) => {
@@ -136,9 +164,9 @@ const Pricing = () => {
           credits: credits,
           duration_days: durationDays,
           billing_period: billingPeriod,
+          ...(hasReferralDiscount && { referral_discount: true, original_amount: selectedPurchase?.price }),
         },
         callback: function(response: any) {
-          // Redirect to checkout success page with reference
           navigate(`/checkout-success?reference=${response.reference}`);
         },
         onClose: function() {
@@ -245,6 +273,14 @@ const Pricing = () => {
               ? `Renewing your ${preSelectedPlan.toUpperCase()} plan` 
               : "Select the perfect plan for your academic journey"}
           </p>
+
+          {/* Referral Discount Banner */}
+          {hasReferralDiscount && (
+            <div className="inline-flex items-center gap-2 px-4 py-2 mb-4 bg-primary/10 border border-primary/20 rounded-full text-sm font-medium">
+              <Tag className="h-4 w-4 text-primary" />
+              <span>5% referral discount applied to your first purchase!</span>
+            </div>
+          )}
           
           {/* Billing Period Toggle */}
           <div className="inline-flex items-center gap-1 p-1 bg-muted rounded-lg">
@@ -826,12 +862,32 @@ const Pricing = () => {
               <Separator />
               
               {/* Total Cost */}
-              <div className="flex justify-between items-center text-lg">
-                <span className="font-semibold">Total</span>
-                <span className="font-bold text-primary">
-                  ₦{selectedPurchase.price.toLocaleString()}
-                </span>
-              </div>
+              {hasReferralDiscount ? (
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm flex items-center gap-2">
+                      <Tag className="h-3 w-3" />
+                      Original Price
+                    </span>
+                    <span className="text-muted-foreground line-through">
+                      ₦{selectedPurchase.price.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-lg">
+                    <span className="font-semibold">Total (5% off)</span>
+                    <span className="font-bold text-primary">
+                      ₦{Math.round(selectedPurchase.price * 0.95).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-between items-center text-lg">
+                  <span className="font-semibold">Total</span>
+                  <span className="font-bold text-primary">
+                    ₦{selectedPurchase.price.toLocaleString()}
+                  </span>
+                </div>
+              )}
               
               {/* Monthly equivalent for non-monthly billing */}
               {billingPeriod !== "monthly" && (
