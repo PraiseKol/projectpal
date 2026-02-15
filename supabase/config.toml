@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.questionnaire-ai]
 verify_jwt = false
+
+[functions.questionnaire-export]
+verify_jwt = false
