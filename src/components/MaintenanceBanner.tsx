@@ -62,8 +62,8 @@ export const MaintenanceBanner = () => {
           <p className="text-muted-foreground">
             The app is currently undergoing maintenance. Please check back later.
           </p>
-          <Button asChild variant="outline">
-            <Link to="/dashboard">Back to Dashboard</Link>
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            Refresh to Check Status
           </Button>
         </div>
       </div>

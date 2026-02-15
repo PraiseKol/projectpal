@@ -37,7 +37,8 @@ const Admin = () => {
     proUsers: 0,
     scholarUsers: 0,
     totalRevenue: 0,
-    totalTransactions: 0
+    totalTransactions: 0,
+    totalCommission: 0
   });
 
   useEffect(() => {
@@ -113,17 +114,19 @@ const Admin = () => {
         proUsers,
         scholarUsers,
         totalRevenue,
-        totalTransactions: transactionsData?.length || 0
+        totalTransactions: transactionsData?.length || 0,
+        totalCommission: 0
       });
 
       // Load additional data via edge function
       try {
-        const [emailData, activityData, recentData, growthData, revData] = await Promise.all([
+        const [emailData, activityData, recentData, growthData, revData, ambassadorData] = await Promise.all([
           callAdminOperation("getUserEmails"),
           callAdminOperation("getActivityStats"),
           callAdminOperation("getRecentActivity"),
           callAdminOperation("getUserGrowthData"),
           callAdminOperation("getRevenueData"),
+          callAdminOperation("getAmbassadorOverview"),
         ]);
 
         setEmailMap(emailData?.emailMap || {});
@@ -131,6 +134,10 @@ const Admin = () => {
         setRecentActivity(recentData);
         setUserGrowthData(growthData?.growthData || []);
         setRevenueData(revData?.revenueData || []);
+        
+        // Update stats with commission data
+        const totalCommission = ambassadorData?.summary?.totalCommissions || 0;
+        setStats(prev => ({ ...prev, totalCommission }));
       } catch (fnError) {
         logError("Admin:loadAdminFunctionsData", fnError);
       }

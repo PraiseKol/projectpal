@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { MaintenanceBanner } from "@/components/MaintenanceBanner";
+import { SuspensionBanner } from "@/components/SuspensionBanner";
 import { FeatureGate } from "@/components/FeatureGate";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -56,6 +57,7 @@ const App = () => (
           <BrowserRouter>
             <AuthEventHandler />
             <MaintenanceBanner />
+            <SuspensionBanner />
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<Index />} />

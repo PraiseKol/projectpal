@@ -129,6 +129,8 @@ serve(async (req) => {
         let updateData: Record<string, number> = {};
         if (creditType === "daily") {
           updateData.daily_credits = Math.max(0, (profile.daily_credits || 0) + creditAmount);
+        } else if (creditType === "monthly") {
+          updateData.monthly_credits = Math.max(0, (profile.monthly_credits || 0) + creditAmount);
         } else if (creditType === "paid") {
           updateData.paid_credits = Math.max(0, (profile.paid_credits || 0) + creditAmount);
         }
@@ -154,7 +156,7 @@ serve(async (req) => {
       }
 
       case "updatePlan": {
-        const { targetUserId, newPlan, reason } = params;
+        const { targetUserId, newPlan, expiryDate, reason } = params;
         
         // Get current plan
         const { data: profile, error: profileError } = await supabaseAdmin
@@ -165,10 +167,22 @@ serve(async (req) => {
         
         if (profileError) throw profileError;
         
-        // Update plan
+        // Calculate expiry date
+        let creditsExpiryDate: string | null = null;
+        if (newPlan !== "free") {
+          if (expiryDate) {
+            creditsExpiryDate = new Date(expiryDate).toISOString();
+          } else {
+            const defaultExpiry = new Date();
+            defaultExpiry.setDate(defaultExpiry.getDate() + 30);
+            creditsExpiryDate = defaultExpiry.toISOString();
+          }
+        }
+        
+        // Update plan and expiry
         const { error: updateError } = await supabaseAdmin
           .from("profiles")
-          .update({ plan_type: newPlan })
+          .update({ plan_type: newPlan, credits_expiry_date: creditsExpiryDate })
           .eq("id", targetUserId);
         
         if (updateError) throw updateError;
@@ -178,7 +192,7 @@ serve(async (req) => {
           admin_user_id: user.id,
           action_type: "update_plan",
           target_user_id: targetUserId,
-          details: { newPlan, previousPlan: profile.plan_type, reason }
+          details: { newPlan, previousPlan: profile.plan_type, creditsExpiryDate, reason }
         });
         
         result = { success: true, newPlan };
