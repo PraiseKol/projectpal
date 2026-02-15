@@ -13,6 +13,7 @@ import { ParaphraserSkeleton } from "@/components/skeletons/ParaphraserSkeleton"
 import { translateError, logError } from "@/utils/errorMessages";
 
 const FREE_WORD_LIMIT = 120;
+const FREE_DAILY_LIMIT = 3;
 
 const Paraphraser = () => {
   const navigate = useNavigate();
@@ -29,7 +30,7 @@ const Paraphraser = () => {
   const wordCount = inputText.trim() ? inputText.trim().split(/\s+/).length : 0;
   const isFreeUser = !isActiveSubscriber;
   const isOverWordLimit = isFreeUser && wordCount > FREE_WORD_LIMIT;
-  const hasUsedDailyLimit = isFreeUser && dailyParaphraseCount >= 1;
+  const hasUsedDailyLimit = isFreeUser && dailyParaphraseCount >= FREE_DAILY_LIMIT;
 
   useEffect(() => {
     checkAuth();
@@ -102,7 +103,7 @@ const Paraphraser = () => {
     if (hasUsedDailyLimit) {
       toast({
         title: "Daily Limit Reached",
-        description: "Free users can paraphrase once per day. Upgrade for unlimited access!",
+        description: "Free users can paraphrase 3 times per day. Upgrade for unlimited access!",
         variant: "destructive",
       });
       return;
@@ -131,7 +132,7 @@ const Paraphraser = () => {
             description: data.error,
             variant: "destructive",
           });
-          setDailyParaphraseCount(1);
+          setDailyParaphraseCount(prev => prev + 1);
         } else {
           toast({
             title: "Error",
@@ -232,8 +233,8 @@ const Paraphraser = () => {
                 <h3 className="font-semibold text-sm">Free Plan Limits</h3>
                 <p className="text-sm text-muted-foreground mt-1">
                   {hasUsedDailyLimit 
-                    ? "You've used your daily paraphrase. Come back tomorrow or upgrade for unlimited access!"
-                    : `${1 - dailyParaphraseCount}/1 paraphrase remaining today • Max ${FREE_WORD_LIMIT} words • No export`
+                    ? "You've used your daily paraphrases. Come back tomorrow or upgrade for unlimited access!"
+                    : `${FREE_DAILY_LIMIT - dailyParaphraseCount}/${FREE_DAILY_LIMIT} paraphrases remaining today • Max ${FREE_WORD_LIMIT} words • No export`
                   }
                 </p>
                 <Button 

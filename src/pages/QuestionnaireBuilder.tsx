@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, FileDown, FileText, Eye, Hammer, RotateCcw, BookOpen } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
 import { QuestionnaireData, createEmptyQuestionnaire } from "@/components/Questionnaire/types";
 import { QuestionnaireMetadata } from "@/components/Questionnaire/QuestionnaireMetadata";
@@ -27,6 +28,7 @@ const STORAGE_KEY = "questionnaire_builder_data";
 
 const QuestionnaireBuilder = () => {
   const navigate = useNavigate();
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const [data, setData] = useState<QuestionnaireData>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -39,6 +41,38 @@ const QuestionnaireBuilder = () => {
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showSampleDialog, setShowSampleDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("builder");
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { navigate("/auth"); return; }
+
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("plan_type, credits_expiry_date")
+          .eq("id", user.id)
+          .single();
+
+        if (error) throw error;
+
+        const isExpired = profile.credits_expiry_date
+          ? new Date(profile.credits_expiry_date) < new Date()
+          : true;
+        const hasAccess = (profile.plan_type === 'pro' || profile.plan_type === 'scholar') && !isExpired;
+
+        if (!hasAccess) {
+          toast.error("This feature is available for Pro and Scholar plan users");
+          navigate("/pricing");
+          return;
+        }
+        setIsCheckingAccess(false);
+      } catch {
+        navigate("/dashboard");
+      }
+    };
+    checkAccess();
+  }, [navigate]);
 
   // Autosave
   useEffect(() => {
@@ -98,6 +132,10 @@ const QuestionnaireBuilder = () => {
     setShowSampleDialog(false);
     toast.success("Sample template loaded");
   };
+
+  if (isCheckingAccess) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">
