@@ -1,33 +1,34 @@
 
-# Restrict AI Assistant Tab to Scholar Plan Only
+# Fix Rating Scale Display in Questionnaire Preview
 
-## Overview
+## Problem
 
-The AI Assistant tab in the Questionnaire Builder will be gated so only Scholar plan users can access it. Pro users will still see the tab but it will show a locked/upgrade prompt. The Builder and Preview tabs remain accessible to both Pro and Scholar users (no change).
+The rating scale section in `QuestionnairePreview.tsx` (lines 78-82) contains a literal `...` placeholder instead of actual rendering code. This is why all rating scale questions show "..." in the preview.
 
-## Changes
+## Fix
 
-### File: `src/pages/QuestionnaireBuilder.tsx`
+Replace the empty rating scale block with a proper scale UI that:
+- Uses the `getScaleLabels()` helper (already imported) to get the 5 labels based on the question's `scaleDirection`
+- Defaults to `1to5` if no direction is set
+- Renders a horizontal row of 5 columns, each with a number, an empty radio circle, and a label underneath
 
-1. **Store `planType` in state** during the existing `checkAccess` flow (line 52-56 already fetches `plan_type`). Save it to a new `planType` state variable.
+## File to Modify
 
-2. **Conditionally render the AI Assistant tab content**: When a Pro user clicks the "AI Assistant" tab, instead of showing the chat, show a card explaining the feature is Scholar-only with an upgrade button linking to `/pricing`.
+**`src/components/Questionnaire/QuestionnairePreview.tsx`** (lines 78-82)
 
-3. **Visual indicator on the tab trigger**: Add a small "Scholar" badge or lock icon next to the AI Assistant tab label for non-Scholar users.
+Replace:
+```tsx
+{q.type === "rating_scale" && (
+  <div className="overflow-x-auto">
+...
+  </div>
+)}
+```
 
-## Technical Details
+With a proper scale table rendering:
+- A flex/grid row with 5 evenly spaced columns
+- Each column shows: the scale number (1-5), an empty circle, and the label (e.g., "Very Poor", "Poor", "Average", "Good", "Very Good")
+- Uses `getScaleLabels(q.scaleDirection || '1to5')` to get the correct order
+- Wrapped in `overflow-x-auto` for mobile responsiveness
 
-### State addition
-- Add `const [planType, setPlanType] = useState<string>("")` 
-- In `checkAccess`, set `setPlanType(profile.plan_type)` after fetching the profile
-
-### AI Assistant TabsContent (line 214-223)
-Replace with a conditional:
-- If `planType === 'scholar'`: render `<QuestionnaireChat>` as before
-- Otherwise: render a centered card with a lock icon, "Scholar Only" heading, description text, and an "Upgrade to Scholar" button linking to `/pricing`
-
-### Tab trigger styling (line 203-205)
-- For non-Scholar users, append a small `Badge` with "Scholar" text next to the tab label
-
-### No backend changes needed
-The edge function already has its own credit/auth checks, so even if someone bypasses the UI, the backend will still validate properly.
+No other files need changes.
