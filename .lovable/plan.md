@@ -1,59 +1,69 @@
 
-# Ambassador Auto-Removal, Re-Request, Dynamic Pricing Credits, and Claim Control
+# Chat Lazy Creation, Admin Tab Restrictions, and PPT Slide Flexibility
 
-## 1. Auto-Remove Ambassadors Who Fail to Get 10 Referrals in 30 Days
+## 1. Lazy Chat Session Creation
 
-### How it works
-- A scheduled check runs whenever the ambassador-operations edge function is called (on any ambassador action), or via a dedicated admin action
-- Actually, the cleanest approach: add a check in the `admin-operations` edge function as a new action `checkAmbassadorPerformance` that the admin can trigger manually, AND run the check automatically when the ambassador page loads (via ambassador-operations)
-- Better approach: Add the check as part of the `getAmbassadorOverview` admin action so it runs automatically when admin views ambassadors. Also run it on a lightweight basis when any ambassador accesses their portal
+**Problem**: Every time a user opens the chat page without a `session_id`, a new "New Chat" session is created in the database -- even if they never send a message. This leads to clutter.
 
-### Logic
-- For each user with the `ambassador` role, find when they were approved (from `ambassador_requests` table, `reviewed_at` field)
-- Count referrals created since their approval date, in 30-day rolling windows
-- If the current 30-day window (from approval date, rolling) has fewer than 10 referrals, remove the ambassador role
-- Deactivate their referral code (`is_active = false`)
-- Do NOT delete referral records or commission records -- historical data is preserved
+**Fix** in `src/pages/Chat.tsx`:
+- In `initializeChat`, when there's no `session_id` in the URL, do NOT create a session. Instead, just set `sessionId` to `null` and show the empty chat UI.
+- In `createNewChat` (the sidebar "New Chat" button), same approach: just clear messages and set `sessionId` to `null`. Do not insert into the database.
+- In `handleSend`, before sending the first message, check if `sessionId` is `null`. If so, create the session in the database at that point, set the `sessionId`, update the URL, and then proceed with sending the message.
+- This means the session is only persisted once the user actually sends their first message.
 
-### Files
-- **`supabase/functions/admin-operations/index.ts`**: Add `checkAmbassadorPerformance` action that checks all ambassadors and removes underperformers
-- **`supabase/functions/ambassador-operations/index.ts`**: On `getAmbassadorStats`, run a self-check for the current ambassador to warn them or handle removal
+### Changes
+- `initializeChat` (lines 105-147): Remove the `else` block that inserts a new chat_session. Just set `sessionId(null)` and `setMessages([])`.
+- `createNewChat` (lines 189-215): Replace the database insert with just clearing state: `setSessionId(null)`, `setMessages([])`, `navigate("/chat")`.
+- `handleSend` (lines 311-387): At the top, if `sessionId` is null, create the session first, then continue with the message flow.
 
-## 2. Allow Former Ambassadors to Re-Request
+## 2. Admin Tab Visibility Based on Role (Super Admin vs Admin)
 
-### Problem
-The current `requestAmbassadorRole` action checks for existing pending requests but a declined user with a previous `declined` status can't re-request because `getMyAmbassadorRequest` returns the latest request (which is `declined`).
+**Problem**: Currently, the admin page checks for the `admin` role to grant access, but does not differentiate between `admin` and `super_admin`. Sensitive tabs (Users, Transactions, Roles, Audit Log) should only be visible to super admins.
 
-### Fix
-- **`supabase/functions/ambassador-operations/index.ts`** (`requestAmbassadorRole`): Allow re-requests if the user no longer has the ambassador role and has no pending request. The current check already handles this -- it only blocks if there's an existing `pending` request or if they already have the role. But we need to make sure the UI shows the button again.
-- **`src/components/Settings/AmbassadorRequestCard.tsx`**: If `requestStatus` is `declined` or if the user was removed (no ambassador role and latest request is `approved` but role was revoked), show the "Request Ambassador Role" button again. Specifically: if status is `declined` OR if the user has no ambassador role and no pending request, show the request button.
+**Fix** in `src/pages/Admin.tsx`:
+- In `checkAdminAccess`, fetch ALL roles for the user (not just `admin`). Check if they have `admin` OR `super_admin`. Store which role(s) they have.
+- Add a state variable `isSuperAdmin` (boolean).
+- Conditionally render the tabs: Users, Transactions, Roles, and Audit Log tabs and their content are only shown when `isSuperAdmin` is true.
+- Admin users (non-super) can still see: Overview, Activity, Ambassadors, Email Campaigns, Settings.
 
-## 3. Dynamic Free Plan Credits on Pricing Page
+### Changes
+- Add `const [isSuperAdmin, setIsSuperAdmin] = useState(false);`
+- Update `checkAdminAccess` to query for both `admin` and `super_admin` roles, set `isSuperAdmin` accordingly.
+- Wrap the 4 restricted `TabsTrigger` and `TabsContent` elements in `{isSuperAdmin && ...}` conditionals.
 
-### Problem
-The pricing page hardcodes "8 credits per day" and "40 credits per month" for the free plan.
+## 3. PPT Slide Content Flexibility (Avoid Squeezing)
 
-### Fix
-- **`src/pages/Pricing.tsx`**: Fetch `default_daily_credits` and `default_monthly_credits` from the `app_settings` table on load. Use these values in:
-  - The Free Plan card (lines 340-341)
-  - The mobile plan comparison cards (lines 476-477)
-  - The desktop comparison table (lines 635, 649-655)
-  - The "How Credits Work" info section (line 801)
+**Problem**: The AI prompt asks for 10-15 slides, but bullet points per slide are hard-capped at 6-7 in the rendering code, and the slide count is hard-capped at 15. For long documents, content gets squeezed into too few slides with too many bullets truncated.
 
-## 4. Admin Control for Ambassador Claim Button
+**Fix** in `supabase/functions/generate-ppt/index.ts`:
+- Update the AI system prompt to instruct: "Use as many slides as needed. Limit each content slide to 4-5 bullet points maximum. If a section has more content, split it across multiple slides (e.g., 'Methodology (1/2)', 'Methodology (2/2)'). Aim for 12-25 slides for thorough coverage."
+- Raise the `.slice(0, 15)` cap to `.slice(0, 30)` to allow longer presentations.
+- In `buildContentSlide`, if there are more than 5 bullets, auto-split into continuation slides. This is a safety net in case the AI still sends too many bullets per slide.
+- In `buildConclusionSlide` and `buildReferencesSlide`, similarly raise the bullet/reference caps slightly (8 to 12 for references).
+- In the `toBullets` fallback function, raise `max` from 6 to 5 per slide but allow the fallback builder to create more slides.
 
-### Setting
-Add a new `app_setting`: `ambassador_claim_status` with values: `"open"`, `"closed"`, or `"coming_soon"`
+### Specific Code Changes
 
-### Admin UI
-- **`src/components/Admin/AmbassadorManagement.tsx`**: Add a control card/section at the top of the ambassadors tab with 3-option selector (Open / Closed / Coming Soon) for claim status
-- **`src/components/Admin/AppSettings.tsx`**: Add `ambassador_claim_status: "open"` to default settings
+**AI Prompt** (line ~1699):
+- Change "Create 10-15 slides" to "Create 12-25 slides for thorough coverage"
+- Add instruction: "Limit each slide to 4-5 bullet points. If a topic needs more points, split across multiple slides with numbered titles like 'Results (1/2)'."
 
-### Ambassador Page
-- **`src/pages/Ambassador.tsx`**: Fetch `ambassador_claim_status` from `app_settings` on load
-  - If `"closed"`: hide the claim commission section entirely
-  - If `"coming_soon"`: show the section but replace the button with a disabled "Coming Soon" button
-  - If `"open"` (default): show the claim button only when there's pending commission (current behavior)
+**Slide cap** (line 1750):
+- Change `.slice(0, 15)` to `.slice(0, 30)`
+
+**Content slide rendering** (line 1072-1086):
+- Change `if (i < 7)` to `if (i < 5)` -- render max 5 bullets per slide
+- Add overflow handling: if a slide has more than 5 bullets, split into continuation slides automatically in the main build loop
+
+**Conclusion slide** (line 1304):
+- Change `if (i < 6)` to `if (i < 5)`
+
+**References slide** (line 1365):
+- Change `if (i < 8)` to `if (i < 10)` and add overflow to create additional reference slides
+
+**Fallback builder** (`buildFallbackFromDocContent`):
+- Update `toBullets` to use max 5 per call
+- Split long sections into multiple slides
 
 ---
 
@@ -61,43 +71,6 @@ Add a new `app_setting`: `ambassador_claim_status` with values: `"open"`, `"clos
 
 | File | Changes |
 |------|---------|
-| `supabase/functions/admin-operations/index.ts` | Add `checkAmbassadorPerformance` action to auto-remove underperforming ambassadors |
-| `supabase/functions/ambassador-operations/index.ts` | Add self-performance check; allow re-requests after removal |
-| `src/components/Settings/AmbassadorRequestCard.tsx` | Show request button for declined/removed ambassadors |
-| `src/pages/Pricing.tsx` | Fetch dynamic credit values from `app_settings` for free plan display |
-| `src/components/Admin/AmbassadorManagement.tsx` | Add claim status control (open/closed/coming_soon) |
-| `src/components/Admin/AppSettings.tsx` | Add `ambassador_claim_status` default |
-| `src/pages/Ambassador.tsx` | Respect `ambassador_claim_status` setting for claim button visibility |
-
-## Technical Details
-
-### Ambassador Performance Check Logic (Edge Function)
-```text
-For each ambassador:
-  1. Get approval date from ambassador_requests (reviewed_at where status = 'approved')
-  2. Calculate current 30-day window start = max(approval_date, now - 30 days) 
-     adjusted to align with 30-day periods from approval
-  3. Count referrals in current window
-  4. If count < 10:
-     - DELETE from user_roles where user_id = X and role = 'ambassador'
-     - UPDATE referral_codes SET is_active = false WHERE user_id = X
-     - Do NOT delete from referrals or ambassador_commissions
-```
-
-### Re-Request Flow
-```text
-User removed from ambassador role
-  -> Settings page: AmbassadorRequestCard sees no ambassador role
-  -> getMyAmbassadorRequest returns latest request (status = "approved" from before)
-  -> Since user is NOT currently an ambassador, show "Request Ambassador Role" button
-  -> New request is inserted with status = "pending"
-  -> Admin reviews and approves/declines
-  -> If approved: role re-added, referral code re-activated (or new one generated)
-```
-
-### Claim Status Values
-```text
-"open"        -> Claim button visible when pending > 0
-"closed"      -> Claim section hidden entirely  
-"coming_soon" -> Claim section visible with disabled "Coming Soon" button
-```
+| `src/pages/Chat.tsx` | Defer session creation to first message send; "New Chat" just clears state |
+| `src/pages/Admin.tsx` | Add `isSuperAdmin` state; restrict Users, Transactions, Roles, Audit tabs to super admins only |
+| `supabase/functions/generate-ppt/index.ts` | Update AI prompt for more slides with fewer bullets each; raise slide cap to 30; auto-split overflowing slides; reduce per-slide bullet cap from 7 to 5 |
