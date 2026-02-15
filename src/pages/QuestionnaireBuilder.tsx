@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, FileDown, FileText, Eye, Hammer, RotateCcw, BookOpen } from "lucide-react";
+import { ArrowLeft, FileDown, FileText, Eye, Hammer, RotateCcw, BookOpen, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
@@ -13,6 +13,7 @@ import { SectionBuilder } from "@/components/Questionnaire/SectionBuilder";
 import { QuestionnairePreview } from "@/components/Questionnaire/QuestionnairePreview";
 import { exportToPdf, exportToDocx } from "@/components/Questionnaire/QuestionnaireExport";
 import { sampleTemplate } from "@/components/Questionnaire/SampleTemplate";
+import { QuestionnaireChat } from "@/components/Questionnaire/QuestionnaireChat";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -199,6 +200,9 @@ const QuestionnaireBuilder = () => {
       <main className="container mx-auto px-4 py-6 max-w-4xl">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6">
+            <TabsTrigger value="ai-assistant">
+              <MessageSquare className="h-4 w-4 mr-1.5" /> AI Assistant
+            </TabsTrigger>
             <TabsTrigger value="builder">
               <Hammer className="h-4 w-4 mr-1.5" /> Builder
             </TabsTrigger>
@@ -206,6 +210,17 @@ const QuestionnaireBuilder = () => {
               <Eye className="h-4 w-4 mr-1.5" /> Preview
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="ai-assistant">
+            <QuestionnaireChat
+              currentQuestionnaire={data}
+              onQuestionnaireGenerated={(newData) => {
+                setData(newData);
+                setErrors({});
+                toast.success("Questionnaire updated from AI!");
+              }}
+            />
+          </TabsContent>
 
           <TabsContent value="builder" className="space-y-6">
             <Card>
