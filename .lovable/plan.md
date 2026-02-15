@@ -1,140 +1,146 @@
 
-# Credit System Rework and Free User Monthly Credit Bug Fix
 
-## Overview of Changes
+# Document Editor Credit System Update and "Fully Wrap Project" Feature
 
-### Current vs New Credit Costs
+## 1. Credit Cost Updates for Document AI Assistant
+
+The current document-ai-chat edge function uses a simple 3-tier system (edit=1, analysis=2, generation=3). This needs to be replaced with granular, keyword-based detection matching the chat-ai credit costs.
+
+### New Credit Structure
 
 | Action | Current Cost | New Cost |
 |--------|-------------|----------|
-| Simple chat response | 1 | 1 |
-| AI generation/suggestions (topics, etc.) | 2-6 | 2 |
-| Generate Chapter 1 | 6 (full chapter) | 5 |
-| Generate Chapter 2 | 6 (full chapter) | 10 |
-| Generate Chapter 3 | 6 (full chapter) | 25 |
-| Generate Chapter 4 | 6 (full chapter) | 50 |
-| Generate Chapter 5 | 6 (full chapter) | 5 (same as Ch1, conclusion) |
-| Paraphrasing | 1 | 2 |
-| PowerPoint (no images) | 15 | 10 |
-| PowerPoint (with images) | 20 | 15 |
-| Data Analysis | unchanged | unchanged |
-| Article Search | 1 | 1 (unchanged) |
+| Fix Grammar | 1 | 2 |
+| Improve Clarity | 1 | 2 |
+| Academic Tone | 1 | 2 |
+| Summarize | 2 | 4 |
+| Extract Key Points | 2 | 4 |
+| Write Abstract | 3 | 5 |
+| Write Chapter 5 / Conclusion | 3 | 15 |
+| Write Introduction (Ch 1) | 3 | 5 |
+| Journal Paper | 3 | 20 |
+| Research Proposal | (not present) | 20 |
+| Literature Review (Ch 2) | 3 | 10 |
+| Fully Wrap Project | (new) | 50 |
 
-### Bug Fix: Free User Monthly Credit Exhaustion
+### Uniformity with Chat AI
 
-**Problem**: When a free user's monthly credits hit 0, the backend chat-ai function has a syntax bug (missing closing brace on the error message block at line 266). The article search code block falls through before the 402 return, causing a 500 error which translates to "Something went wrong on our side." Additionally, the frontend credit check uses `||` logic (`daily > 0 OR monthly > 0`), which incorrectly allows requests when daily > 0 but monthly = 0.
+These costs are aligned with the chat-ai credit allocations where applicable:
+- Chapter 1 / Introduction: 5 credits (matches chat-ai)
+- Chapter 2 / Literature Review: 10 credits (matches chat-ai)
+- Chapter 5 / Conclusion: 15 credits (user specified this specifically for the document editor)
+- Research Proposal / Journal Paper: 20 credits each
+- Grammar/Clarity/Academic Tone (edit tasks): 2 credits each
+- Summarize / Extract Key Points: 4 credits each
+- Write Abstract: 5 credits
+- Fully Wrap Project: 50 credits (new, most expensive)
 
-**Fix**:
-- Fix the missing closing brace in chat-ai so the 402 error response is properly returned
-- Update the frontend credit check in Chat.tsx so free users are blocked when monthly credits = 0 (regardless of daily credits)
-- Ensure the 402 response is caught and redirects to pricing page with the correct message
+## 2. New Feature: "Fully Wrap Project"
+
+This will be the first quick action shown. It generates all preliminary and end-matter content for a complete academic project:
+
+### What it generates (based on uploaded sample documents):
+**Before Chapter 1:**
+- Title Page
+- Certification Page
+- Declaration (if applicable)
+- Dedication
+- Acknowledgement
+- Abstract
+- Table of Contents (template)
+- List of Tables (template)
+- List of Figures (template)
+
+**After Chapter 5:**
+- References / Bibliography section
+- Appendices section (template)
+
+The AI prompt will instruct the model to analyze the uploaded document's content (which should contain Chapters 1-5) and generate all these wrapper sections with appropriate placeholders for names, dates, supervisors, etc., styled in standard Nigerian university academic format.
 
 ---
 
 ## Files to Modify
 
-### 1. `supabase/functions/chat-ai/index.ts`
+### 1. `supabase/functions/document-ai-chat/index.ts`
 
-**`determineCreditCost` function** (lines 78-117): Rewrite the detection logic:
-- Chapter 1 / Introduction: 5 credits
-- Chapter 2 / Literature Review: 10 credits
-- Chapter 3 / Methodology: 25 credits
-- Chapter 4 / Results / Data Analysis chapter: 50 credits
-- Chapter 5 / Conclusion / Recommendations: 5 credits
-- Topic generation, suggestions, proposal outlines, section requests: 2 credits
-- Continue/expand: 2 credits
-- Default simple chat: 1 credit
+**Replace the simple `categorizeRequest` function and flat credit constants** with a granular `determineCreditCost` function that pattern-matches instructions:
 
-**Bug fix** (lines 258-266): Add the missing closing brace `}` after the error message assignment on line 265, and move the article search block + the `return` 402 response into the correct position so the insufficient credits error is properly returned.
+- "fully wrap" / "wrap project" / "full project": 50 credits, generation type
+- "journal paper" / "research proposal": 20 credits, generation type
+- "chapter 5" / "conclusion" / "write chapter 5": 15 credits, generation type
+- "chapter 2" / "literature review": 10 credits, generation type
+- "chapter 1" / "introduction" / "write abstract": 5 credits, generation/edit type
+- "summarize" / "extract key" / "key points": 4 credits, analysis type
+- "fix grammar" / "improve clarity" / "academic tone" / "proofread" / "spelling": 2 credits, edit type
+- Default custom instruction: 2 credits
 
-### 2. `supabase/functions/paraphrase-ai/index.ts`
+**Update the system prompt** to include instructions for the "Fully Wrap Project" task, describing the exact structure of preliminary pages and references based on the uploaded sample documents.
 
-**Credit cost** (line ~125-145): Change credit deduction from 1 to 2 per paraphrase.
+### 2. `src/components/DocumentEditor/AIInstructionInput.tsx`
 
-### 3. `supabase/functions/generate-ppt/index.ts`
+**Update the `quickActions` array:**
+- Add "Fully Wrap Project" as the first action (50 credits, generate category)
+- Add "Research Proposal" action (20 credits, generate category)
+- Update all existing credit values to match the new costs
+- Update the credit info footer text at the bottom
 
-**Credit constants** (lines 11-12): Change `BASE_CREDIT_COST` from 15 to 10, and `IMAGE_CREDIT_COST` from 5 to 5 (stays the same, total with images = 15).
+### 3. No database or migration changes needed
 
-### 4. `src/pages/Chat.tsx`
-
-**Frontend credit check** (lines 318-327): Fix the logic so free users are blocked when `monthly_credits <= 0`, regardless of daily credits. The check should be:
-- Free users: `monthly_credits > 0` (daily is derived from monthly)
-- Paid users: `daily_credits > 0 || paid_credits > 0`
-
-Also ensure a proper redirect to `/pricing` with a clear toast message.
-
-### 5. `src/pages/Paraphraser.tsx`
-
-No changes needed -- it calls the `paraphrase-ai` edge function which handles credit deduction. The credit cost change is backend-only.
+Credits are already deducted from existing `daily_credits` and `paid_credits` columns.
 
 ---
 
 ## Technical Details
 
-### Chapter Detection Logic (chat-ai)
+### Credit Detection Logic (document-ai-chat)
 
 ```text
-Chapter 4 patterns (50 credits):
-  - "chapter 4", "chapter four", "results", "data presentation", "data analysis chapter"
-  - NOT triggered by the standalone data analysis page
-
-Chapter 3 patterns (25 credits):
-  - "chapter 3", "chapter three", "methodology", "research methodology"
-
-Chapter 2 patterns (10 credits):
-  - "chapter 2", "chapter two", "literature review", "review of literature"
-
-Chapter 1 patterns (5 credits):
-  - "chapter 1", "chapter one", "introduction chapter"
-
-Chapter 5 patterns (5 credits):
-  - "chapter 5", "chapter five", "conclusion", "recommendations"
-
-Generation/Suggestions (2 credits):
-  - Topic generation, proposal outline, section requests,
-    continue/expand, suggestions
-
-Simple chat (1 credit):
-  - Everything else
+determineCreditCost(instruction):
+  "fully wrap" / "wrap project" / "full project wrap" -> 50cr, generation
+  "journal paper" / "convert to journal" -> 20cr, generation
+  "research proposal" -> 20cr, generation
+  "chapter 5" / "conclusion" / "recommendations" -> 15cr, generation
+  "chapter 2" / "literature review" -> 10cr, generation
+  "chapter 1" / "introduction chapter" / "write introduction" -> 5cr, generation
+  "write abstract" / "abstract" -> 5cr, generation
+  "summarize" / "summary" / "extract key" / "key points" / "outline" -> 4cr, analysis
+  "fix grammar" / "spelling" / "improve clarity" / "academic tone" / "proofread" / "edit" -> 2cr, edit
+  default -> 2cr, generation
 ```
 
-### Bug Fix Detail (chat-ai lines 258-266)
+### Fully Wrap Project AI Prompt Addition
 
-The current code:
-```javascript
-} else {
-    errorMessage = `This action requires...`;
-}                          // <-- missing closing brace for if block
-
-// Handle article search requests   // <-- this runs BEFORE the return!
-if (articleSearchCheck.isSearch) {
-```
-
-Fixed to:
-```javascript
-} else {
-    errorMessage = `This action requires...`;
-}
-
-    console.log(`[CREDIT] Insufficient credits...`);
-    return new Response(
-      JSON.stringify({ error: errorMessage, ... }),
-      { status: 402, ... }
-    );
-}                          // <-- properly closes the if(totalAvailable < creditCost) block
-
-// Handle article search requests
-if (articleSearchCheck.isSearch) {
-```
-
-### Frontend Credit Check Fix (Chat.tsx)
+The system prompt will include a special instruction block for "wrap project" requests. Based on the sample documents analyzed, the structure is:
 
 ```text
-Current (buggy):
-  hasCredits = daily > 0 || (free && monthly > 0) || (paid && paid_credits > 0)
-  -- This passes when daily=8, monthly=0 for free users
-
-Fixed:
-  if free user: hasCredits = monthly > 0
-  if paid user: hasCredits = daily > 0 || paid_credits > 0
+1. TITLE PAGE - Project title, student name, matric number, department, faculty, university, date
+2. CERTIFICATION - Supervisor signature block, HOD signature block, External examiner
+3. DECLARATION (optional) - Standard reproduction declaration form
+4. DEDICATION - Short dedication paragraph
+5. ACKNOWLEDGEMENT - Gratitude to God, supervisor, lecturers, family, friends
+6. ABSTRACT - 200-300 word summary with keywords
+7. TABLE OF CONTENTS - Formatted with page number placeholders
+8. LIST OF TABLES - Placeholder entries
+9. LIST OF FIGURES - Placeholder entries
+--- [Chapters 1-5 from the document] ---
+10. REFERENCES - Formatted in APA style based on citations found in the document
+11. APPENDICES - Template section
 ```
+
+The AI will be instructed to use placeholder brackets like [Student Name], [Matric Number], [Supervisor Name], [University Name] etc., and to extract actual names/titles from the document content where possible.
+
+### Quick Actions Array Update (AIInstructionInput.tsx)
+
+The updated array will have 12 actions in this order:
+1. Fully Wrap Project (50cr) - NEW, first position
+2. Fix Grammar (2cr)
+3. Improve Clarity (2cr)
+4. Academic Tone (2cr)
+5. Summarize (4cr)
+6. Extract Key Points (4cr)
+7. Write Abstract (5cr)
+8. Write Chapter 5 (15cr)
+9. Write Introduction (5cr)
+10. Research Proposal (20cr) - NEW
+11. Journal Paper (20cr)
+12. Literature Review (10cr)
