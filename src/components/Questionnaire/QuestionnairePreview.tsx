@@ -77,7 +77,15 @@ export const QuestionnairePreview = ({ data }: Props) => {
 
                   {q.type === "rating_scale" && (
                     <div className="overflow-x-auto">
-...
+                      <div className="flex justify-between min-w-[400px] max-w-md py-2">
+                        {getScaleLabels(q.scaleDirection || '1to5').map((item) => (
+                          <div key={item.value} className="flex flex-col items-center gap-1.5 w-16">
+                            <span className="text-sm font-medium">{item.value}</span>
+                            <span className="w-4 h-4 rounded-full border-2 border-muted-foreground inline-block" />
+                            <span className="text-[10px] text-muted-foreground text-center leading-tight">{item.label}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
