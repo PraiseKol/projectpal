@@ -3,7 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { GripVertical, Copy, Trash2 } from "lucide-react";
+import { GripVertical, Copy, Trash2, Plus } from "lucide-react";
 import { Question, QuestionType, ScaleDirection } from "./types";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -57,9 +57,12 @@ export const QuestionCard = ({ question, globalIndex, onChange, onDuplicate, onD
               <Select
                 value={question.type}
                 onValueChange={(v) => {
-                  const update: Partial<Question> = { type: v as QuestionType };
+                const update: Partial<Question> = { type: v as QuestionType };
                   if (v === 'rating_scale' && !question.scaleDirection) {
                     update.scaleDirection = '1to5';
+                  }
+                  if (v === 'multiple_choice' && (!question.options || question.options.length < 2)) {
+                    update.options = ['', ''];
                   }
                   onChange({ ...question, ...update });
                 }}
@@ -72,6 +75,7 @@ export const QuestionCard = ({ question, globalIndex, onChange, onDuplicate, onD
                   <SelectItem value="short_text">Short Text</SelectItem>
                   <SelectItem value="long_text">Long Text</SelectItem>
                   <SelectItem value="rating_scale">Rating Scale</SelectItem>
+                  <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -92,6 +96,47 @@ export const QuestionCard = ({ question, globalIndex, onChange, onDuplicate, onD
                     <Label htmlFor={`${question.id}-5to1`} className="text-xs cursor-pointer">5→1</Label>
                   </div>
                 </RadioGroup>
+              </div>
+            )}
+            {question.type === 'multiple_choice' && (
+              <div className="space-y-2 w-full">
+                <Label className="text-xs">Options</Label>
+                {(question.options || []).map((opt, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground min-w-[1.5rem]">{i + 1}.</span>
+                    <Input
+                      placeholder={`Option ${i + 1}`}
+                      value={opt}
+                      onChange={(e) => {
+                        const newOptions = [...(question.options || [])];
+                        newOptions[i] = e.target.value;
+                        onChange({ ...question, options: newOptions });
+                      }}
+                      className="text-sm"
+                    />
+                    {(question.options || []).length > 2 && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive shrink-0"
+                        onClick={() => {
+                          const newOptions = (question.options || []).filter((_, idx) => idx !== i);
+                          onChange({ ...question, options: newOptions });
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => onChange({ ...question, options: [...(question.options || []), ''] })}
+                >
+                  <Plus className="h-3 w-3 mr-1" /> Add Option
+                </Button>
               </div>
             )}
           </div>

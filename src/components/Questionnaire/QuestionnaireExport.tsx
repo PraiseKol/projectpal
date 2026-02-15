@@ -126,6 +126,15 @@ export async function exportToPdf(data: QuestionnaireData) {
           doc.circle(x + cellW / 2, y + 3.5, 2);
         });
         y += 11;
+      } else if (q.type === "multiple_choice") {
+        const options = q.options || [];
+        for (const opt of options) {
+          checkPage(6);
+          doc.circle(margin + 7, y - 1, 2);
+          doc.text(opt || "(empty option)", margin + 11, y);
+          y += 5;
+        }
+        y += 2;
       }
 
       y += 2;
@@ -263,6 +272,15 @@ export async function exportToDocx(data: QuestionnaireData) {
           rows: [headerRow, valueRow],
         }));
 
+        children.push(new Paragraph({ spacing: { after: 100 }, children: [] }));
+      } else if (q.type === "multiple_choice") {
+        for (const opt of (q.options || [])) {
+          children.push(new Paragraph({
+            indent: { left: 400 },
+            spacing: { after: 40 },
+            children: [new TextRun({ text: `○  ${opt || "(empty option)"}`, size: 20 })],
+          }));
+        }
         children.push(new Paragraph({ spacing: { after: 100 }, children: [] }));
       }
     }
