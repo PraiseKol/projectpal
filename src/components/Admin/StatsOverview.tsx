@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, CreditCard, TrendingUp, FileText, MessageSquare, BarChart3, Sparkles, UserPlus } from "lucide-react";
+import { Users, CreditCard, TrendingUp, FileText, MessageSquare, BarChart3, Sparkles, UserPlus, DollarSign, TrendingDown } from "lucide-react";
 
 interface StatsOverviewProps {
   stats: {
@@ -9,6 +9,7 @@ interface StatsOverviewProps {
     scholarUsers: number;
     totalRevenue: number;
     totalTransactions: number;
+    totalCommission: number;
   };
   activityStats: {
     documentCount: number;
@@ -29,6 +30,8 @@ export const StatsOverview = ({ stats, activityStats }: StatsOverviewProps) => {
   const arpu = (stats.proUsers + stats.scholarUsers) > 0
     ? Math.round(stats.totalRevenue / (stats.proUsers + stats.scholarUsers))
     : 0;
+
+  const netRevenue = stats.totalRevenue - stats.totalCommission;
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -81,6 +84,32 @@ export const StatsOverview = ({ stats, activityStats }: StatsOverviewProps) => {
           <div className="text-2xl font-bold">₦{arpu.toLocaleString()}</div>
           <p className="text-xs text-muted-foreground">
             Avg revenue per paying user
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-md rounded-2xl">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-sm font-medium">Total Commission</CardTitle>
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">₦{stats.totalCommission.toLocaleString()}</div>
+          <p className="text-xs text-muted-foreground">
+            Ambassador commissions
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-md rounded-2xl">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-sm font-medium">Net Revenue</CardTitle>
+          <TrendingDown className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">₦{netRevenue.toLocaleString()}</div>
+          <p className="text-xs text-muted-foreground">
+            Revenue minus commissions
           </p>
         </CardContent>
       </Card>

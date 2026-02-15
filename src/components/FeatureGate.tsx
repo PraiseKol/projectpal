@@ -15,10 +15,8 @@ export const FeatureGate = ({ feature, children }: FeatureGateProps) => {
 
   if (!isFeatureEnabled(feature)) {
     return (
-      <div className="relative">
-        <div className="pointer-events-none select-none opacity-30 blur-[1px]">
-          {children}
-        </div>
+      <>
+        {children}
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
           <div className="bg-card border border-border rounded-2xl shadow-lg p-8 max-w-md mx-4 text-center space-y-4">
             <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto" />
@@ -31,7 +29,7 @@ export const FeatureGate = ({ feature, children }: FeatureGateProps) => {
             </Button>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 

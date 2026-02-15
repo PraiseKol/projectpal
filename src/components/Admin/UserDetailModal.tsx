@@ -34,10 +34,13 @@ interface UserDetailModalProps {
 export const UserDetailModal = ({ user, email, open, onOpenChange, onRefresh }: UserDetailModalProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [creditAmount, setCreditAmount] = useState<number>(0);
-  const [creditType, setCreditType] = useState<"daily" | "paid">("paid");
+  const [creditType, setCreditType] = useState<"daily" | "monthly" | "paid">("paid");
   const [creditReason, setCreditReason] = useState("");
   const [newPlan, setNewPlan] = useState(user.plan_type);
   const [planReason, setPlanReason] = useState("");
+  const defaultExpiry = new Date();
+  defaultExpiry.setDate(defaultExpiry.getDate() + 30);
+  const [expiryDate, setExpiryDate] = useState(defaultExpiry.toISOString().split("T")[0]);
 
   const callAdminOperation = async (action: string, params: Record<string, any>) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -88,6 +91,7 @@ export const UserDetailModal = ({ user, email, open, onOpenChange, onRefresh }: 
       await callAdminOperation("updatePlan", {
         targetUserId: user.id,
         newPlan,
+        expiryDate: newPlan !== "free" ? expiryDate : null,
         reason: planReason || "Admin update"
       });
       
@@ -210,12 +214,13 @@ export const UserDetailModal = ({ user, email, open, onOpenChange, onRefresh }: 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Credit Type</Label>
-                  <Select value={creditType} onValueChange={(v: "daily" | "paid") => setCreditType(v)}>
+                  <Select value={creditType} onValueChange={(v: "daily" | "monthly" | "paid") => setCreditType(v)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="daily">Daily Credits</SelectItem>
+                      <SelectItem value="monthly">Monthly Credits</SelectItem>
                       <SelectItem value="paid">Paid Credits</SelectItem>
                     </SelectContent>
                   </Select>
@@ -259,6 +264,16 @@ export const UserDetailModal = ({ user, email, open, onOpenChange, onRefresh }: 
                   </SelectContent>
                 </Select>
               </div>
+              {newPlan !== "free" && (
+                <div>
+                  <Label>Expiry Date (default: 30 days)</Label>
+                  <Input
+                    type="date"
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                  />
+                </div>
+              )}
               <div>
                 <Label>Reason (optional)</Label>
                 <Input
