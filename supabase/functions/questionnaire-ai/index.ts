@@ -77,14 +77,27 @@ serve(async (req) => {
     const paidCreditsExpired = profile.credits_expiry_date ? new Date(profile.credits_expiry_date) < new Date() : true;
     const isActiveSubscriber = profile.plan_type !== 'free' && !paidCreditsExpired;
 
+    // Fetch dynamic credit defaults from app_settings
+    const { data: settingsData } = await supabaseClient
+      .from('app_settings')
+      .select('key, value')
+      .in('key', ['default_daily_credits', 'default_monthly_credits']);
+
+    let DEFAULT_DAILY = 8;
+    let DEFAULT_MONTHLY = 40;
+    settingsData?.forEach((s: { key: string; value: string }) => {
+      if (s.key === 'default_daily_credits') DEFAULT_DAILY = parseInt(s.value) || 8;
+      if (s.key === 'default_monthly_credits') DEFAULT_MONTHLY = parseInt(s.value) || 40;
+    });
+
     if (needsDailyReset) {
       if (isActiveSubscriber) {
-        dailyCredits = 8;
+        dailyCredits = DEFAULT_DAILY;
       } else {
         const lastResetMonth = profile.daily_reset_date ? new Date(profile.daily_reset_date).getMonth() : -1;
         const currentMonth = new Date().getMonth();
-        if (lastResetMonth !== currentMonth) monthlyCredits = 40;
-        dailyCredits = monthlyCredits > 0 ? Math.min(8, monthlyCredits) : 0;
+        if (lastResetMonth !== currentMonth) monthlyCredits = DEFAULT_MONTHLY;
+        dailyCredits = monthlyCredits > 0 ? Math.min(DEFAULT_DAILY, monthlyCredits) : 0;
       }
     }
 

@@ -12,6 +12,7 @@ import { EmailPreferences } from "@/components/Settings/EmailPreferences";
 import { AmbassadorRequestCard } from "@/components/Settings/AmbassadorRequestCard";
 import { ReferralCodeCard } from "@/components/Settings/ReferralCodeCard";
 import { translateError, logError } from "@/utils/errorMessages";
+import { useAppSettings } from "@/hooks/useAppSettings";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ const Settings = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAmbassador, setIsAmbassador] = useState(false);
   const [userId, setUserId] = useState("");
+  const { getSetting } = useAppSettings();
 
   useEffect(() => {
     loadUserData();
@@ -84,15 +86,16 @@ const Settings = () => {
 
   // Check if daily credits should show as full (new day)
   const getSmartDailyCredits = () => {
-    if (!profile?.daily_reset_date) return profile?.daily_credits ?? 8;
+    const defaultDaily = parseInt(getSetting('default_daily_credits', '8')) || 8;
+    if (!profile?.daily_reset_date) return profile?.daily_credits ?? defaultDaily;
     const today = new Date().toISOString().split('T')[0];
     const resetDate = new Date(profile.daily_reset_date).toISOString().split('T')[0];
     
     if (isActiveSubscriber()) {
-      return resetDate !== today ? 8 : (profile?.daily_credits ?? 8);
+      return resetDate !== today ? defaultDaily : (profile?.daily_credits ?? defaultDaily);
     } else {
       if (resetDate !== today) {
-        return Math.min(8, profile?.monthly_credits ?? 0);
+        return Math.min(defaultDaily, profile?.monthly_credits ?? 0);
       }
       return profile?.daily_credits ?? 0;
     }
