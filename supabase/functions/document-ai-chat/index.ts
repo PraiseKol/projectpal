@@ -14,38 +14,48 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Detect request type based on instruction
-function categorizeRequest(instruction: string): "edit" | "generation" | "analysis" {
-  const lowerInstruction = instruction.toLowerCase();
-  
-  // Edit suggestions - specific text improvements
-  const editKeywords = [
-    "fix grammar", "spelling error", "improve clarity", "academic tone", "simplify",
-    "correct", "proofread", "edit", "revise word", "fix punctuation", "typo"
-  ];
-  
-  // Analysis - understanding document without generating new content
-  const analysisKeywords = [
-    "summarize", "summary", "analyze", "explain", "what is", "what are",
-    "list the", "identify", "extract key", "outline", "overview", "critique"
-  ];
-  
-  if (editKeywords.some(kw => lowerInstruction.includes(kw))) {
-    return "edit";
-  }
-  
-  if (analysisKeywords.some(kw => lowerInstruction.includes(kw))) {
-    return "analysis";
-  }
-  
-  // Default to generation for everything else (chapters, papers, content, etc.)
-  return "generation";
-}
+// Granular credit cost detection based on instruction keywords
+function determineCreditCost(instruction: string): { cost: number; category: "edit" | "analysis" | "generation" } {
+  const lower = instruction.toLowerCase();
 
-// Credit costs based on task complexity
-const EDIT_CREDIT_COST = 1;
-const ANALYSIS_CREDIT_COST = 2;
-const GENERATION_CREDIT_COST = 3;
+  // Fully Wrap Project - 50 credits
+  if (/fully wrap|wrap project|full project|wrap my project/i.test(lower)) {
+    return { cost: 50, category: "generation" };
+  }
+
+  // Journal Paper / Research Proposal - 20 credits
+  if (/journal paper|convert to journal|research proposal/i.test(lower)) {
+    return { cost: 20, category: "generation" };
+  }
+
+  // Chapter 5 / Conclusion - 15 credits
+  if (/chapter\s*5|chapter\s*five|conclusion|recommendations/i.test(lower)) {
+    return { cost: 15, category: "generation" };
+  }
+
+  // Chapter 2 / Literature Review - 10 credits
+  if (/chapter\s*2|chapter\s*two|literature review|review of literature/i.test(lower)) {
+    return { cost: 10, category: "generation" };
+  }
+
+  // Chapter 1 / Introduction / Abstract - 5 credits
+  if (/chapter\s*1|chapter\s*one|introduction chapter|write introduction|write abstract|abstract/i.test(lower)) {
+    return { cost: 5, category: "generation" };
+  }
+
+  // Summarize / Extract Key Points - 4 credits
+  if (/summarize|summary|extract key|key points|outline|overview/i.test(lower)) {
+    return { cost: 4, category: "analysis" };
+  }
+
+  // Edit tasks (grammar, clarity, tone) - 2 credits
+  if (/fix grammar|spelling|improve clarity|academic tone|proofread|correct|edit|revise|simplify|punctuation|typo/i.test(lower)) {
+    return { cost: 2, category: "edit" };
+  }
+
+  // Default - 2 credits
+  return { cost: 2, category: "generation" };
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -120,12 +130,7 @@ serve(async (req) => {
     }
 
     // Determine request type and credit cost
-    const requestType = categorizeRequest(instruction);
-    const creditCost = requestType === "edit" 
-      ? EDIT_CREDIT_COST 
-      : requestType === "analysis" 
-        ? ANALYSIS_CREDIT_COST 
-        : GENERATION_CREDIT_COST;
+    const { cost: creditCost, category: requestType } = determineCreditCost(instruction);
 
     // Check credits
     const totalCredits = profile.daily_credits + profile.paid_credits;
@@ -146,7 +151,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing ${requestType.toUpperCase()} request: ${instruction.substring(0, 80)}`);
+    console.log(`Processing ${requestType.toUpperCase()} request (${creditCost}cr): ${instruction.substring(0, 80)}`);
 
     // Build request based on type
     let systemPrompt: string;
@@ -239,6 +244,25 @@ When creating publishing papers:
 - Follow standard journal article structure (Abstract, Introduction, Methods, Results, Discussion, Conclusion)
 - Condense and restructure the content for journal format
 - Include placeholder for references section
+
+SPECIAL INSTRUCTION - "FULLY WRAP PROJECT":
+If the user asks to "fully wrap" or "wrap project", you must generate ALL preliminary pages and end-matter for a complete Nigerian university academic project. Analyze the uploaded document (which should contain Chapters 1-5) and generate the following sections IN ORDER:
+
+**BEFORE CHAPTER 1 (Preliminary Pages):**
+1. **TITLE PAGE** - Include: Project title (extract from document), [Student Name], [Matric Number], Department of [Department Name] (extract from document if possible), Faculty of [Faculty Name], [University Name], [Month, Year]. Format centered.
+2. **CERTIFICATION** - "This is to certify that this project titled '[Project Title]' was carried out by [Student Name] with Matriculation Number [Matric Number] and has been read and approved as meeting the requirements for the award of [Degree] in the Department of [Department], Faculty of [Faculty], [University]." Include signature lines for: Supervisor (Name: ____________, Signature: ____________, Date: ____________), Head of Department (Name: ____________, Signature: ____________, Date: ____________), External Examiner (Name: ____________, Signature: ____________, Date: ____________).
+3. **DEDICATION** - A short, heartfelt dedication paragraph. Use placeholder: "This project is dedicated to [dedication recipient, e.g., my parents, God Almighty, etc.]."
+4. **ACKNOWLEDGEMENT** - A comprehensive acknowledgement section expressing gratitude to: God Almighty, the project supervisor, Head of Department, lecturers, family members, friends, and colleagues. Use appropriate placeholders for names.
+5. **ABSTRACT** - Generate a 200-300 word abstract summarizing the entire project based on the document content. Include the research problem, objectives, methodology, key findings, and conclusions. End with 4-6 keywords.
+6. **TABLE OF CONTENTS** - Generate a formatted table of contents listing all preliminary pages and chapters with "[Page Number]" placeholders. Include all chapter titles and major subsections found in the document.
+7. **LIST OF TABLES** - List any tables referenced in the document with "[Page Number]" placeholders. If none found, include template entries.
+8. **LIST OF FIGURES** - List any figures referenced in the document with "[Page Number]" placeholders. If none found, include template entries.
+
+**AFTER CHAPTER 5 (End Matter):**
+9. **REFERENCES** - Compile and format all citations found throughout the document in APA 7th Edition style. Organize alphabetically by author surname. If specific references are cited in-text, format them properly. Add placeholder entries for any incomplete citations.
+10. **APPENDICES** - Create an appendices section template with: "APPENDIX A: [Research Instrument/Questionnaire]", "APPENDIX B: [Raw Data/Additional Tables]", "APPENDIX C: [Letters of Introduction/Consent Forms]".
+
+Use markdown formatting. Extract as much real information (title, department, methodology, findings) from the document as possible. Use [brackets] only for information that cannot be determined from the document content.
 
 OUTPUT:
 Return ONLY the requested content as clean, well-formatted text. Use markdown formatting for structure (# for headings, ## for subheadings, - for bullet points). Do not include meta-commentary about what you're doing unless specifically asked.`;
