@@ -1848,6 +1848,7 @@ GUIDELINES:
             buildContentSlide(pptx, slideData, selectedTheme, imageUrl);
           }
         }
+      }
     }
 
     // Add Thank You slide if not present
