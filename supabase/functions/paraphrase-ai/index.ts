@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const FREE_USER_WORD_LIMIT = 120;
-const FREE_USER_DAILY_LIMIT = 1;
+const FREE_USER_DAILY_LIMIT = 3;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -107,7 +107,7 @@ serve(async (req) => {
       console.log(`[PARAPHRASE] Free user hit daily limit: ${dailyParaphraseCount} >= ${FREE_USER_DAILY_LIMIT}`);
       return new Response(
         JSON.stringify({ 
-          error: 'Free users can only paraphrase once per day. Come back tomorrow or upgrade for unlimited access!',
+          error: 'Free users can only paraphrase 3 times per day. Come back tomorrow or upgrade for unlimited access!',
           daily_limit_reached: true,
           daily_count: dailyParaphraseCount,
           daily_limit: FREE_USER_DAILY_LIMIT

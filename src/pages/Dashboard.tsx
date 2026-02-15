@@ -626,12 +626,12 @@ const Dashboard = () => {
               <div className="flex items-center gap-2">
                 <CardTitle>Paraphraser</CardTitle>
                 {profile?.plan_type === "free" && (
-                  <Badge variant="secondary" className="text-xs">1 Free/Day</Badge>
+                  <Badge variant="secondary" className="text-xs">3 Free/Day</Badge>
                 )}
               </div>
               <CardDescription>
                 {profile?.plan_type === "free" 
-                  ? "Try it free! 1 paraphrase per day (120 words max)"
+                  ? "Try it free! 3 paraphrases per day (120 words max)"
                   : "Rephrase and improve your academic text"
                 }
               </CardDescription>
