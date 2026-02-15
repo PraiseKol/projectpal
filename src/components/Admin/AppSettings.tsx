@@ -29,6 +29,7 @@ export const AppSettings = () => {
     feature_data_analysis_enabled: "true",
     feature_document_editor_enabled: "true",
     feature_chat_enabled: "true",
+    feature_questionnaire_builder_enabled: "true",
   };
 
   useEffect(() => {
@@ -275,6 +276,19 @@ export const AppSettings = () => {
             <Switch
               checked={settings.feature_document_editor_enabled === "true"}
               onCheckedChange={() => handleToggle("feature_document_editor_enabled")}
+              disabled={isSaving}
+            />
+          </div>
+          <Separator />
+
+          <div className="flex items-center justify-between py-3">
+            <div>
+              <p className="font-medium">Questionnaire Builder</p>
+              <p className="text-sm text-muted-foreground">Enable the questionnaire builder tool</p>
+            </div>
+            <Switch
+              checked={settings.feature_questionnaire_builder_enabled === "true"}
+              onCheckedChange={() => handleToggle("feature_questionnaire_builder_enabled")}
               disabled={isSaving}
             />
           </div>

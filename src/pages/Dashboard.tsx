@@ -53,6 +53,8 @@ const Dashboard = () => {
   const [deleteChatId, setDeleteChatId] = useState<string | null>(null);
   const [isDeletingChat, setIsDeletingChat] = useState(false);
   const [showAllChats, setShowAllChats] = useState(false);
+  const [defaultDailyCredits, setDefaultDailyCredits] = useState(8);
+  const [defaultMonthlyCredits, setDefaultMonthlyCredits] = useState(40);
   const [upgradeDialog, setUpgradeDialog] = useState<{
     open: boolean;
     feature: string;
@@ -111,6 +113,17 @@ const Dashboard = () => {
         .limit(5);
 
       setRecentParaphrases(paraphrasesData || []);
+
+      // Fetch admin-configured credit defaults
+      const { data: settingsData } = await supabase
+        .from("app_settings")
+        .select("key, value")
+        .in("key", ["default_daily_credits", "default_monthly_credits"]);
+
+      settingsData?.forEach((s: { key: string; value: string }) => {
+        if (s.key === "default_daily_credits") setDefaultDailyCredits(parseInt(s.value) || 8);
+        if (s.key === "default_monthly_credits") setDefaultMonthlyCredits(parseInt(s.value) || 40);
+      });
     } catch (error) {
       logError("Dashboard:checkAuth", error);
       toast.error(translateError(error));
@@ -172,18 +185,15 @@ const Dashboard = () => {
   // Check if daily credits should show as full (new day)
   // Only active subscribers get unlimited daily credits
   const getSmartDailyCredits = () => {
-    if (!profile?.daily_reset_date) return profile?.daily_credits ?? 8;
+    if (!profile?.daily_reset_date) return profile?.daily_credits ?? defaultDailyCredits;
     const today = new Date().toISOString().split('T')[0];
     const resetDate = new Date(profile.daily_reset_date).toISOString().split('T')[0];
     
     if (isActiveSubscriber()) {
-      // Active subscribers get fresh 8 daily credits every day
-      return resetDate !== today ? 8 : (profile?.daily_credits ?? 8);
+      return resetDate !== today ? defaultDailyCredits : (profile?.daily_credits ?? defaultDailyCredits);
     } else {
-      // Free/expired users: daily credits limited by monthly pool
       if (resetDate !== today) {
-        // New day - show min(8, monthly remaining)
-        return Math.min(8, profile?.monthly_credits ?? 0);
+        return Math.min(defaultDailyCredits, profile?.monthly_credits ?? 0);
       }
       return profile?.daily_credits ?? 0;
     }
@@ -346,12 +356,12 @@ const Dashboard = () => {
                 </div>
                 <div className="text-3xl font-bold mt-1">
                   <span>{getSmartDailyCredits()}</span>
-                  <span className="text-lg text-muted-foreground font-normal">/8</span>
+                  <span className="text-lg text-muted-foreground font-normal">/{defaultDailyCredits}</span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
                   {isActiveSubscriber() 
                     ? 'Resets daily at midnight (no monthly cap)' 
-                    : 'Counts towards 40/month limit'}
+                    : `Counts towards ${defaultMonthlyCredits}/month limit`}
                 </div>
               </div>
               
@@ -361,7 +371,7 @@ const Dashboard = () => {
                   <div className="text-sm text-muted-foreground">Monthly Credits</div>
                   <div className="text-3xl font-bold mt-1">
                     <span>{profile?.monthly_credits}</span>
-                    <span className="text-lg text-muted-foreground font-normal">/40</span>
+                    <span className="text-lg text-muted-foreground font-normal">/{defaultMonthlyCredits}</span>
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">Resets monthly</div>
                 </div>
@@ -444,7 +454,7 @@ const Dashboard = () => {
                             <p className="text-xs text-muted-foreground leading-relaxed">
                               You have <span className="font-medium text-foreground">{profile?.paid_credits || 0} credits</span> remaining. 
                               Your subscription expires on <span className="font-medium text-foreground">{formatExpiryDate(profile.credits_expiry_date)}</span>.
-                              Daily credits (8/day) are used first, then paid credits.
+                              Daily credits ({defaultDailyCredits}/day) are used first, then paid credits.
                             </p>
                           </div>
                         </TooltipContent>

@@ -72,7 +72,7 @@ export const ActivityMonitor = ({ recentActivity, emailMap }: ActivityMonitorPro
       subtext: Array.isArray(a.analyses_run) ? `${a.analyses_run.length} analyses` : 'data analysis',
       created_at: a.created_at
     }))
-  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 50) : [];
+  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 100) : [];
 
   const getActivityIcon = (type: 'document' | 'chat' | 'analysis') => {
     switch (type) {
