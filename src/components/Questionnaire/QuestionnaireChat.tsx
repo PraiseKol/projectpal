@@ -121,7 +121,7 @@ export const QuestionnaireChat = ({ currentQuestionnaire, onQuestionnaireGenerat
               <div>
                 <h3 className="font-semibold text-lg">AI Questionnaire Assistant</h3>
                 <p className="text-muted-foreground text-sm mt-1 max-w-md">
-                  Describe the questionnaire you need and I'll generate it for you. Each message costs 2 credits.
+                  Describe the questionnaire you need and I'll generate it for you. Each message costs 5 credits.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 justify-center mt-2">

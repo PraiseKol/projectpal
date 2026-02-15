@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, FileDown, FileText, Eye, Hammer, RotateCcw, BookOpen, MessageSquare, Lock, Crown, ArrowRight } from "lucide-react";
+import { ArrowLeft, FileDown, FileText, Eye, Hammer, RotateCcw, BookOpen, MessageSquare, Lock, Crown, ArrowRight, Loader2, Coins } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +44,7 @@ const QuestionnaireBuilder = () => {
   const [showSampleDialog, setShowSampleDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("builder");
   const [planType, setPlanType] = useState<string>("");
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -104,23 +105,52 @@ const QuestionnaireBuilder = () => {
     return Object.keys(errs).length === 0;
   }, [data]);
 
-  const handleExportPdf = () => {
+  const gateExport = async (exportFn: () => Promise<void>, format: string) => {
     if (!validate()) {
       toast.error("Please fix validation errors before exporting");
       return;
     }
-    exportToPdf(data);
-    toast.success("PDF downloaded!");
+    setIsExporting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toast.error("Please sign in"); return; }
+
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/questionnaire-export`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ format }),
+        }
+      );
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        if (res.status === 402) {
+          toast.error(err.error || "Insufficient credits", {
+            action: { label: "Get Credits", onClick: () => navigate("/pricing") },
+          });
+        } else {
+          toast.error(err.error || "Export failed");
+        }
+        return;
+      }
+
+      await exportFn();
+      toast.success(`${format.toUpperCase()} downloaded!`);
+    } catch (err) {
+      console.error("Export error:", err);
+      toast.error("Something went wrong during export");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const handleExportDocx = () => {
-    if (!validate()) {
-      toast.error("Please fix validation errors before exporting");
-      return;
-    }
-    exportToDocx(data);
-    toast.success("DOCX downloaded!");
-  };
+  const handleExportPdf = () => gateExport(() => exportToPdf(data), "pdf");
+  const handleExportDocx = () => gateExport(() => exportToDocx(data), "docx");
 
   const handleReset = () => {
     setData(createEmptyQuestionnaire());
@@ -190,13 +220,16 @@ const QuestionnaireBuilder = () => {
             <Button variant="outline" size="sm" onClick={() => setShowResetDialog(true)}>
               <RotateCcw className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">New</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExportPdf}>
-              <FileDown className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">PDF</span>
+            <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={isExporting}>
+              {isExporting ? <Loader2 className="h-4 w-4 animate-spin sm:mr-1" /> : <FileDown className="h-4 w-4 sm:mr-1" />} <span className="hidden sm:inline">PDF</span>
             </Button>
-            <Button variant="default" size="sm" onClick={handleExportDocx}>
-              <FileText className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">DOCX</span>
+            <Button variant="default" size="sm" onClick={handleExportDocx} disabled={isExporting}>
+              {isExporting ? <Loader2 className="h-4 w-4 animate-spin sm:mr-1" /> : <FileText className="h-4 w-4 sm:mr-1" />} <span className="hidden sm:inline">DOCX</span>
             </Button>
           </div>
+        </div>
+        <div className="container mx-auto px-4 flex items-center justify-center gap-1 py-1 border-t border-border text-xs text-muted-foreground">
+          <Coins className="h-3 w-3" /> Export costs 5 credits per download
         </div>
       </header>
 
@@ -266,13 +299,16 @@ const QuestionnaireBuilder = () => {
           </TabsContent>
 
           <TabsContent value="preview">
-            <div className="mb-4 flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={handleExportPdf}>
-                <FileDown className="h-4 w-4 mr-1" /> Download PDF
-              </Button>
-              <Button variant="default" size="sm" onClick={handleExportDocx}>
-                <FileText className="h-4 w-4 mr-1" /> Download DOCX
-              </Button>
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground flex items-center gap-1"><Coins className="h-3 w-3" /> 5 credits per export</p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={isExporting}>
+                  {isExporting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileDown className="h-4 w-4 mr-1" />} Download PDF
+                </Button>
+                <Button variant="default" size="sm" onClick={handleExportDocx} disabled={isExporting}>
+                  {isExporting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileText className="h-4 w-4 mr-1" />} Download DOCX
+                </Button>
+              </div>
             </div>
             <QuestionnairePreview data={data} />
           </TabsContent>
