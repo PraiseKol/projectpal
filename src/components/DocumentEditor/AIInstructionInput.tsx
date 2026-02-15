@@ -15,11 +15,12 @@ interface AIInstructionInputProps {
 const quickActions = [
   // Fully Wrap Project - NEW (50 credits)
   { 
-    label: "Fully Wrap Project", 
-    instruction: "Fully wrap this project. Analyze the document content (Chapters 1-5) and generate all preliminary and end-matter sections: Title Page, Certification, Declaration, Dedication, Acknowledgement, Abstract, Table of Contents, List of Tables, List of Figures (before Chapter 1), and References/Bibliography and Appendices (after Chapter 5). Use standard Nigerian university academic format with placeholders where needed.", 
+    label: "⚠️ Fully Wrap Project", 
+    instruction: "Fully wrap this project. Analyze the document content (Chapters 1-5) and generate all preliminary and end-matter sections: Title Page, Dedication, Acknowledgement, Abstract, Table of Contents, List of Tables, List of Figures (before Chapter 1), and References/Bibliography and Appendices (after Chapter 5). Use standard Nigerian university academic format with placeholders where needed.", 
     icon: Sparkles, 
     category: "generate",
-    credits: 50 
+    credits: 50,
+    warning: "Only use this if your document contains the full project (Chapters 1-5)."
   },
   // Edit actions (2 credits)
   { 
@@ -123,9 +124,13 @@ export function AIInstructionInput({ onSubmit, isLoading, disabled }: AIInstruct
     setShowExamples(false);
   };
 
-  const handleQuickAction = (actionInstruction: string) => {
+  const handleQuickAction = (action: typeof quickActions[0]) => {
     if (isLoading || disabled) return;
-    onSubmit(actionInstruction);
+    if (action.warning) {
+      const confirmed = window.confirm(`⚠️ Warning: ${action.warning}\n\nDo you want to continue?`);
+      if (!confirmed) return;
+    }
+    onSubmit(action.instruction);
   };
 
   const handleExampleClick = (example: string) => {
@@ -196,7 +201,7 @@ export function AIInstructionInput({ onSubmit, isLoading, disabled }: AIInstruct
                   key={action.label}
                   variant="outline"
                   size="sm"
-                  onClick={() => handleQuickAction(action.instruction)}
+                  onClick={() => handleQuickAction(action)}
                   disabled={isLoading || disabled}
                   className="text-xs whitespace-nowrap shrink-0 h-8"
                 >

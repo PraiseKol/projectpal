@@ -10,7 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Eye, EyeOff, CheckCircle2, XCircle, Mail, ArrowLeft, RefreshCw, Gift } from "lucide-react";
+import { Eye, EyeOff, CheckCircle2, XCircle, Mail, ArrowLeft, RefreshCw, Gift, Info } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { SEO } from "@/components/SEO";
 import { ProjectPalLogo } from "@/components/ProjectPalLogo";
 import { 
@@ -688,6 +689,16 @@ const Auth = () => {
                   <Label htmlFor="signup-referral" className="flex items-center gap-2">
                     <Gift className="h-4 w-4 text-primary" />
                     Referral Code (Optional)
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Get 5% off your first subscription upgrade when you sign up with a valid referral code!</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </Label>
                   <div className="relative">
                     <Input

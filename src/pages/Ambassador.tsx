@@ -88,6 +88,14 @@ const Ambassador = () => {
   const [isRequestingPayout, setIsRequestingPayout] = useState(false);
   const [showPayoutDialog, setShowPayoutDialog] = useState(false);
   const [claimStatus, setClaimStatus] = useState<string>("open");
+  const [userPlanType, setUserPlanType] = useState<string>("free");
+  const [userCreditsExpiry, setUserCreditsExpiry] = useState<string | null>(null);
+
+  const isActivePaidUser = () => {
+    if (userPlanType === 'free') return false;
+    if (!userCreditsExpiry) return false;
+    return new Date(userCreditsExpiry) > new Date();
+  };
 
   useEffect(() => {
     checkAmbassadorAccess();
@@ -125,6 +133,18 @@ const Ambassador = () => {
       }
 
       setIsAmbassador(true);
+
+      // Fetch user profile for plan gating
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("plan_type, credits_expiry_date")
+        .eq("id", user.id)
+        .single();
+      if (profileData) {
+        setUserPlanType(profileData.plan_type);
+        setUserCreditsExpiry(profileData.credits_expiry_date);
+      }
+
       await Promise.all([loadAmbassadorData(), loadClaimStatus()]);
     } catch (error) {
       logError("Ambassador:checkAccess", error);
@@ -460,31 +480,41 @@ const Ambassador = () => {
                   You have ₦{(stats?.pendingCommission || 0).toLocaleString()} in pending commissions
                 </p>
               </div>
-              <Dialog open={showPayoutDialog} onOpenChange={setShowPayoutDialog}>
-                <DialogTrigger asChild>
-                  <Button size="lg" variant="gradient" className="gap-2">
-                    <Wallet className="h-5 w-5" />
-                    Claim Commission
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Request Payout</DialogTitle>
-                    <DialogDescription>
-                      Submit a request to receive your pending commission of ₦{(stats?.pendingCommission || 0).toLocaleString()}.
-                      An admin will process your request and you'll be notified once it's approved.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button variant="outline" onClick={() => setShowPayoutDialog(false)}>
-                      Cancel
+              {isActivePaidUser() ? (
+                <Dialog open={showPayoutDialog} onOpenChange={setShowPayoutDialog}>
+                  <DialogTrigger asChild>
+                    <Button size="lg" variant="gradient" className="gap-2">
+                      <Wallet className="h-5 w-5" />
+                      Claim Commission
                     </Button>
-                    <Button onClick={handleRequestPayout} disabled={isRequestingPayout}>
-                      {isRequestingPayout ? "Submitting..." : "Submit Request"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Request Payout</DialogTitle>
+                      <DialogDescription>
+                        Submit a request to receive your pending commission of ₦{(stats?.pendingCommission || 0).toLocaleString()}.
+                        An admin will process your request and you'll be notified once it's approved.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex justify-end gap-2 pt-4">
+                      <Button variant="outline" onClick={() => setShowPayoutDialog(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleRequestPayout} disabled={isRequestingPayout}>
+                        {isRequestingPayout ? "Submitting..." : "Submit Request"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              ) : (
+                <Button size="lg" variant="outline" onClick={() => {
+                  toast.error("You need an active paid plan to claim commissions. Please upgrade your plan.");
+                  navigate("/pricing");
+                }} className="gap-2">
+                  <Wallet className="h-5 w-5" />
+                  Upgrade to Claim
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}

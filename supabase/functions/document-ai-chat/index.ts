@@ -250,17 +250,16 @@ If the user asks to "fully wrap" or "wrap project", you must generate ALL prelim
 
 **BEFORE CHAPTER 1 (Preliminary Pages):**
 1. **TITLE PAGE** - Include: Project title (extract from document), [Student Name], [Matric Number], Department of [Department Name] (extract from document if possible), Faculty of [Faculty Name], [University Name], [Month, Year]. Format centered.
-2. **CERTIFICATION** - "This is to certify that this project titled '[Project Title]' was carried out by [Student Name] with Matriculation Number [Matric Number] and has been read and approved as meeting the requirements for the award of [Degree] in the Department of [Department], Faculty of [Faculty], [University]." Include signature lines for: Supervisor (Name: ____________, Signature: ____________, Date: ____________), Head of Department (Name: ____________, Signature: ____________, Date: ____________), External Examiner (Name: ____________, Signature: ____________, Date: ____________).
-3. **DEDICATION** - A short, heartfelt dedication paragraph. Use placeholder: "This project is dedicated to [dedication recipient, e.g., my parents, God Almighty, etc.]."
-4. **ACKNOWLEDGEMENT** - A comprehensive acknowledgement section expressing gratitude to: God Almighty, the project supervisor, Head of Department, lecturers, family members, friends, and colleagues. Use appropriate placeholders for names.
-5. **ABSTRACT** - Generate a 200-300 word abstract summarizing the entire project based on the document content. Include the research problem, objectives, methodology, key findings, and conclusions. End with 4-6 keywords.
-6. **TABLE OF CONTENTS** - Generate a formatted table of contents listing all preliminary pages and chapters with "[Page Number]" placeholders. Include all chapter titles and major subsections found in the document.
-7. **LIST OF TABLES** - List any tables referenced in the document with "[Page Number]" placeholders. If none found, include template entries.
-8. **LIST OF FIGURES** - List any figures referenced in the document with "[Page Number]" placeholders. If none found, include template entries.
+2. **DEDICATION** - A short, heartfelt dedication paragraph. Use placeholder: "This project is dedicated to [dedication recipient, e.g., my parents, God Almighty, etc.]."
+3. **ACKNOWLEDGEMENT** - A comprehensive acknowledgement section expressing gratitude to: God Almighty, the project supervisor, Head of Department, lecturers, family members, friends, and colleagues. Use appropriate placeholders for names.
+4. **ABSTRACT** - Generate a 200-300 word abstract summarizing the entire project based on the document content. Include the research problem, objectives, methodology, key findings, and conclusions. End with 4-6 keywords.
+5. **TABLE OF CONTENTS** - Generate a formatted table of contents listing all preliminary pages and chapters with "[Page Number]" placeholders. Include all chapter titles and major subsections found in the document.
+6. **LIST OF TABLES** - List any tables referenced in the document with "[Page Number]" placeholders. If none found, include template entries.
+7. **LIST OF FIGURES** - List any figures referenced in the document with "[Page Number]" placeholders. If none found, include template entries.
 
 **AFTER CHAPTER 5 (End Matter):**
-9. **REFERENCES** - Compile and format all citations found throughout the document in APA 7th Edition style. Organize alphabetically by author surname. If specific references are cited in-text, format them properly. Add placeholder entries for any incomplete citations.
-10. **APPENDICES** - Create an appendices section template with: "APPENDIX A: [Research Instrument/Questionnaire]", "APPENDIX B: [Raw Data/Additional Tables]", "APPENDIX C: [Letters of Introduction/Consent Forms]".
+8. **REFERENCES** - Compile and format all citations found throughout the document in APA 7th Edition style. Organize alphabetically by author surname. If specific references are cited in-text, format them properly. Add placeholder entries for any incomplete citations.
+9. **APPENDICES** - Create an appendices section template with: "APPENDIX A: [Research Instrument/Questionnaire]", "APPENDIX B: [Raw Data/Additional Tables]", "APPENDIX C: [Letters of Introduction/Consent Forms]".
 
 Use markdown formatting. Extract as much real information (title, department, methodology, findings) from the document as possible. Use [brackets] only for information that cannot be determined from the document content.
 
