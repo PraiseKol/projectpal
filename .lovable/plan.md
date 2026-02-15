@@ -1,76 +1,140 @@
 
-# Chat Lazy Creation, Admin Tab Restrictions, and PPT Slide Flexibility
+# Credit System Rework and Free User Monthly Credit Bug Fix
 
-## 1. Lazy Chat Session Creation
+## Overview of Changes
 
-**Problem**: Every time a user opens the chat page without a `session_id`, a new "New Chat" session is created in the database -- even if they never send a message. This leads to clutter.
+### Current vs New Credit Costs
 
-**Fix** in `src/pages/Chat.tsx`:
-- In `initializeChat`, when there's no `session_id` in the URL, do NOT create a session. Instead, just set `sessionId` to `null` and show the empty chat UI.
-- In `createNewChat` (the sidebar "New Chat" button), same approach: just clear messages and set `sessionId` to `null`. Do not insert into the database.
-- In `handleSend`, before sending the first message, check if `sessionId` is `null`. If so, create the session in the database at that point, set the `sessionId`, update the URL, and then proceed with sending the message.
-- This means the session is only persisted once the user actually sends their first message.
+| Action | Current Cost | New Cost |
+|--------|-------------|----------|
+| Simple chat response | 1 | 1 |
+| AI generation/suggestions (topics, etc.) | 2-6 | 2 |
+| Generate Chapter 1 | 6 (full chapter) | 5 |
+| Generate Chapter 2 | 6 (full chapter) | 10 |
+| Generate Chapter 3 | 6 (full chapter) | 25 |
+| Generate Chapter 4 | 6 (full chapter) | 50 |
+| Generate Chapter 5 | 6 (full chapter) | 5 (same as Ch1, conclusion) |
+| Paraphrasing | 1 | 2 |
+| PowerPoint (no images) | 15 | 10 |
+| PowerPoint (with images) | 20 | 15 |
+| Data Analysis | unchanged | unchanged |
+| Article Search | 1 | 1 (unchanged) |
 
-### Changes
-- `initializeChat` (lines 105-147): Remove the `else` block that inserts a new chat_session. Just set `sessionId(null)` and `setMessages([])`.
-- `createNewChat` (lines 189-215): Replace the database insert with just clearing state: `setSessionId(null)`, `setMessages([])`, `navigate("/chat")`.
-- `handleSend` (lines 311-387): At the top, if `sessionId` is null, create the session first, then continue with the message flow.
+### Bug Fix: Free User Monthly Credit Exhaustion
 
-## 2. Admin Tab Visibility Based on Role (Super Admin vs Admin)
+**Problem**: When a free user's monthly credits hit 0, the backend chat-ai function has a syntax bug (missing closing brace on the error message block at line 266). The article search code block falls through before the 402 return, causing a 500 error which translates to "Something went wrong on our side." Additionally, the frontend credit check uses `||` logic (`daily > 0 OR monthly > 0`), which incorrectly allows requests when daily > 0 but monthly = 0.
 
-**Problem**: Currently, the admin page checks for the `admin` role to grant access, but does not differentiate between `admin` and `super_admin`. Sensitive tabs (Users, Transactions, Roles, Audit Log) should only be visible to super admins.
-
-**Fix** in `src/pages/Admin.tsx`:
-- In `checkAdminAccess`, fetch ALL roles for the user (not just `admin`). Check if they have `admin` OR `super_admin`. Store which role(s) they have.
-- Add a state variable `isSuperAdmin` (boolean).
-- Conditionally render the tabs: Users, Transactions, Roles, and Audit Log tabs and their content are only shown when `isSuperAdmin` is true.
-- Admin users (non-super) can still see: Overview, Activity, Ambassadors, Email Campaigns, Settings.
-
-### Changes
-- Add `const [isSuperAdmin, setIsSuperAdmin] = useState(false);`
-- Update `checkAdminAccess` to query for both `admin` and `super_admin` roles, set `isSuperAdmin` accordingly.
-- Wrap the 4 restricted `TabsTrigger` and `TabsContent` elements in `{isSuperAdmin && ...}` conditionals.
-
-## 3. PPT Slide Content Flexibility (Avoid Squeezing)
-
-**Problem**: The AI prompt asks for 10-15 slides, but bullet points per slide are hard-capped at 6-7 in the rendering code, and the slide count is hard-capped at 15. For long documents, content gets squeezed into too few slides with too many bullets truncated.
-
-**Fix** in `supabase/functions/generate-ppt/index.ts`:
-- Update the AI system prompt to instruct: "Use as many slides as needed. Limit each content slide to 4-5 bullet points maximum. If a section has more content, split it across multiple slides (e.g., 'Methodology (1/2)', 'Methodology (2/2)'). Aim for 12-25 slides for thorough coverage."
-- Raise the `.slice(0, 15)` cap to `.slice(0, 30)` to allow longer presentations.
-- In `buildContentSlide`, if there are more than 5 bullets, auto-split into continuation slides. This is a safety net in case the AI still sends too many bullets per slide.
-- In `buildConclusionSlide` and `buildReferencesSlide`, similarly raise the bullet/reference caps slightly (8 to 12 for references).
-- In the `toBullets` fallback function, raise `max` from 6 to 5 per slide but allow the fallback builder to create more slides.
-
-### Specific Code Changes
-
-**AI Prompt** (line ~1699):
-- Change "Create 10-15 slides" to "Create 12-25 slides for thorough coverage"
-- Add instruction: "Limit each slide to 4-5 bullet points. If a topic needs more points, split across multiple slides with numbered titles like 'Results (1/2)'."
-
-**Slide cap** (line 1750):
-- Change `.slice(0, 15)` to `.slice(0, 30)`
-
-**Content slide rendering** (line 1072-1086):
-- Change `if (i < 7)` to `if (i < 5)` -- render max 5 bullets per slide
-- Add overflow handling: if a slide has more than 5 bullets, split into continuation slides automatically in the main build loop
-
-**Conclusion slide** (line 1304):
-- Change `if (i < 6)` to `if (i < 5)`
-
-**References slide** (line 1365):
-- Change `if (i < 8)` to `if (i < 10)` and add overflow to create additional reference slides
-
-**Fallback builder** (`buildFallbackFromDocContent`):
-- Update `toBullets` to use max 5 per call
-- Split long sections into multiple slides
+**Fix**:
+- Fix the missing closing brace in chat-ai so the 402 error response is properly returned
+- Update the frontend credit check in Chat.tsx so free users are blocked when monthly credits = 0 (regardless of daily credits)
+- Ensure the 402 response is caught and redirects to pricing page with the correct message
 
 ---
 
-## Summary of Files to Modify
+## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/pages/Chat.tsx` | Defer session creation to first message send; "New Chat" just clears state |
-| `src/pages/Admin.tsx` | Add `isSuperAdmin` state; restrict Users, Transactions, Roles, Audit tabs to super admins only |
-| `supabase/functions/generate-ppt/index.ts` | Update AI prompt for more slides with fewer bullets each; raise slide cap to 30; auto-split overflowing slides; reduce per-slide bullet cap from 7 to 5 |
+### 1. `supabase/functions/chat-ai/index.ts`
+
+**`determineCreditCost` function** (lines 78-117): Rewrite the detection logic:
+- Chapter 1 / Introduction: 5 credits
+- Chapter 2 / Literature Review: 10 credits
+- Chapter 3 / Methodology: 25 credits
+- Chapter 4 / Results / Data Analysis chapter: 50 credits
+- Chapter 5 / Conclusion / Recommendations: 5 credits
+- Topic generation, suggestions, proposal outlines, section requests: 2 credits
+- Continue/expand: 2 credits
+- Default simple chat: 1 credit
+
+**Bug fix** (lines 258-266): Add the missing closing brace `}` after the error message assignment on line 265, and move the article search block + the `return` 402 response into the correct position so the insufficient credits error is properly returned.
+
+### 2. `supabase/functions/paraphrase-ai/index.ts`
+
+**Credit cost** (line ~125-145): Change credit deduction from 1 to 2 per paraphrase.
+
+### 3. `supabase/functions/generate-ppt/index.ts`
+
+**Credit constants** (lines 11-12): Change `BASE_CREDIT_COST` from 15 to 10, and `IMAGE_CREDIT_COST` from 5 to 5 (stays the same, total with images = 15).
+
+### 4. `src/pages/Chat.tsx`
+
+**Frontend credit check** (lines 318-327): Fix the logic so free users are blocked when `monthly_credits <= 0`, regardless of daily credits. The check should be:
+- Free users: `monthly_credits > 0` (daily is derived from monthly)
+- Paid users: `daily_credits > 0 || paid_credits > 0`
+
+Also ensure a proper redirect to `/pricing` with a clear toast message.
+
+### 5. `src/pages/Paraphraser.tsx`
+
+No changes needed -- it calls the `paraphrase-ai` edge function which handles credit deduction. The credit cost change is backend-only.
+
+---
+
+## Technical Details
+
+### Chapter Detection Logic (chat-ai)
+
+```text
+Chapter 4 patterns (50 credits):
+  - "chapter 4", "chapter four", "results", "data presentation", "data analysis chapter"
+  - NOT triggered by the standalone data analysis page
+
+Chapter 3 patterns (25 credits):
+  - "chapter 3", "chapter three", "methodology", "research methodology"
+
+Chapter 2 patterns (10 credits):
+  - "chapter 2", "chapter two", "literature review", "review of literature"
+
+Chapter 1 patterns (5 credits):
+  - "chapter 1", "chapter one", "introduction chapter"
+
+Chapter 5 patterns (5 credits):
+  - "chapter 5", "chapter five", "conclusion", "recommendations"
+
+Generation/Suggestions (2 credits):
+  - Topic generation, proposal outline, section requests,
+    continue/expand, suggestions
+
+Simple chat (1 credit):
+  - Everything else
+```
+
+### Bug Fix Detail (chat-ai lines 258-266)
+
+The current code:
+```javascript
+} else {
+    errorMessage = `This action requires...`;
+}                          // <-- missing closing brace for if block
+
+// Handle article search requests   // <-- this runs BEFORE the return!
+if (articleSearchCheck.isSearch) {
+```
+
+Fixed to:
+```javascript
+} else {
+    errorMessage = `This action requires...`;
+}
+
+    console.log(`[CREDIT] Insufficient credits...`);
+    return new Response(
+      JSON.stringify({ error: errorMessage, ... }),
+      { status: 402, ... }
+    );
+}                          // <-- properly closes the if(totalAvailable < creditCost) block
+
+// Handle article search requests
+if (articleSearchCheck.isSearch) {
+```
+
+### Frontend Credit Check Fix (Chat.tsx)
+
+```text
+Current (buggy):
+  hasCredits = daily > 0 || (free && monthly > 0) || (paid && paid_credits > 0)
+  -- This passes when daily=8, monthly=0 for free users
+
+Fixed:
+  if free user: hasCredits = monthly > 0
+  if paid user: hasCredits = daily > 0 || paid_credits > 0
+```
