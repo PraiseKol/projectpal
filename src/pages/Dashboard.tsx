@@ -493,7 +493,7 @@ const Dashboard = () => {
 
         {/* Recent Activity */}
         {(recentChats.length > 0 || recentParaphrases.length > 0) && (
-          <div className="mb-8 space-y-4">
+          <div className="mb-8 space-y-4 overflow-hidden">
             <h2 className="text-2xl font-bold">Recent Activity</h2>
             
             {recentChats.length > 0 && (
@@ -508,19 +508,19 @@ const Dashboard = () => {
                       className="hover:shadow-md transition-shadow cursor-pointer"
                       onClick={() => navigate(`/chat?session_id=${chat.id}`)}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between gap-3">
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="flex items-center justify-between gap-2 sm:gap-3">
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold truncate">{chat.title}</h4>
-                            <p className="text-sm text-muted-foreground">
+                            <h4 className="font-semibold truncate text-sm sm:text-base">{chat.title}</h4>
+                            <p className="text-xs sm:text-sm text-muted-foreground">
                               {new Date(chat.created_at).toLocaleDateString()}
                             </p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-9 w-9 rounded-full"
+                              className="h-8 w-8 sm:h-9 sm:w-9 rounded-full"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setDeleteChatId(chat.id);
@@ -529,7 +529,7 @@ const Dashboard = () => {
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
-                            <Button size="sm" className="rounded-full">
+                            <Button size="sm" className="rounded-full text-xs sm:text-sm px-2 sm:px-3">
                               Resume
                             </Button>
                           </div>
