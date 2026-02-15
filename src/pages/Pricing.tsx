@@ -285,7 +285,7 @@ const Pricing = () => {
 
       <main className="container mx-auto px-4 py-12">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4">
             {preSelectedPlan ? "Renew Your Plan" : "Choose Your Plan"}
           </h1>
           <p className="text-lg text-muted-foreground mb-6">
@@ -380,7 +380,7 @@ const Pricing = () => {
               <Badge className="ml-2 rounded-full">Recommended</Badge>
             )}
           </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {proPlans.map((plan, index) => (
               <Card key={index} className="hover:shadow-lg transition-all hover:scale-[1.02]">
                 <CardHeader>
@@ -429,7 +429,7 @@ const Pricing = () => {
               ))}
             </div>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {scholarPlans.map((plan, index) => (
               <Card key={index} variant="glass" className="hover:shadow-xl transition-all hover:scale-[1.02]">
                 <CardHeader>

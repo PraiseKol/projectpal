@@ -141,18 +141,18 @@ const QuestionnaireBuilder = () => {
             </Button>
             <h1 className="text-lg font-bold hidden sm:block">Questionnaire Builder</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <Button variant="outline" size="sm" onClick={() => setShowSampleDialog(true)}>
-              <BookOpen className="h-4 w-4 mr-1" /> Sample
+              <BookOpen className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Sample</span>
             </Button>
             <Button variant="outline" size="sm" onClick={() => setShowResetDialog(true)}>
-              <RotateCcw className="h-4 w-4 mr-1" /> New
+              <RotateCcw className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">New</span>
             </Button>
             <Button variant="outline" size="sm" onClick={handleExportPdf}>
-              <FileDown className="h-4 w-4 mr-1" /> PDF
+              <FileDown className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">PDF</span>
             </Button>
             <Button variant="default" size="sm" onClick={handleExportDocx}>
-              <FileText className="h-4 w-4 mr-1" /> DOCX
+              <FileText className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">DOCX</span>
             </Button>
           </div>
         </div>

@@ -227,11 +227,11 @@ const Documents = () => {
         <div className="flex items-center justify-between mb-6">
           <Button variant="ghost" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
+            <span className="hidden sm:inline">Back to Dashboard</span>
           </Button>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <h1 className="text-2xl font-bold">PPT Generator</h1>
+            <h1 className="text-lg sm:text-2xl font-bold">PPT Generator</h1>
           </div>
         </div>
 
@@ -242,7 +242,7 @@ const Documents = () => {
               <p className="text-sm text-muted-foreground mb-4">
                 Upload a DOC, DOCX, or PDF file to generate a PowerPoint presentation
               </p>
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <Input
                   type="file"
                   accept=".doc,.docx,.pdf"
@@ -295,7 +295,7 @@ const Documents = () => {
                   </div>
                   
                   <p className="text-xs text-muted-foreground">
-                    Credit cost: <span className="font-semibold">{includeImages ? 20 : 15} credits</span>
+                    Credit cost: <span className="font-semibold">{includeImages ? 15 : 10} credits</span>
                   </p>
                   <Button
                     onClick={handleGeneratePPT}

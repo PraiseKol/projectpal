@@ -251,10 +251,10 @@ const Ambassador = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button onClick={() => navigate("/dashboard")} variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              <ArrowLeft className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Back</span>
             </Button>
-            <h1 className="text-2xl font-bold">Ambassador Portal</h1>
+            <h1 className="text-lg sm:text-2xl font-bold">Ambassador Portal</h1>
           </div>
         </div>
       </header>
@@ -284,7 +284,7 @@ const Ambassador = () => {
           <CardContent>
             {referralCode ? (
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <div className="bg-background rounded-lg px-6 py-3 font-mono text-2xl font-bold tracking-wider border">
+                <div className="bg-background rounded-lg px-4 sm:px-6 py-3 font-mono text-lg sm:text-2xl font-bold tracking-wider border">
                   {referralCode.code}
                 </div>
                 <Button onClick={copyReferralLink} variant="outline" className="gap-2">
@@ -314,7 +314,7 @@ const Ambassador = () => {
         </Card>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
           <Card className="shadow-md rounded-2xl">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
