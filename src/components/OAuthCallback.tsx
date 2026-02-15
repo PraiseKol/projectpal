@@ -9,15 +9,40 @@ const OAuthCallback = () => {
   const [hasRedirected, setHasRedirected] = useState(false);
 
   useEffect(() => {
-    console.log("[OAuthCallback] Component mounted, waiting for session...");
-    console.log("[OAuthCallback] Current URL:", window.location.href);
+    console.log("[OAuthCallback] Component mounted");
+    console.log("[OAuthCallback] URL:", window.location.href);
+    console.log("[OAuthCallback] Hash:", window.location.hash);
+    console.log("[OAuthCallback] Search:", window.location.search);
+
+    // Extract tokens from URL hash or query params (standalone redirect flow)
+    const hash = window.location.hash.substring(1);
+    const hashParams = new URLSearchParams(hash);
+    const queryParams = new URLSearchParams(window.location.search);
+
+    const access_token = hashParams.get("access_token") || queryParams.get("access_token");
+    const refresh_token = hashParams.get("refresh_token") || queryParams.get("refresh_token");
+
+    console.log("[OAuthCallback] access_token found:", !!access_token);
+    console.log("[OAuthCallback] refresh_token found:", !!refresh_token);
+
+    if (access_token && refresh_token) {
+      console.log("[OAuthCallback] Setting session from URL tokens...");
+      supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
+        if (error) {
+          console.error("[OAuthCallback] setSession error:", error.message);
+          toast.error("Sign in failed. Please try again.");
+          navigate("/auth", { replace: true });
+        } else {
+          console.log("[OAuthCallback] Session set successfully from URL tokens");
+        }
+      });
+    }
 
     // Check if session already exists
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log("[OAuthCallback] Initial session check:", session ? "found" : "none");
       if (session && !hasRedirected) {
         setHasRedirected(true);
-        console.log("[OAuthCallback] Redirecting to dashboard (existing session)");
         navigate("/dashboard", { replace: true });
       }
     });
@@ -27,12 +52,11 @@ const OAuthCallback = () => {
       console.log("[OAuthCallback] Auth event:", event, "Session:", session ? "exists" : "none");
       if (event === "SIGNED_IN" && session && !hasRedirected) {
         setHasRedirected(true);
-        console.log("[OAuthCallback] SIGNED_IN detected, redirecting to dashboard");
         navigate("/dashboard", { replace: true });
       }
     });
 
-    // Timeout fallback - if no session after 15 seconds, redirect to auth
+    // Timeout fallback
     const timeout = setTimeout(() => {
       if (!hasRedirected) {
         console.log("[OAuthCallback] Timeout reached, redirecting to /auth");
