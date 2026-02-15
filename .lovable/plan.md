@@ -1,146 +1,127 @@
 
 
-# Document Editor Credit System Update and "Fully Wrap Project" Feature
+# Multi-Feature Update: Fully Wrap, Ambassador Gating, Referral Tooltip, and Landing Page
 
-## 1. Credit Cost Updates for Document AI Assistant
+## 1. Fully Wrap Project -- Remove Certification/Declaration, Add Warning
 
-The current document-ai-chat edge function uses a simple 3-tier system (edit=1, analysis=2, generation=3). This needs to be replaced with granular, keyword-based detection matching the chat-ai credit costs.
+**File: `src/components/DocumentEditor/AIInstructionInput.tsx`**
+- Update the "Fully Wrap Project" quick action instruction text to exclude "Certification" and "Declaration" from the generated sections
+- Add a warning note in the instruction: "Important: Only use this if your document contains the full project (Chapters 1-5)."
+- Add a visual warning banner above or beside the "Fully Wrap Project" button (or show a confirmation dialog when clicked) warning users not to use it unless they have uploaded chapters 1-5
 
-### New Credit Structure
+**File: `supabase/functions/document-ai-chat/index.ts`**
+- Update the system prompt for wrap project requests to remove Certification and Declaration from the generated structure. The output will now be: Title Page, Dedication, Acknowledgement, Abstract, Table of Contents, List of Tables, List of Figures, then References and Appendices after Chapter 5.
 
-| Action | Current Cost | New Cost |
-|--------|-------------|----------|
-| Fix Grammar | 1 | 2 |
-| Improve Clarity | 1 | 2 |
-| Academic Tone | 1 | 2 |
-| Summarize | 2 | 4 |
-| Extract Key Points | 2 | 4 |
-| Write Abstract | 3 | 5 |
-| Write Chapter 5 / Conclusion | 3 | 15 |
-| Write Introduction (Ch 1) | 3 | 5 |
-| Journal Paper | 3 | 20 |
-| Research Proposal | (not present) | 20 |
-| Literature Review (Ch 2) | 3 | 10 |
-| Fully Wrap Project | (new) | 50 |
+## 2. Ambassador Request -- Require Paid Plan
 
-### Uniformity with Chat AI
+**File: `src/components/Settings/AmbassadorRequestCard.tsx`**
+- Accept a new prop `planType: string` from the parent Settings page
+- Check if `planType` is `'pro'` or `'scholar'` (and subscription is active)
+- If user is on a free plan: instead of the request button, show the ambassador perks list and an "Upgrade to a Paid Plan" button that navigates to `/pricing`
+- Ambassador perks to list:
+  - Earn 5% commission on referral subscriptions
+  - Get a unique shareable referral code
+  - Access to the Ambassador Portal with analytics
+  - Track referrals and earnings in real-time
 
-These costs are aligned with the chat-ai credit allocations where applicable:
-- Chapter 1 / Introduction: 5 credits (matches chat-ai)
-- Chapter 2 / Literature Review: 10 credits (matches chat-ai)
-- Chapter 5 / Conclusion: 15 credits (user specified this specifically for the document editor)
-- Research Proposal / Journal Paper: 20 credits each
-- Grammar/Clarity/Academic Tone (edit tasks): 2 credits each
-- Summarize / Extract Key Points: 4 credits each
-- Write Abstract: 5 credits
-- Fully Wrap Project: 50 credits (new, most expensive)
+**File: `src/pages/Settings.tsx`**
+- Pass `profile?.plan_type` as a prop to `AmbassadorRequestCard`
+- Also pass credit expiry info so the component can determine if the paid plan is still active
 
-## 2. New Feature: "Fully Wrap Project"
+## 3. Ambassador Claim -- Require Active Paid Plan
 
-This will be the first quick action shown. It generates all preliminary and end-matter content for a complete academic project:
+**File: `src/pages/Ambassador.tsx`**
+- After loading ambassador data, also fetch the user's profile to check `plan_type` and `credits_expiry_date`
+- In the "Claim Commission" section (lines 453-506): add a check -- if the user is on a free plan (or their paid plan has expired), replace the claim button with a disabled state and a message: "Upgrade to a paid plan to claim your commission"
+- The rest of the Ambassador page (stats, referrals, commissions, payouts) remains fully accessible
 
-### What it generates (based on uploaded sample documents):
-**Before Chapter 1:**
-- Title Page
-- Certification Page
-- Declaration (if applicable)
-- Dedication
-- Acknowledgement
-- Abstract
-- Table of Contents (template)
-- List of Tables (template)
-- List of Figures (template)
+## 4. Referral Code Tooltip on Sign Up Page
 
-**After Chapter 5:**
-- References / Bibliography section
-- Appendices section (template)
+**File: `src/pages/Auth.tsx`**
+- Import `Tooltip, TooltipTrigger, TooltipContent, TooltipProvider` from `@/components/ui/tooltip`
+- Import `Info` icon from `lucide-react`
+- Next to the "Referral Code (Optional)" label (line 688), add an info icon wrapped in a Tooltip
+- Tooltip content: "Get 5% off your first subscription upgrade when you sign up with a valid referral code!"
 
-The AI prompt will instruct the model to analyze the uploaded document's content (which should contain Chapters 1-5) and generate all these wrapper sections with appropriate placeholders for names, dates, supervisors, etc., styled in standard Nigerian university academic format.
+## 5. Landing Page Feature List Update
 
----
-
-## Files to Modify
-
-### 1. `supabase/functions/document-ai-chat/index.ts`
-
-**Replace the simple `categorizeRequest` function and flat credit constants** with a granular `determineCreditCost` function that pattern-matches instructions:
-
-- "fully wrap" / "wrap project" / "full project": 50 credits, generation type
-- "journal paper" / "research proposal": 20 credits, generation type
-- "chapter 5" / "conclusion" / "write chapter 5": 15 credits, generation type
-- "chapter 2" / "literature review": 10 credits, generation type
-- "chapter 1" / "introduction" / "write abstract": 5 credits, generation/edit type
-- "summarize" / "extract key" / "key points": 4 credits, analysis type
-- "fix grammar" / "improve clarity" / "academic tone" / "proofread" / "spelling": 2 credits, edit type
-- Default custom instruction: 2 credits
-
-**Update the system prompt** to include instructions for the "Fully Wrap Project" task, describing the exact structure of preliminary pages and references based on the uploaded sample documents.
-
-### 2. `src/components/DocumentEditor/AIInstructionInput.tsx`
-
-**Update the `quickActions` array:**
-- Add "Fully Wrap Project" as the first action (50 credits, generate category)
-- Add "Research Proposal" action (20 credits, generate category)
-- Update all existing credit values to match the new costs
-- Update the credit info footer text at the bottom
-
-### 3. No database or migration changes needed
-
-Credits are already deducted from existing `daily_credits` and `paid_credits` columns.
+**File: `src/pages/Index.tsx`**
+- Update the `features` array to include the new/missing features:
+  1. "Generate project topics instantly"
+  2. "Write comprehensive proposals"
+  3. "Create chapters 1-5 with AI assistance"
+  4. "Get accurate academic references"
+  5. "Edit, improve, and paraphrase your work"
+  6. "Fully wrap your project with preliminary pages and references"
+  7. "Analyze research data with built-in statistical tools"
+  8. "Build custom questionnaires for your research"
+  9. "Generate PowerPoint presentations from your documents"
+  10. "AI-powered document editor with grammar, clarity, and tone tools"
 
 ---
 
 ## Technical Details
 
-### Credit Detection Logic (document-ai-chat)
+### AmbassadorRequestCard prop changes
 
 ```text
-determineCreditCost(instruction):
-  "fully wrap" / "wrap project" / "full project wrap" -> 50cr, generation
-  "journal paper" / "convert to journal" -> 20cr, generation
-  "research proposal" -> 20cr, generation
-  "chapter 5" / "conclusion" / "recommendations" -> 15cr, generation
-  "chapter 2" / "literature review" -> 10cr, generation
-  "chapter 1" / "introduction chapter" / "write introduction" -> 5cr, generation
-  "write abstract" / "abstract" -> 5cr, generation
-  "summarize" / "summary" / "extract key" / "key points" / "outline" -> 4cr, analysis
-  "fix grammar" / "spelling" / "improve clarity" / "academic tone" / "proofread" / "edit" -> 2cr, edit
-  default -> 2cr, generation
+interface AmbassadorRequestCardProps {
+  userId: string;
+  isAmbassador: boolean;
+  planType: string;       // NEW
+  creditsExpiry: string | null;  // NEW
+}
 ```
 
-### Fully Wrap Project AI Prompt Addition
+The component checks:
+- `planType !== 'free'` AND expiry date is in the future = paid user, show request button
+- Otherwise = free user, show perks + upgrade button
 
-The system prompt will include a special instruction block for "wrap project" requests. Based on the sample documents analyzed, the structure is:
+### Ambassador.tsx claim gating
 
+After `checkAmbassadorAccess`, fetch profile:
 ```text
-1. TITLE PAGE - Project title, student name, matric number, department, faculty, university, date
-2. CERTIFICATION - Supervisor signature block, HOD signature block, External examiner
-3. DECLARATION (optional) - Standard reproduction declaration form
-4. DEDICATION - Short dedication paragraph
-5. ACKNOWLEDGEMENT - Gratitude to God, supervisor, lecturers, family, friends
-6. ABSTRACT - 200-300 word summary with keywords
-7. TABLE OF CONTENTS - Formatted with page number placeholders
-8. LIST OF TABLES - Placeholder entries
-9. LIST OF FIGURES - Placeholder entries
---- [Chapters 1-5 from the document] ---
-10. REFERENCES - Formatted in APA style based on citations found in the document
-11. APPENDICES - Template section
+const { data: profileData } = await supabase
+  .from("profiles")
+  .select("plan_type, credits_expiry_date")
+  .eq("id", user.id)
+  .single();
 ```
 
-The AI will be instructed to use placeholder brackets like [Student Name], [Matric Number], [Supervisor Name], [University Name] etc., and to extract actual names/titles from the document content where possible.
+Store in state, then in the claim section:
+- If `plan_type === 'free'` or expiry is past: show "Upgrade to claim" message with button to `/pricing`
+- Otherwise: show normal claim flow
 
-### Quick Actions Array Update (AIInstructionInput.tsx)
+### Fully Wrap instruction update (AIInstructionInput.tsx)
 
-The updated array will have 12 actions in this order:
-1. Fully Wrap Project (50cr) - NEW, first position
-2. Fix Grammar (2cr)
-3. Improve Clarity (2cr)
-4. Academic Tone (2cr)
-5. Summarize (4cr)
-6. Extract Key Points (4cr)
-7. Write Abstract (5cr)
-8. Write Chapter 5 (15cr)
-9. Write Introduction (5cr)
-10. Research Proposal (20cr) - NEW
-11. Journal Paper (20cr)
-12. Literature Review (10cr)
+The instruction string changes from including "Certification, Declaration" to excluding them. The new instruction will specify: Title Page, Dedication, Acknowledgement, Abstract, Table of Contents, List of Tables, List of Figures, References, Appendices.
+
+### Auth.tsx tooltip addition
+
+Add next to the label on line 688-691:
+```text
+<Label className="flex items-center gap-2">
+  <Gift /> Referral Code (Optional)
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger><Info className="h-3.5 w-3.5" /></TooltipTrigger>
+      <TooltipContent>Get 5% off your first subscription!</TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+</Label>
+```
+
+---
+
+## Summary of Files to Modify
+
+| File | Change |
+|------|--------|
+| `src/components/DocumentEditor/AIInstructionInput.tsx` | Remove Certification/Declaration from wrap instruction; add warning |
+| `supabase/functions/document-ai-chat/index.ts` | Update system prompt to exclude Certification/Declaration |
+| `src/components/Settings/AmbassadorRequestCard.tsx` | Gate request behind paid plan; show perks + upgrade CTA for free users |
+| `src/pages/Settings.tsx` | Pass `planType` and `creditsExpiry` props to AmbassadorRequestCard |
+| `src/pages/Ambassador.tsx` | Gate claim button behind active paid plan |
+| `src/pages/Auth.tsx` | Add info tooltip next to referral code field |
+| `src/pages/Index.tsx` | Update features list with new capabilities |
+
