@@ -796,6 +796,75 @@ serve(async (req) => {
         break;
       }
 
+      case "checkAmbassadorPerformance": {
+        // Get all ambassadors
+        const { data: ambRoles } = await supabaseAdmin
+          .from("user_roles")
+          .select("user_id")
+          .eq("role", "ambassador");
+
+        const ambIds = ambRoles?.map(r => r.user_id) || [];
+        const removedAmbassadors: string[] = [];
+
+        for (const ambId of ambIds) {
+          // Get latest approved request
+          const { data: approvedReq } = await supabaseAdmin
+            .from("ambassador_requests")
+            .select("reviewed_at")
+            .eq("user_id", ambId)
+            .eq("status", "approved")
+            .order("reviewed_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (!approvedReq?.reviewed_at) continue;
+
+          const approvalDate = new Date(approvedReq.reviewed_at);
+          const now = new Date();
+          const daysSinceApproval = Math.floor((now.getTime() - approvalDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          // Only check after at least 30 days
+          if (daysSinceApproval < 30) continue;
+
+          // Calculate current 30-day window
+          const completePeriods = Math.floor(daysSinceApproval / 30);
+          const windowStart = new Date(approvalDate.getTime() + (completePeriods - 1) * 30 * 24 * 60 * 60 * 1000);
+          const windowEnd = new Date(approvalDate.getTime() + completePeriods * 30 * 24 * 60 * 60 * 1000);
+
+          const { count: referralCount } = await supabaseAdmin
+            .from("referrals")
+            .select("*", { count: "exact", head: true })
+            .eq("ambassador_user_id", ambId)
+            .gte("created_at", windowStart.toISOString())
+            .lt("created_at", windowEnd.toISOString());
+
+          if ((referralCount ?? 0) < 10) {
+            await supabaseAdmin
+              .from("user_roles")
+              .delete()
+              .eq("user_id", ambId)
+              .eq("role", "ambassador");
+
+            await supabaseAdmin
+              .from("referral_codes")
+              .update({ is_active: false })
+              .eq("user_id", ambId);
+
+            removedAmbassadors.push(ambId);
+
+            await supabaseAdmin.from("admin_audit_log").insert({
+              admin_user_id: user.id,
+              action_type: "auto_remove_ambassador",
+              target_user_id: ambId,
+              details: { reason: "Failed to get 10 referrals in 30-day window", referralCount: referralCount ?? 0 }
+            });
+          }
+        }
+
+        result = { success: true, removedCount: removedAmbassadors.length, removedAmbassadors };
+        break;
+      }
+
       case "getRoleHierarchy": {
         result = {
           hierarchy: roleHierarchy,

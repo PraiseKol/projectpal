@@ -58,6 +58,9 @@ export const AmbassadorRequestCard = ({ userId, isAmbassador }: AmbassadorReques
 
   if (isAmbassador || isLoading) return null;
 
+  // Show the request button if: no request yet, declined, or was approved but role was revoked (not currently ambassador)
+  const canRequest = !requestStatus || requestStatus === "declined" || (requestStatus === "approved" && !isAmbassador);
+
   return (
     <Card className="mb-6 shadow-lg rounded-2xl">
       <CardHeader>
@@ -80,19 +83,32 @@ export const AmbassadorRequestCard = ({ userId, isAmbassador }: AmbassadorReques
             <Badge variant="secondary" className="ml-auto">Pending</Badge>
           </div>
         )}
-        {requestStatus === "approved" && (
-          <div className="flex items-center gap-2 p-4 bg-accent rounded-xl">
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
-            <p className="font-medium">Request Approved! Refresh the page to access your ambassador dashboard.</p>
+        {requestStatus === "approved" && !isAmbassador && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 p-4 bg-accent rounded-xl">
+              <XCircle className="h-5 w-5 text-destructive" />
+              <div>
+                <p className="font-medium">Ambassador Status Revoked</p>
+                <p className="text-sm text-muted-foreground">Your ambassador role was removed. You can request again below.</p>
+              </div>
+            </div>
+            <Button onClick={handleRequest} disabled={isSubmitting} className="w-full rounded-xl">
+              {isSubmitting ? "Submitting..." : "Request Ambassador Role Again"}
+            </Button>
           </div>
         )}
         {requestStatus === "declined" && (
-          <div className="flex items-center gap-2 p-4 bg-accent rounded-xl">
-            <XCircle className="h-5 w-5 text-destructive" />
-            <div>
-              <p className="font-medium">Request Declined</p>
-              <p className="text-sm text-muted-foreground">Your request was not approved at this time.</p>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 p-4 bg-accent rounded-xl">
+              <XCircle className="h-5 w-5 text-destructive" />
+              <div>
+                <p className="font-medium">Request Declined</p>
+                <p className="text-sm text-muted-foreground">Your previous request was not approved. You can try again.</p>
+              </div>
             </div>
+            <Button onClick={handleRequest} disabled={isSubmitting} className="w-full rounded-xl">
+              {isSubmitting ? "Submitting..." : "Request Ambassador Role Again"}
+            </Button>
           </div>
         )}
         {!requestStatus && (

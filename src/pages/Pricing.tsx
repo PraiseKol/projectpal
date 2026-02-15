@@ -59,6 +59,8 @@ const Pricing = () => {
     import.meta.env.VITE_PAYSTACK_PUBLIC_KEY as string | undefined
   );
   const [hasReferralDiscount, setHasReferralDiscount] = useState(false);
+  const [freeDaily, setFreeDaily] = useState("8");
+  const [freeMonthly, setFreeMonthly] = useState("40");
   
   // Get pre-selected values from URL params (for renewals)
   const preSelectedPlan = searchParams.get("plan") as "pro" | "scholar" | null;
@@ -71,6 +73,7 @@ const Pricing = () => {
     getUserEmail();
     loadPaystackKey();
     checkReferralDiscount();
+    loadCreditSettings();
   }, []);
 
   const loadPaystackKey = async () => {
@@ -124,6 +127,23 @@ const Pricing = () => {
       setHasReferralDiscount((count ?? 0) === 0);
     } catch (error) {
       logError("Pricing:checkReferralDiscount", error);
+    }
+  };
+
+  const loadCreditSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("app_settings")
+        .select("key, value")
+        .in("key", ["default_daily_credits", "default_monthly_credits"]);
+      if (!error && data) {
+        data.forEach(s => {
+          if (s.key === "default_daily_credits") setFreeDaily(s.value);
+          if (s.key === "default_monthly_credits") setFreeMonthly(s.value);
+        });
+      }
+    } catch (e) {
+      // fallback to defaults
     }
   };
 
@@ -337,11 +357,11 @@ const Pricing = () => {
               <ul className="space-y-2">
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-secondary" />
-                  <span>8 credits per day</span>
+                  <span>{freeDaily} credits per day</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-secondary" />
-                  <span>40 credits per month</span>
+                  <span>{freeMonthly} credits per month</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-secondary" />
@@ -472,8 +492,8 @@ const Pricing = () => {
                 { 
                   name: "Free", 
                   badge: "Basic",
-                  dailyCredits: "8 credits/day",
-                  monthlyCap: "40 total",
+                  dailyCredits: `${freeDaily} credits/day`,
+                  monthlyCap: `${freeMonthly} total`,
                   paidCredits: "None",
                   creditsReset: "Monthly",
                   features: {
@@ -491,7 +511,7 @@ const Pricing = () => {
                 { 
                   name: "Pro", 
                   badge: "Popular",
-                  dailyCredits: "8 credits/day",
+                  dailyCredits: `${freeDaily} credits/day`,
                   monthlyCap: "No cap",
                   paidCredits: "Based on plan",
                   creditsReset: "Daily",
@@ -510,7 +530,7 @@ const Pricing = () => {
                 { 
                   name: "Scholar", 
                   badge: "Best Value",
-                  dailyCredits: "8 credits/day",
+                  dailyCredits: `${freeDaily} credits/day`,
                   monthlyCap: "No cap",
                   paidCredits: "Based on plan",
                   creditsReset: "Daily",
@@ -632,9 +652,9 @@ const Pricing = () => {
                   </TableRow>
                   <TableRow>
                     <TableCell>Daily Credits</TableCell>
-                    <TableCell className="text-center">8 credits/day</TableCell>
-                    <TableCell className="text-center">8 credits/day</TableCell>
-                    <TableCell className="text-center">8 credits/day</TableCell>
+                    <TableCell className="text-center">{freeDaily} credits/day</TableCell>
+                    <TableCell className="text-center">{freeDaily} credits/day</TableCell>
+                    <TableCell className="text-center">{freeDaily} credits/day</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>
@@ -646,13 +666,13 @@ const Pricing = () => {
                               <Info className="h-3 w-3 text-muted-foreground" />
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>Free users are limited to 40 credits per month total</p>
+                              <p>Free users are limited to {freeMonthly} credits per month total</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       </div>
                     </TableCell>
-                    <TableCell className="text-center text-muted-foreground">40 total</TableCell>
+                    <TableCell className="text-center text-muted-foreground">{freeMonthly} total</TableCell>
                     <TableCell className="text-center font-medium text-secondary">No cap</TableCell>
                     <TableCell className="text-center font-medium text-secondary">No cap</TableCell>
                   </TableRow>
@@ -678,7 +698,7 @@ const Pricing = () => {
                         </TooltipProvider>
                       </div>
                     </TableCell>
-                    <TableCell className="text-center text-muted-foreground">Monthly (40 cap)</TableCell>
+                    <TableCell className="text-center text-muted-foreground">Monthly ({freeMonthly} cap)</TableCell>
                     <TableCell className="text-center font-medium text-secondary">Daily (until expiry)</TableCell>
                     <TableCell className="text-center font-medium text-secondary">Daily (until expiry)</TableCell>
                   </TableRow>
@@ -798,9 +818,9 @@ const Pricing = () => {
                 How Credits Work
               </h4>
               <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• <strong>Free users:</strong> Get 8 credits per day, up to 40 credits per month total. Credits reset monthly.</li>
-                <li>• <strong>Active subscribers:</strong> Get 8 fresh credits every day (no monthly cap) + your paid credits pool until subscription expires.</li>
-                <li>• <strong>Expired subscriptions:</strong> Revert to free user limits (8 daily, 40 monthly cap).</li>
+                <li>• <strong>Free users:</strong> Get {freeDaily} credits per day, up to {freeMonthly} credits per month total. Credits reset monthly.</li>
+                <li>• <strong>Active subscribers:</strong> Get {freeDaily} fresh credits every day (no monthly cap) + your paid credits pool until subscription expires.</li>
+                <li>• <strong>Expired subscriptions:</strong> Revert to free user limits ({freeDaily} daily, {freeMonthly} monthly cap).</li>
               </ul>
             </div>
           </CardContent>
