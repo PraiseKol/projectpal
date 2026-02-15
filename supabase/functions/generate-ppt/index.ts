@@ -8,7 +8,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const BASE_CREDIT_COST = 15;
+const BASE_CREDIT_COST = 10;
 const IMAGE_CREDIT_COST = 5;
 
 // Avoid call-stack overflow when converting large binary buffers

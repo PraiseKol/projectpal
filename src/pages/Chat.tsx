@@ -315,13 +315,15 @@ const Chat = () => {
       }
     }
 
-    // Check credits - updated logic for paid_credits
-    const hasCredits = profile?.daily_credits > 0 || 
-      (profile?.plan_type === 'free' && profile?.monthly_credits > 0) ||
-      (profile?.plan_type !== 'free' && profile?.paid_credits > 0);
+    // Check credits based on user type
+    const isFreeUser = profile?.plan_type === 'free' || 
+      (profile?.credits_expiry_date && new Date(profile.credits_expiry_date) < new Date());
+    const hasCredits = isFreeUser
+      ? (profile?.monthly_credits > 0)
+      : (profile?.daily_credits > 0 || profile?.paid_credits > 0);
 
     if (!hasCredits) {
-      toast.error("You've run out of credits! Upgrade your plan to continue.");
+      toast.error("You've run out of credits for this month. Upgrade your plan for more credits!");
       navigate("/pricing");
       return;
     }
@@ -384,7 +386,18 @@ const Chat = () => {
       setProfile((prev: any) => ({ ...prev, ...data.profile }));
     } catch (error: any) {
       logError("Chat:sendMessage", error);
-      toast.error(translateError(error));
+      // Check for 402 (insufficient credits) from edge function
+      const errorBody = error?.context?.body;
+      const statusCode = error?.context?.status || error?.status;
+      if (statusCode === 402 || errorBody?.credits_required) {
+        const msg = errorBody?.error || "You've run out of credits for this month. Upgrade your plan for more credits!";
+        toast.error(msg, {
+          action: { label: "Upgrade", onClick: () => navigate("/pricing") },
+        });
+        navigate("/pricing");
+      } else {
+        toast.error(translateError(error));
+      }
     } finally {
       setIsLoading(false);
     }

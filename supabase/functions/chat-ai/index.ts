@@ -78,42 +78,38 @@ function isArticleSearchRequest(message: string): { isSearch: boolean; query: st
 function determineCreditCost(message: string): { cost: number; actionType: string } {
   const msgLower = message.toLowerCase();
   
-  // Full chapter request (6 credits) - most expensive
-  const fullChapterPattern = /\b(full\s+chapter|complete\s+chapter|write\s+chapter\s*\d+|generate\s+chapter|chapter\s+\d+\b(?!.*(?:background|problem|objective|scope|significance|section)))/i;
-  if (fullChapterPattern.test(msgLower)) {
-    return { cost: 6, actionType: 'full_chapter' };
+  // Chapter 4 / Results / Data Analysis chapter (50 credits) - most expensive
+  if (/\b(chapter\s*(4|four)|results\s+(and\s+)?discussion|data\s+presentation|data\s+analysis\s+chapter)\b/i.test(msgLower)) {
+    return { cost: 50, actionType: 'chapter_4' };
   }
   
-  // Full proposal draft (5 credits)
-  if (/\b(full\s+proposal|complete\s+proposal|write.*proposal|draft.*proposal|generate.*proposal)\b/i.test(msgLower)) {
-    return { cost: 5, actionType: 'full_proposal' };
+  // Chapter 3 / Methodology (25 credits)
+  if (/\b(chapter\s*(3|three)|methodology|research\s+methodology|research\s+design)\b/i.test(msgLower)) {
+    return { cost: 25, actionType: 'chapter_3' };
   }
   
-  // Continue/expand chapter (4 credits)
-  if (/\b(continue|expand|elaborate|extend|add\s+more|continue\s+writing|expand\s+on)\b/i.test(msgLower) && 
-      /\b(chapter|section|content)\b/i.test(msgLower)) {
-    return { cost: 4, actionType: 'continue_expand' };
+  // Chapter 2 / Literature Review (10 credits)
+  if (/\b(chapter\s*(2|two)|literature\s+review|review\s+of\s+(related\s+)?literature)\b/i.test(msgLower)) {
+    return { cost: 10, actionType: 'chapter_2' };
   }
   
-  // Proposal outline (3 credits)
-  if (/\b(proposal\s+outline|outline.*proposal|structure.*proposal|proposal\s+structure)\b/i.test(msgLower)) {
-    return { cost: 3, actionType: 'proposal_outline' };
+  // Chapter 1 / Introduction (5 credits)
+  if (/\b(chapter\s*(1|one)|introduction\s+chapter)\b/i.test(msgLower)) {
+    return { cost: 5, actionType: 'chapter_1' };
   }
   
-  // Chapter section requests (2 credits each)
-  // background, problem statement, objectives, scope, significance, delimitation
-  const chapterSectionPattern = /\b(background\s+(to\s+the\s+study|of\s+study|section)|problem\s+statement|statement\s+of\s+(the\s+)?problem|research\s+objectives|objectives\s+of|scope\s+(of|and)|significance\s+of|delimitation)/i;
-  if (chapterSectionPattern.test(msgLower)) {
-    return { cost: 2, actionType: 'chapter_section' };
+  // Chapter 5 / Conclusion / Recommendations (5 credits)
+  if (/\b(chapter\s*(5|five)|conclusion|recommendations)\b/i.test(msgLower)) {
+    return { cost: 5, actionType: 'chapter_5' };
   }
   
-  // Topic generation (2 credits)
-  if (/\b(suggest.*topic|generate.*topic|project\s+topic|topic.*list|research\s+topic|give\s+me.*topics|list.*topics)\b/i.test(msgLower)) {
-    return { cost: 2, actionType: 'topic_generation' };
+  // Generation / Suggestions / Proposals (2 credits)
+  if (/\b(suggest|generate|topic|proposal|outline|section|continue|expand|elaborate|extend|add\s+more)\b/i.test(msgLower)) {
+    return { cost: 2, actionType: 'generation_suggestion' };
   }
   
-  // Default: short answer/explanation (1 credit)
-  return { cost: 1, actionType: 'short_answer' };
+  // Default: simple chat (1 credit)
+  return { cost: 1, actionType: 'simple_chat' };
 }
 
 // Deduct credits with multi-credit support
@@ -262,7 +258,14 @@ serve(async (req) => {
       } else if (profile.plan_type !== 'free' && paidCreditsExpired) {
         errorMessage = `Your subscription has expired. This action requires ${creditCost} credits. Upgrade to continue!`;
       } else {
-        errorMessage = `This action requires ${creditCost} credits. You have ${totalAvailable} credits remaining. Upgrade to Pro or Scholar for more credits!`;
+        errorMessage = `You've run out of credits for this month. Upgrade to Pro or Scholar for more credits!`;
+      }
+
+      console.log(`[CREDIT] Insufficient credits for ${actionType} (need ${creditCost}, have ${totalAvailable})`);
+      return new Response(
+        JSON.stringify({ error: errorMessage, credits_required: creditCost, credits_available: totalAvailable }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Handle article search requests
@@ -375,13 +378,6 @@ serve(async (req) => {
         console.error('Article search error:', searchError);
         // Fall through to regular AI response if search fails
       }
-    }
-      
-      console.log(`[CREDIT] Insufficient credits for ${actionType} (need ${creditCost}, have ${totalAvailable})`);
-      return new Response(
-        JSON.stringify({ error: errorMessage, credits_required: creditCost, credits_available: totalAvailable }),
-        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
 
     // Fetch conversation history
