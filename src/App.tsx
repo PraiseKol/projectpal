@@ -68,7 +68,7 @@ const App = () => (
               <Route path="/chat" element={<ProtectedRoute><FeatureGate feature="chat"><Chat /></FeatureGate></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/paraphraser" element={<ProtectedRoute><FeatureGate feature="paraphraser"><Paraphraser /></FeatureGate></ProtectedRoute>} />
-              <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
+              <Route path="/documents" element={<ProtectedRoute><FeatureGate feature="powerpoint_generator"><Documents /></FeatureGate></ProtectedRoute>} />
               <Route path="/document-editor" element={<ProtectedRoute><FeatureGate feature="document_editor"><DocumentEditor /></FeatureGate></ProtectedRoute>} />
               <Route path="/checkout-success" element={<ProtectedRoute><CheckoutSuccess /></ProtectedRoute>} />
               <Route path="/transactions" element={<ProtectedRoute><TransactionHistory /></ProtectedRoute>} />

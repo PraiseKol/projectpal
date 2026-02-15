@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const PUBLIC_PATHS = ["/", "/auth", "/reset-password", "/pricing", "/~oauth"];
 const ADMIN_PATH = "/admin";
@@ -54,13 +55,16 @@ export const MaintenanceBanner = () => {
   // Show unclosable overlay modal for non-admin users on feature pages
   if (!isAdmin && !isPublicPath && !isAdminPath) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
         <div className="bg-card border border-border rounded-2xl shadow-lg p-8 max-w-md mx-4 text-center space-y-4">
           <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto" />
           <h2 className="text-xl font-bold">Under Maintenance</h2>
           <p className="text-muted-foreground">
             The app is currently undergoing maintenance. Please check back later.
           </p>
+          <Button asChild variant="outline">
+            <Link to="/dashboard">Back to Dashboard</Link>
+          </Button>
         </div>
       </div>
     );
