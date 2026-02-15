@@ -30,6 +30,7 @@ export const AppSettings = () => {
     feature_document_editor_enabled: "true",
     feature_chat_enabled: "true",
     feature_questionnaire_builder_enabled: "true",
+    feature_powerpoint_generator_enabled: "true",
   };
 
   useEffect(() => {
@@ -289,6 +290,19 @@ export const AppSettings = () => {
             <Switch
               checked={settings.feature_questionnaire_builder_enabled === "true"}
               onCheckedChange={() => handleToggle("feature_questionnaire_builder_enabled")}
+              disabled={isSaving}
+            />
+          </div>
+          <Separator />
+
+          <div className="flex items-center justify-between py-3">
+            <div>
+              <p className="font-medium">PowerPoint Generator</p>
+              <p className="text-sm text-muted-foreground">Enable the PowerPoint presentation generator</p>
+            </div>
+            <Switch
+              checked={settings.feature_powerpoint_generator_enabled === "true"}
+              onCheckedChange={() => handleToggle("feature_powerpoint_generator_enabled")}
               disabled={isSaving}
             />
           </div>
