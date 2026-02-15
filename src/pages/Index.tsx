@@ -35,9 +35,12 @@ const Index = () => {
     "Write comprehensive proposals",
     "Create chapters 1-5 with AI assistance",
     "Get accurate academic references",
-    "Edit and improve your work",
-    "Get access to Paragraph Paraphraser",
-    "Instantly generate POWERPOINT presentation from your uploaded files",
+    "Edit, improve, and paraphrase your work",
+    "Fully wrap your project with preliminary pages and references",
+    "Analyze research data with built-in statistical tools",
+    "Build custom questionnaires for your research",
+    "Generate PowerPoint presentations from your documents",
+    "AI-powered document editor with grammar, clarity, and tone tools",
   ];
 
   return (

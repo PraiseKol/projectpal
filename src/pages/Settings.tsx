@@ -256,7 +256,7 @@ const Settings = () => {
         </Card>
 
         {/* Ambassador Request */}
-        <AmbassadorRequestCard userId={userId} isAmbassador={isAmbassador} />
+        <AmbassadorRequestCard userId={userId} isAmbassador={isAmbassador} planType={profile?.plan_type || 'free'} creditsExpiry={profile?.credits_expiry_date || null} />
 
         {/* Referral Code */}
         <ReferralCodeCard referredBy={profile?.referred_by} onUpdate={loadUserData} />
