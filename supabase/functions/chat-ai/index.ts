@@ -195,6 +195,19 @@ serve(async (req) => {
       : determineCreditCost(message);
     console.log(`[CREDIT] Action detected: ${actionType}, Cost: ${creditCost} credits`);
 
+    // Fetch dynamic credit defaults from app_settings
+    const { data: settingsData } = await supabaseClient
+      .from('app_settings')
+      .select('key, value')
+      .in('key', ['default_daily_credits', 'default_monthly_credits']);
+
+    let DEFAULT_DAILY = 8;
+    let DEFAULT_MONTHLY = 40;
+    settingsData?.forEach((s: { key: string; value: string }) => {
+      if (s.key === 'default_daily_credits') DEFAULT_DAILY = parseInt(s.value) || 8;
+      if (s.key === 'default_monthly_credits') DEFAULT_MONTHLY = parseInt(s.value) || 40;
+    });
+
     // Check credits and handle resets
     const today = new Date().toISOString().split('T')[0];
     const needsDailyReset = profile.daily_reset_date !== today;
@@ -220,24 +233,24 @@ serve(async (req) => {
     // Handle daily and monthly resets based on user type
     if (needsDailyReset) {
       if (isActiveSubscriber) {
-        // Active subscribers get 8 fresh daily credits every day (no monthly cap)
-        dailyCredits = 8;
-        console.log(`[CREDIT] Active subscriber - Daily credits reset to 8 (no monthly cap)`);
+        // Active subscribers get fresh daily credits every day (no monthly cap)
+        dailyCredits = DEFAULT_DAILY;
+        console.log(`[CREDIT] Active subscriber - Daily credits reset to ${DEFAULT_DAILY} (no monthly cap)`);
       } else {
         // Free users OR expired subscribers: daily credits with 40/month cap
         const lastResetMonth = profile.daily_reset_date ? new Date(profile.daily_reset_date).getMonth() : -1;
         const currentMonth = new Date().getMonth();
         
         if (lastResetMonth !== currentMonth) {
-          // New month - reset monthly credits to 40
-          monthlyCredits = 40;
-          console.log(`[CREDIT] New month - Monthly credits reset to 40`);
+          // New month - reset monthly credits
+          monthlyCredits = DEFAULT_MONTHLY;
+          console.log(`[CREDIT] New month - Monthly credits reset to ${DEFAULT_MONTHLY}`);
         }
         
         // Only reset daily credits if we still have monthly credits remaining
         if (monthlyCredits > 0) {
-          // Daily credits are limited by remaining monthly credits (max 8)
-          dailyCredits = Math.min(8, monthlyCredits);
+          // Daily credits are limited by remaining monthly credits
+          dailyCredits = Math.min(DEFAULT_DAILY, monthlyCredits);
           console.log(`[CREDIT] Free/Expired user - Daily credits set to ${dailyCredits} (monthly remaining: ${monthlyCredits})`);
         } else {
           dailyCredits = 0;

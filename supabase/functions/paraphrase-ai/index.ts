@@ -62,25 +62,38 @@ serve(async (req) => {
     console.log(`[PARAPHRASE] Daily Paraphrase Count: ${dailyParaphraseCount}, Needs Reset: ${needsDailyReset}`);
     console.log(`[PARAPHRASE] Is Free User: ${isFreeUser}, Active Subscriber: ${isActiveSubscriber}`);
 
+    // Fetch dynamic credit defaults from app_settings
+    const { data: settingsData } = await supabaseClient
+      .from('app_settings')
+      .select('key, value')
+      .in('key', ['default_daily_credits', 'default_monthly_credits']);
+
+    let DEFAULT_DAILY = 8;
+    let DEFAULT_MONTHLY = 40;
+    settingsData?.forEach((s: { key: string; value: string }) => {
+      if (s.key === 'default_daily_credits') DEFAULT_DAILY = parseInt(s.value) || 8;
+      if (s.key === 'default_monthly_credits') DEFAULT_MONTHLY = parseInt(s.value) || 40;
+    });
+
     // Reset daily counts if new day
     if (needsDailyReset) {
       dailyParaphraseCount = 0;
       
       if (isActiveSubscriber) {
-        dailyCredits = 8;
-        console.log(`[PARAPHRASE] Daily credits reset to 8`);
+        dailyCredits = DEFAULT_DAILY;
+        console.log(`[PARAPHRASE] Daily credits reset to ${DEFAULT_DAILY}`);
       } else {
         // Free/expired users
         const lastResetMonth = profile.daily_reset_date ? new Date(profile.daily_reset_date).getMonth() : -1;
         const currentMonth = new Date().getMonth();
         
         if (lastResetMonth !== currentMonth) {
-          monthlyCredits = 40;
-          console.log(`[PARAPHRASE] New month - Monthly credits reset to 40`);
+          monthlyCredits = DEFAULT_MONTHLY;
+          console.log(`[PARAPHRASE] New month - Monthly credits reset to ${DEFAULT_MONTHLY}`);
         }
         
         if (monthlyCredits > 0) {
-          dailyCredits = Math.min(8, monthlyCredits);
+          dailyCredits = Math.min(DEFAULT_DAILY, monthlyCredits);
         } else {
           dailyCredits = 0;
         }

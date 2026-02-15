@@ -1521,8 +1521,19 @@ serve(async (req) => {
       );
     }
 
+    // Fetch dynamic credit defaults from app_settings
+    const { data: settingsData } = await supabaseClient
+      .from('app_settings')
+      .select('key, value')
+      .in('key', ['default_daily_credits']);
+
+    let DEFAULT_DAILY = 8;
+    settingsData?.forEach((s: { key: string; value: string }) => {
+      if (s.key === 'default_daily_credits') DEFAULT_DAILY = parseInt(s.value) || 8;
+    });
+
     if (needsDailyReset) {
-      dailyCredits = 8;
+      dailyCredits = DEFAULT_DAILY;
     }
 
     // Credit deduction logic - variable based on image option
