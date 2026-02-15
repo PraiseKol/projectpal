@@ -1,108 +1,33 @@
 
-# Add Multiple Choice Question Type and Update Sample Template
+# Restrict AI Assistant Tab to Scholar Plan Only
 
-## Summary
+## Overview
 
-Two changes are needed:
-1. Add a new **"Multiple Choice"** question type so users can define a list of selectable options (e.g., "What is your age range?" with options like "16-20", "21-24", etc.)
-2. Replace the generic sample template with a comprehensive **ProjectPal User Experience Survey**
+The AI Assistant tab in the Questionnaire Builder will be gated so only Scholar plan users can access it. Pro users will still see the tab but it will show a locked/upgrade prompt. The Builder and Preview tabs remain accessible to both Pro and Scholar users (no change).
 
-## What Changes
+## Changes
 
-### 1. New "Multiple Choice" Question Type
+### File: `src/pages/QuestionnaireBuilder.tsx`
 
-A new `multiple_choice` type will be added to the questionnaire system. Each multiple choice question will have an `options` array of strings that the user can define in the Builder.
+1. **Store `planType` in state** during the existing `checkAccess` flow (line 52-56 already fetches `plan_type`). Save it to a new `planType` state variable.
 
-**How it works in the Builder:**
-- When "Multiple Choice" is selected as the response type, an options editor appears below
-- Users can add/remove individual options using text inputs with + and trash buttons
-- New options start with a blank input; there's always at least 2 options
+2. **Conditionally render the AI Assistant tab content**: When a Pro user clicks the "AI Assistant" tab, instead of showing the chat, show a card explaining the feature is Scholar-only with an upgrade button linking to `/pricing`.
 
-**How it looks in Preview:**
-- Each option is shown as a radio-button-style circle with the option text beside it
-
-**How it exports (PDF and DOCX):**
-- Options rendered as a vertical list with empty circles, matching the existing Yes/No style
-
-### 2. Updated Sample Template
-
-The "Sample" button will load a **ProjectPal User Experience Survey** with 5 sections and approximately 20 questions covering:
-
-- **Demographics** -- age range (multiple choice), education level (multiple choice), field of study (short text)
-- **Platform Usage** -- how long using ProjectPal (multiple choice), which features used (multiple choice), frequency of use (multiple choice)
-- **Feature Satisfaction** -- rating scales for AI Chat, Document Editor, PPT Generator, Data Analysis, Questionnaire Builder, Paraphraser
-- **Usability and Support** -- ease of navigation (rating), encountered issues (yes/no), describe issues (long text), customer support rating
-- **Overall Experience** -- overall satisfaction (rating), recommend to others (yes/no), what you like most (long text), suggestions (long text)
-
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/components/Questionnaire/types.ts` | Add `multiple_choice` to `QuestionType`, add `options?: string[]` to `Question` interface |
-| `src/components/Questionnaire/QuestionCard.tsx` | Add options editor UI when type is `multiple_choice` |
-| `src/components/Questionnaire/QuestionnairePreview.tsx` | Render multiple choice options with radio circles |
-| `src/components/Questionnaire/QuestionnaireExport.tsx` | Add PDF and DOCX rendering for multiple choice |
-| `src/components/Questionnaire/SampleTemplate.ts` | Replace with ProjectPal survey using all question types including multiple choice |
-| `supabase/functions/questionnaire-ai/index.ts` | Update system prompt to include `multiple_choice` type with `options` array |
+3. **Visual indicator on the tab trigger**: Add a small "Scholar" badge or lock icon next to the AI Assistant tab label for non-Scholar users.
 
 ## Technical Details
 
-### types.ts
-- `QuestionType` union adds `'multiple_choice'`
-- `Question` interface gets `options?: string[]`
-- `createEmptyQuestion` remains `short_text` by default (no change needed)
+### State addition
+- Add `const [planType, setPlanType] = useState<string>("")` 
+- In `checkAccess`, set `setPlanType(profile.plan_type)` after fetching the profile
 
-### QuestionCard.tsx
-- When `question.type === 'multiple_choice'`, render below the type selector:
-  - A list of `Input` fields for each option, each with a delete button
-  - An "Add Option" button
-  - Default to 2 empty options when switching to this type
-- On type change to `multiple_choice`, auto-set `options: ['', '']` if not already present
+### AI Assistant TabsContent (line 214-223)
+Replace with a conditional:
+- If `planType === 'scholar'`: render `<QuestionnaireChat>` as before
+- Otherwise: render a centered card with a lock icon, "Scholar Only" heading, description text, and an "Upgrade to Scholar" button linking to `/pricing`
 
-### QuestionnairePreview.tsx
-- New rendering block for `multiple_choice`:
-  - Vertical list of options, each with an empty circle and the option text
+### Tab trigger styling (line 203-205)
+- For non-Scholar users, append a small `Badge` with "Scholar" text next to the tab label
 
-### QuestionnaireExport.tsx (PDF)
-- For `multiple_choice`: render each option as a circle + text line (similar to yes/no but vertical list)
-
-### QuestionnaireExport.tsx (DOCX)
-- For `multiple_choice`: render each option as a paragraph with "○  Option text"
-
-### questionnaire-ai/index.ts
-- Update the JSON schema in the system prompt to include:
-  - `"type": "yes_no" | "short_text" | "long_text" | "rating_scale" | "multiple_choice"`
-  - `"options": ["string array"] (required for multiple_choice type)`
-
-### SampleTemplate.ts
-The full replacement survey content:
-
-**Section 1: Demographics**
-- What is your age range? (multiple_choice: Under 16, 16-20, 21-24, 25-30, 31-40, 41+)
-- What is your highest level of education? (multiple_choice: Secondary School, Undergraduate, Postgraduate, Doctorate, Other)
-- What is your field of study or work? (short_text)
-
-**Section 2: Platform Usage**
-- How long have you been using ProjectPal? (multiple_choice: Less than 1 month, 1-3 months, 3-6 months, 6-12 months, Over 1 year)
-- Which ProjectPal features have you used? (multiple_choice: AI Chat Assistant, Document Editor, PPT Generator, Data Analysis, Questionnaire Builder, Paraphraser)
-- How often do you use ProjectPal? (multiple_choice: Daily, Several times a week, Weekly, Monthly, Rarely)
-
-**Section 3: Feature Satisfaction**
-- Rate the AI Chat Assistant (rating_scale 1to5)
-- Rate the Document Editor (rating_scale 1to5)
-- Rate the PPT Generator (rating_scale 1to5)
-- Rate the Data Analysis tool (rating_scale 1to5)
-- Rate the Questionnaire Builder (rating_scale 1to5)
-- Rate the Paraphraser tool (rating_scale 1to5)
-
-**Section 4: Usability and Support**
-- How easy is it to navigate the platform? (rating_scale 1to5)
-- Have you encountered any technical issues? (yes_no)
-- If yes, please describe the issues (long_text)
-- How would you rate the customer support experience? (rating_scale 1to5)
-
-**Section 5: Overall Experience and Recommendations**
-- How satisfied are you with ProjectPal overall? (rating_scale 1to5)
-- Would you recommend ProjectPal to a colleague or friend? (yes_no)
-- What do you like most about ProjectPal? (long_text)
-- What improvements or new features would you suggest? (long_text)
+### No backend changes needed
+The edge function already has its own credit/auth checks, so even if someone bypasses the UI, the backend will still validate properly.
