@@ -1,94 +1,61 @@
 
-
-# Fix Google OAuth Infinite "Completing Sign In" Spinner
+# Fix Google OAuth "Completing Sign In" Infinite Spinner
 
 ## Root Cause
 
-The `OAuthCallback` component at `/~oauth/*` is purely a static loading spinner. After Google OAuth completes, the Lovable auth module processes the tokens and sets the Supabase session. However, the `OAuthCallback` component never listens for the session to be established and never navigates the user to the dashboard. Result: infinite spinner.
+The `@lovable.dev/cloud-auth-js` library has two distinct flows:
+
+- **In iframe (Lovable preview)**: Uses a popup window. Tokens come back via `postMessage`. The `signInWithOAuth()` call stays alive, receives tokens, and calls `supabase.auth.setSession()`. This works.
+
+- **Standalone tab / published URL**: Does a **full page redirect** to `/~oauth/initiate`. The browser navigates away completely. After Google auth, the broker redirects back to a `/~oauth/*` path with tokens in the URL. But the original `signInWithOAuth()` call is gone (the page was reloaded). **Nobody extracts the tokens from the URL or calls `setSession()`.**
+
+The `OAuthCallback` component listens for `SIGNED_IN` auth events, but that event never fires because the tokens sitting in the URL are never processed into a Supabase session.
 
 ## Fix
 
 ### File: `src/components/OAuthCallback.tsx`
+
 Update the component to:
-1. Listen for `onAuthStateChange` events -- specifically `SIGNED_IN`
-2. When a session is detected, navigate to `/dashboard`
-3. Add a timeout fallback (e.g., 10 seconds) that redirects to `/auth` with an error message if no session is established
-4. Add `console.log` statements at key points for debugging:
-   - Component mount
-   - Auth state change events received
-   - Session detected / timeout triggered
 
-```typescript
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+1. On mount, check the URL for `access_token` and `refresh_token` in both hash fragments and query parameters
+2. If tokens are found, call `supabase.auth.setSession()` to establish the session
+3. Keep the existing `getSession()` check and `onAuthStateChange` listener as fallbacks
+4. Add detailed console logs for every step of the process
+5. Keep the 15-second timeout safety net
 
-const OAuthCallback = () => {
-  const navigate = useNavigate();
-  const [hasRedirected, setHasRedirected] = useState(false);
+The key new logic:
 
-  useEffect(() => {
-    console.log("[OAuthCallback] Component mounted, waiting for session...");
-    console.log("[OAuthCallback] Current URL:", window.location.href);
+```
+// Extract tokens from URL hash or query params
+const hash = window.location.hash.substring(1);
+const hashParams = new URLSearchParams(hash);
+const queryParams = new URLSearchParams(window.location.search);
 
-    // Check if session already exists
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("[OAuthCallback] Initial session check:", session ? "found" : "none");
-      if (session && !hasRedirected) {
-        setHasRedirected(true);
-        console.log("[OAuthCallback] Redirecting to dashboard (existing session)");
-        navigate("/dashboard", { replace: true });
-      }
-    });
+const access_token = hashParams.get("access_token") || queryParams.get("access_token");
+const refresh_token = hashParams.get("refresh_token") || queryParams.get("refresh_token");
 
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("[OAuthCallback] Auth event:", event, "Session:", session ? "exists" : "none");
-      if (event === "SIGNED_IN" && session && !hasRedirected) {
-        setHasRedirected(true);
-        console.log("[OAuthCallback] SIGNED_IN detected, redirecting to dashboard");
-        navigate("/dashboard", { replace: true });
-      }
-    });
-
-    // Timeout fallback - if no session after 15 seconds, redirect to auth
-    const timeout = setTimeout(() => {
-      if (!hasRedirected) {
-        console.log("[OAuthCallback] Timeout reached, redirecting to /auth");
-        toast.error("Sign in took too long. Please try again.");
-        navigate("/auth", { replace: true });
-      }
-    }, 15000);
-
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
-    };
-  }, [navigate, hasRedirected]);
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">Completing sign in...</p>
-      </div>
-    </div>
-  );
-};
-
-export default OAuthCallback;
+if (access_token && refresh_token) {
+  // Process the tokens into a session
+  supabase.auth.setSession({ access_token, refresh_token });
+}
 ```
 
-### Key behaviors:
-- On mount, immediately checks if a session already exists (in case the token was already processed)
-- Listens for `SIGNED_IN` events from the auth state change listener
-- Has a 15-second safety timeout that redirects back to `/auth` with an error toast if something goes wrong
-- Console logs at every step for easy debugging
-
 ### No other files need changes
-- `src/App.tsx` already has the correct `/~oauth/*` route
-- `src/integrations/lovable/index.ts` handles the token exchange automatically
-- The `AuthEventHandler` in `App.tsx` handles `PASSWORD_RECOVERY` separately
 
+- `src/App.tsx` already has the `/~oauth/*` route
+- `src/integrations/lovable/index.ts` handles the iframe/popup flow correctly
+- `src/pages/Auth.tsx` handles `SIGNED_IN` events correctly for the popup flow
+
+## Technical Details
+
+### Full Updated Component Logic
+
+1. **Mount**: Log the current URL and all its parts (hash, search params)
+2. **Token extraction**: Parse both URL hash and query params for `access_token` and `refresh_token`
+3. **Session setup**: If tokens found, call `supabase.auth.setSession()` which will trigger `SIGNED_IN`
+4. **Existing session check**: `supabase.auth.getSession()` as fallback
+5. **Auth listener**: `onAuthStateChange` catches `SIGNED_IN` and navigates to `/dashboard`
+6. **Timeout**: 15 seconds, then redirect to `/auth` with error toast
+
+### Files to Modify
+- `src/components/OAuthCallback.tsx` -- add token extraction from URL and `setSession` call
