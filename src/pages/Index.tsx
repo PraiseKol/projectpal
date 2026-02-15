@@ -60,12 +60,12 @@ const Index = () => {
         <div className="flex justify-center mb-8 animate-scale-in">
           <ProjectPalLogo size="lg" showText={false} />
         </div>
-        <h1 className="text-5xl md:text-6xl font-bold mb-6 animate-fade-in">ProjectPal</h1>
-        <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-fade-in">
+        <h1 className="text-3xl xs:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 animate-fade-in">ProjectPal</h1>
+        <p className="text-base sm:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-fade-in">
           Your AI powered academic project assistant. Complete your research projects faster with intelligent writing
           assistance.
         </p>
-        <div className="flex gap-4 justify-center animate-fade-in">
+        <div className="flex flex-col xs:flex-row gap-3 xs:gap-4 justify-center animate-fade-in">
           <Button size="lg" variant="gradient" onClick={() => navigate("/auth")}>
             Get Started Free
           </Button>
@@ -113,7 +113,7 @@ const Index = () => {
 
       {/* CTA Section */}
       <section className="container mx-auto px-4 py-16 text-center">
-        <Card className="p-12 bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20 hover:shadow-xl transition-shadow">
+        <Card className="p-6 sm:p-8 md:p-12 bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20 hover:shadow-xl transition-shadow">
           <h2 className="text-3xl font-bold mb-4">Ready to Start?</h2>
           <p className="text-lg text-muted-foreground mb-8">
             Join ProjectPal today and transform your academic writing experience.

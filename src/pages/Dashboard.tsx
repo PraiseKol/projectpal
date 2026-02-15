@@ -329,9 +329,9 @@ const Dashboard = () => {
         {/* Credit Info Card */}
         <Card className="mb-8 animate-fade-in">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-3">
               <div>
-                <CardTitle className="text-2xl">
+                <CardTitle className="text-xl sm:text-2xl">
                   Welcome Back{profile?.first_name ? `, ${profile.first_name}` : ''}!
                 </CardTitle>
                 <div className="text-sm text-muted-foreground mt-1 flex items-center">
@@ -342,7 +342,7 @@ const Dashboard = () => {
                   </Badge>
                 </div>
               </div>
-              <Button onClick={() => navigate("/pricing")} variant="gradient" className="gap-2">
+              <Button onClick={() => navigate("/pricing")} variant="gradient" className="gap-2 w-full xs:w-auto">
                 <CreditCard className="h-4 w-4" />
                 {expiryInfo?.isExpired ? 'Renew Plan' : 'Upgrade Plan'}
               </Button>
@@ -584,7 +584,7 @@ const Dashboard = () => {
         )}
 
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <Card className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in" onClick={() => navigate("/chat")}>
             <CardHeader>
               <MessageSquare className="h-12 w-12 mb-4 text-primary" />

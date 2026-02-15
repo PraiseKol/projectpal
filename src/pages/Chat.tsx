@@ -597,7 +597,7 @@ const Chat = () => {
             {messages.length === 0 ? (
               <div className="text-center py-12">
                 <Sparkles className="h-16 w-16 mx-auto mb-4 text-primary" />
-                <h2 className="text-2xl font-bold mb-2">Welcome to ProjectPal</h2>
+                <h2 className="text-xl sm:text-2xl font-bold mb-2">Welcome to ProjectPal</h2>
                 <p className="text-muted-foreground mb-6">
                   Your AI assistant for academic projects. Try one of these quick actions:
                 </p>

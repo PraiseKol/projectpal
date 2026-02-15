@@ -202,12 +202,12 @@ const DataAnalysisContent = () => {
               <span className="text-lg font-semibold">Data Analysis</span>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Button variant="ghost" size="sm" onClick={startTutorial}>
-              <HelpCircle className="h-4 w-4 mr-1" />
+              <HelpCircle className="h-4 w-4 sm:mr-1" />
               <span className="hidden sm:inline">Tutorial</span>
             </Button>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-xs sm:text-sm text-muted-foreground">
               Credits: <span className="font-medium text-foreground">{availableCredits}</span>
             </div>
             <ThemeToggle />
@@ -229,18 +229,18 @@ const DataAnalysisContent = () => {
                   <div key={step.id} className="flex items-center flex-1">
                     <div className="flex flex-col items-center">
                       <div className={`
-                        w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all
+                        w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border-2 transition-all
                         ${isComplete ? 'bg-primary border-primary text-primary-foreground' : 
                           isActive ? 'border-primary text-primary' : 
                           'border-muted text-muted-foreground'}
                       `}>
                         {isComplete ? (
-                          <CheckCircle2 className="h-6 w-6" />
+                          <CheckCircle2 className="h-4 w-4 sm:h-6 sm:w-6" />
                         ) : (
-                          <StepIcon className="h-5 w-5" />
+                          <StepIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
                         )}
                       </div>
-                      <span className={`mt-2 text-sm font-medium ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+                      <span className={`mt-1 sm:mt-2 text-xs sm:text-sm font-medium ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
                         {step.name}
                       </span>
                     </div>

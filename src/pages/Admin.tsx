@@ -164,23 +164,23 @@ const Admin = () => {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
-            <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+            <h1 className="text-lg sm:text-2xl font-bold">Admin Dashboard</h1>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="flex flex-wrap">
-            <TabsTrigger value="overview"><LayoutDashboard className="h-4 w-4 mr-2" />Overview</TabsTrigger>
-            {isSuperAdmin && <TabsTrigger value="users"><Users className="h-4 w-4 mr-2" />Users</TabsTrigger>}
-            {isSuperAdmin && <TabsTrigger value="transactions"><CreditCard className="h-4 w-4 mr-2" />Transactions</TabsTrigger>}
-            <TabsTrigger value="activity"><Activity className="h-4 w-4 mr-2" />Activity</TabsTrigger>
-            {isSuperAdmin && <TabsTrigger value="roles"><Shield className="h-4 w-4 mr-2" />Roles</TabsTrigger>}
-            <TabsTrigger value="ambassadors"><UserCheck className="h-4 w-4 mr-2" />Ambassadors</TabsTrigger>
-            <TabsTrigger value="emails"><Mail className="h-4 w-4 mr-2" />Email Campaigns</TabsTrigger>
-            <TabsTrigger value="settings"><Settings className="h-4 w-4 mr-2" />Settings</TabsTrigger>
-            {isSuperAdmin && <TabsTrigger value="audit"><History className="h-4 w-4 mr-2" />Audit Log</TabsTrigger>}
+          <TabsList className="flex flex-nowrap overflow-x-auto w-full justify-start">
+            <TabsTrigger value="overview"><LayoutDashboard className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Overview</span></TabsTrigger>
+            {isSuperAdmin && <TabsTrigger value="users"><Users className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Users</span></TabsTrigger>}
+            {isSuperAdmin && <TabsTrigger value="transactions"><CreditCard className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Transactions</span></TabsTrigger>}
+            <TabsTrigger value="activity"><Activity className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Activity</span></TabsTrigger>
+            {isSuperAdmin && <TabsTrigger value="roles"><Shield className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Roles</span></TabsTrigger>}
+            <TabsTrigger value="ambassadors"><UserCheck className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Ambassadors</span></TabsTrigger>
+            <TabsTrigger value="emails"><Mail className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Emails</span></TabsTrigger>
+            <TabsTrigger value="settings"><Settings className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Settings</span></TabsTrigger>
+            {isSuperAdmin && <TabsTrigger value="audit"><History className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Audit</span></TabsTrigger>}
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
