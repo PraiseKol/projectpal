@@ -24,6 +24,7 @@ const Admin = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [emailMap, setEmailMap] = useState<Record<string, string>>({});
@@ -58,15 +59,16 @@ const Admin = () => {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
+        .in("role", ["admin", "super_admin"]);
 
-      if (roleError || !roleData) {
+      if (roleError || !roleData || roleData.length === 0) {
         toast.error("Access denied. Admin privileges required.");
         navigate("/dashboard");
         return;
       }
 
+      const roles = roleData.map(r => r.role);
+      setIsSuperAdmin(roles.includes("super_admin"));
       setIsAdmin(true);
       await loadAdminData();
     } catch (error) {
@@ -171,14 +173,14 @@ const Admin = () => {
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="flex flex-wrap">
             <TabsTrigger value="overview"><LayoutDashboard className="h-4 w-4 mr-2" />Overview</TabsTrigger>
-            <TabsTrigger value="users"><Users className="h-4 w-4 mr-2" />Users</TabsTrigger>
-            <TabsTrigger value="transactions"><CreditCard className="h-4 w-4 mr-2" />Transactions</TabsTrigger>
+            {isSuperAdmin && <TabsTrigger value="users"><Users className="h-4 w-4 mr-2" />Users</TabsTrigger>}
+            {isSuperAdmin && <TabsTrigger value="transactions"><CreditCard className="h-4 w-4 mr-2" />Transactions</TabsTrigger>}
             <TabsTrigger value="activity"><Activity className="h-4 w-4 mr-2" />Activity</TabsTrigger>
-            <TabsTrigger value="roles"><Shield className="h-4 w-4 mr-2" />Roles</TabsTrigger>
+            {isSuperAdmin && <TabsTrigger value="roles"><Shield className="h-4 w-4 mr-2" />Roles</TabsTrigger>}
             <TabsTrigger value="ambassadors"><UserCheck className="h-4 w-4 mr-2" />Ambassadors</TabsTrigger>
             <TabsTrigger value="emails"><Mail className="h-4 w-4 mr-2" />Email Campaigns</TabsTrigger>
             <TabsTrigger value="settings"><Settings className="h-4 w-4 mr-2" />Settings</TabsTrigger>
-            <TabsTrigger value="audit"><History className="h-4 w-4 mr-2" />Audit Log</TabsTrigger>
+            {isSuperAdmin && <TabsTrigger value="audit"><History className="h-4 w-4 mr-2" />Audit Log</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -191,60 +193,66 @@ const Admin = () => {
             />
           </TabsContent>
 
-          <TabsContent value="users">
-            <UserManagement users={users} emailMap={emailMap} onRefresh={loadAdminData} />
-          </TabsContent>
+          {isSuperAdmin && (
+            <TabsContent value="users">
+              <UserManagement users={users} emailMap={emailMap} onRefresh={loadAdminData} />
+            </TabsContent>
+          )}
 
-          <TabsContent value="transactions">
-            <Card className="shadow-md rounded-2xl">
-              <CardHeader>
-                <CardTitle>All Transactions</CardTitle>
-                <CardDescription>View all system-wide payments</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>User</TableHead>
-                        <TableHead>Reference</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Plan</TableHead>
-                        <TableHead>Credits</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {transactions.map((transaction) => (
-                        <TableRow key={transaction.id}>
-                          <TableCell>{new Date(transaction.created_at).toLocaleDateString()}</TableCell>
-                          <TableCell className="text-sm">{emailMap[transaction.user_id] || transaction.user_id.slice(0, 8) + "..."}</TableCell>
-                          <TableCell className="font-mono text-xs">{transaction.reference}</TableCell>
-                          <TableCell className="font-semibold">₦{transaction.amount.toLocaleString()}</TableCell>
-                          <TableCell><Badge variant="outline">{transaction.plan_type.toUpperCase()}</Badge></TableCell>
-                          <TableCell>{transaction.credits_purchased}</TableCell>
-                          <TableCell>
-                            <Badge variant={transaction.status === "success" ? "default" : "destructive"}>
-                              {transaction.status}
-                            </Badge>
-                          </TableCell>
+          {isSuperAdmin && (
+            <TabsContent value="transactions">
+              <Card className="shadow-md rounded-2xl">
+                <CardHeader>
+                  <CardTitle>All Transactions</CardTitle>
+                  <CardDescription>View all system-wide payments</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>User</TableHead>
+                          <TableHead>Reference</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Plan</TableHead>
+                          <TableHead>Credits</TableHead>
+                          <TableHead>Status</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                      </TableHeader>
+                      <TableBody>
+                        {transactions.map((transaction) => (
+                          <TableRow key={transaction.id}>
+                            <TableCell>{new Date(transaction.created_at).toLocaleDateString()}</TableCell>
+                            <TableCell className="text-sm">{emailMap[transaction.user_id] || transaction.user_id.slice(0, 8) + "..."}</TableCell>
+                            <TableCell className="font-mono text-xs">{transaction.reference}</TableCell>
+                            <TableCell className="font-semibold">₦{transaction.amount.toLocaleString()}</TableCell>
+                            <TableCell><Badge variant="outline">{transaction.plan_type.toUpperCase()}</Badge></TableCell>
+                            <TableCell>{transaction.credits_purchased}</TableCell>
+                            <TableCell>
+                              <Badge variant={transaction.status === "success" ? "default" : "destructive"}>
+                                {transaction.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
 
           <TabsContent value="activity">
             <ActivityMonitor recentActivity={recentActivity} emailMap={emailMap} />
           </TabsContent>
 
-          <TabsContent value="roles">
-            <RoleManagement emailMap={emailMap} users={users} />
-          </TabsContent>
+          {isSuperAdmin && (
+            <TabsContent value="roles">
+              <RoleManagement emailMap={emailMap} users={users} />
+            </TabsContent>
+          )}
 
           <TabsContent value="ambassadors">
             <AmbassadorManagement emailMap={emailMap} />
@@ -258,9 +266,11 @@ const Admin = () => {
             <AppSettings />
           </TabsContent>
 
-          <TabsContent value="audit">
-            <AuditLog emailMap={emailMap} />
-          </TabsContent>
+          {isSuperAdmin && (
+            <TabsContent value="audit">
+              <AuditLog emailMap={emailMap} />
+            </TabsContent>
+          )}
         </Tabs>
       </main>
     </div>

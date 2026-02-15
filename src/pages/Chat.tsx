@@ -130,15 +130,9 @@ const Chat = () => {
         // Load existing session
         await loadSession(urlSessionId);
       } else {
-        // Create new session
-        const { data: session, error } = await supabase
-          .from("chat_sessions")
-          .insert({ user_id: user.id, title: "New Chat" })
-          .select()
-          .single();
-
-        if (error) throw error;
-        setSessionId(session.id);
+        // Don't create a session yet - wait until user sends first message
+        setSessionId(null);
+        setMessages([]);
       }
     } catch (error) {
       logError("Chat:initializeChat", error);
@@ -187,30 +181,14 @@ const Chat = () => {
   };
 
   const createNewChat = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: session, error } = await supabase
-        .from("chat_sessions")
-        .insert({ user_id: user.id, title: "New Chat" })
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      setSessionId(session.id);
-      setMessages([]);
-      await loadChatSessions(user.id);
-      navigate(`/chat?session_id=${session.id}`);
-      
-      // Close sidebar on mobile after creating new chat
-      if (isMobile) {
-        setShowSidebar(false);
-      }
-    } catch (error) {
-      logError("Chat:createNewChat", error);
-      toast.error(translateError(error));
+    // Don't create a session in the database - just clear state
+    setSessionId(null);
+    setMessages([]);
+    navigate("/chat");
+    
+    // Close sidebar on mobile after creating new chat
+    if (isMobile) {
+      setShowSidebar(false);
     }
   };
 
@@ -309,7 +287,33 @@ const Chat = () => {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || !sessionId || isLoading) return;
+    if (!input.trim() || isLoading) return;
+
+    let currentSessionId = sessionId;
+
+    // Lazy session creation: create on first message
+    if (!currentSessionId) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: session, error } = await supabase
+          .from("chat_sessions")
+          .insert({ user_id: user.id, title: "New Chat" })
+          .select()
+          .single();
+
+        if (error) throw error;
+        currentSessionId = session.id;
+        setSessionId(currentSessionId);
+        navigate(`/chat?session_id=${currentSessionId}`, { replace: true });
+        await loadChatSessions(user.id);
+      } catch (error) {
+        logError("Chat:createSessionOnSend", error);
+        toast.error(translateError(error));
+        return;
+      }
+    }
 
     // Check credits - updated logic for paid_credits
     const hasCredits = profile?.daily_credits > 0 || 
@@ -338,14 +342,14 @@ const Chat = () => {
 
       // Save user message
       await supabase.from("messages").insert({
-        session_id: sessionId,
+        session_id: currentSessionId,
         sender: "user",
         content: userMessage,
       });
 
       // Call AI edge function
       const { data, error } = await supabase.functions.invoke("chat-ai", {
-        body: { message: userMessage, session_id: sessionId },
+        body: { message: userMessage, session_id: currentSessionId },
       });
 
       if (error) throw error;
@@ -362,17 +366,17 @@ const Chat = () => {
 
       // Auto-name the chat if this is the first message
       const isFirstMessage = messages.length === 0;
-      if (isFirstMessage && sessionId) {
+      if (isFirstMessage && currentSessionId) {
         // Use AI-generated title from response, fallback to local generation
         const title = data.generated_title || generateTitle(userMessage);
         await supabase
           .from("chat_sessions")
           .update({ title })
-          .eq("id", sessionId);
+          .eq("id", currentSessionId);
         
         // Update local state
         setChatSessions(prev => 
-          prev.map(s => s.id === sessionId ? { ...s, title } : s)
+          prev.map(s => s.id === currentSessionId ? { ...s, title } : s)
         );
       }
 

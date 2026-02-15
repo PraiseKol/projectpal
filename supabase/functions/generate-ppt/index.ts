@@ -82,7 +82,7 @@ function sanitizeSlideText(input: string): string {
     .trim();
 }
 
-function toBullets(text: string, max = 6): string[] {
+function toBullets(text: string, max = 5): string[] {
   const sentences = text
     .replace(/\s+/g, " ")
     .split(/(?<=[.!?])\s+/)
@@ -181,8 +181,15 @@ function buildFallbackFromDocContent(docContent: string, documentTitle: string):
   ];
 
   const pushIf = (title: string, body: string) => {
-    const bullets = toBullets(body, 6);
-    if (bullets.length) slides.push({ type: "content", title, bullets });
+    const allBullets = toBullets(body, 20);
+    if (allBullets.length) {
+      // Split into chunks of 5 bullets per slide
+      for (let j = 0; j < allBullets.length; j += 5) {
+        const chunk = allBullets.slice(j, j + 5);
+        const slideTitle = allBullets.length > 5 ? `${title} (${Math.floor(j / 5) + 1}/${Math.ceil(allBullets.length / 5)})` : title;
+        slides.push({ type: "content", title: slideTitle, bullets: chunk });
+      }
+    }
   };
 
   pushIf("Overview", abstract || docContent.slice(0, 1800));
@@ -1070,7 +1077,7 @@ function buildContentSlide(pptx: PptxGenJS, data: SlideData, theme: Theme, image
   const lineHeight = design.style === "bold" ? 0.7 : 0.65;
   
   bullets.forEach((bullet, i) => {
-    if (i < 7) {
+    if (i < 5) {
       const bulletChar = getBulletChar(design.bulletStyle, i);
       slide.addText(`${bulletChar} ${bullet}`, {
         x: contentStartX, 
@@ -1302,7 +1309,7 @@ function buildConclusionSlide(pptx: PptxGenJS, data: SlideData, theme: Theme) {
   
   const bullets = data.bullets || [];
   bullets.forEach((bullet, i) => {
-    if (i < 6) {
+    if (i < 5) {
       const bulletChar = design.bulletStyle === "check" ? "✓" : getBulletChar(design.bulletStyle, i);
       slide.addText(`${bulletChar} ${bullet}`, {
         x: 0.5, y: contentStartY + (i * 0.7), w: 9, h: 0.6,
@@ -1363,7 +1370,7 @@ function buildReferencesSlide(pptx: PptxGenJS, data: SlideData, theme: Theme) {
   
   const refs = data.bullets || [];
   refs.forEach((ref, i) => {
-    if (i < 8) {
+    if (i < 10) {
       slide.addText(`[${i + 1}] ${ref}`, {
         x: 0.5, y: contentStartY + (i * 0.55), w: 9, h: 0.5,
         fontSize: 12, color: theme.text,
@@ -1696,8 +1703,9 @@ REQUIRED STRUCTURE (include ALL that apply based on document):
 12. Thank You (type: "thankyou")
 
 GUIDELINES:
-- Create 10-15 slides for comprehensive coverage
-- Each content slide should have 4-6 detailed bullet points
+- Create 12-25 slides for thorough, comprehensive coverage
+- Each content slide should have 4-5 bullet points maximum. If a topic needs more points, split it across multiple slides with numbered titles like 'Methodology (1/2)', 'Methodology (2/2)'
+- Do NOT squeeze too many bullet points into one slide
 - Extract ACTUAL data, statistics, and specific findings from the document
 - Include imagePrompt for 2-3 key slides (methodology, results, system design)
 - Make content substantive and specific, not generic
@@ -1747,7 +1755,7 @@ GUIDELINES:
       if (presentationData.institution) presentationData.institution = sanitizeSlideText(presentationData.institution);
 
       presentationData.slides = presentationData.slides
-        .slice(0, 15)
+        .slice(0, 30)
         .map((s) => ({
           ...s,
           title: s.title ? sanitizeSlideText(s.title) : s.title,
@@ -1825,9 +1833,21 @@ GUIDELINES:
         case 'thankyou':
           buildThankYouSlide(pptx, selectedTheme, presentationData.author, presentationData.institution);
           break;
-        default:
-          buildContentSlide(pptx, slideData, selectedTheme, imageUrl);
-      }
+        default: {
+          // Auto-split content slides with more than 5 bullets
+          const bullets = slideData.bullets || [];
+          if (bullets.length > 5) {
+            for (let j = 0; j < bullets.length; j += 5) {
+              const chunk = bullets.slice(j, j + 5);
+              const partNum = Math.floor(j / 5) + 1;
+              const totalParts = Math.ceil(bullets.length / 5);
+              const splitTitle = totalParts > 1 ? `${slideData.title} (${partNum}/${totalParts})` : slideData.title;
+              buildContentSlide(pptx, { ...slideData, title: splitTitle, bullets: chunk }, selectedTheme, j === 0 ? imageUrl : undefined);
+            }
+          } else {
+            buildContentSlide(pptx, slideData, selectedTheme, imageUrl);
+          }
+        }
     }
 
     // Add Thank You slide if not present
