@@ -13,87 +13,93 @@ interface AIInstructionInputProps {
 }
 
 const quickActions = [
-  // Edit actions (1 credit)
+  // Fully Wrap Project - NEW (50 credits)
+  { 
+    label: "Fully Wrap Project", 
+    instruction: "Fully wrap this project. Analyze the document content (Chapters 1-5) and generate all preliminary and end-matter sections: Title Page, Certification, Declaration, Dedication, Acknowledgement, Abstract, Table of Contents, List of Tables, List of Figures (before Chapter 1), and References/Bibliography and Appendices (after Chapter 5). Use standard Nigerian university academic format with placeholders where needed.", 
+    icon: Sparkles, 
+    category: "generate",
+    credits: 50 
+  },
+  // Edit actions (2 credits)
   { 
     label: "Fix Grammar", 
     instruction: "Fix all grammar and spelling errors in this document", 
     icon: PenLine, 
     category: "edit",
-    credits: 1 
+    credits: 2 
   },
   { 
     label: "Improve Clarity", 
     instruction: "Improve the clarity and readability of this document", 
     icon: Wand2, 
     category: "edit",
-    credits: 1 
+    credits: 2 
   },
   { 
     label: "Academic Tone", 
     instruction: "Make this document more formal and academic in tone", 
     icon: Wand2, 
     category: "edit",
-    credits: 1 
+    credits: 2 
   },
-  
-  // Analysis actions (2 credits)
+  // Analysis actions (4 credits)
   { 
     label: "Summarize", 
     instruction: "Summarize this document in 300-400 words, highlighting the key findings, methodology, and conclusions", 
     icon: FileSearch, 
     category: "analyze",
-    credits: 2 
+    credits: 4 
   },
   { 
     label: "Extract Key Points", 
     instruction: "Extract and list all the key points and main arguments from this document", 
     icon: FileSearch, 
     category: "analyze",
-    credits: 2 
+    credits: 4 
   },
-  
-  // Generation actions (3 credits)
-  { 
-    label: "Write Chapter 5", 
-    instruction: "Generate Chapter 5 (Summary, Conclusions, and Recommendations) based on the findings and discussions in this document. Include: Summary of Findings, Conclusions drawn from the research, Recommendations, and Suggestions for Future Research.", 
-    icon: FileText, 
-    category: "generate",
-    credits: 3 
-  },
+  // Generation actions
   { 
     label: "Write Abstract", 
     instruction: "Write an academic abstract summarizing this document in 250-300 words. Include the research problem, methodology, key findings, and conclusions.", 
     icon: FileText, 
     category: "generate",
-    credits: 3 
+    credits: 5 
+  },
+  { 
+    label: "Write Chapter 5", 
+    instruction: "Generate Chapter 5 (Summary, Conclusions, and Recommendations) based on the findings and discussions in this document. Include: Summary of Findings, Conclusions drawn from the research, Recommendations, and Suggestions for Future Research.", 
+    icon: FileText, 
+    category: "generate",
+    credits: 15 
   },
   { 
     label: "Write Introduction", 
     instruction: "Write or improve the Introduction chapter for this document. Include background context, problem statement, research objectives, significance of the study, and chapter outline.", 
     icon: FileText, 
     category: "generate",
-    credits: 3 
+    credits: 5 
   },
   { 
-    label: "Write Conclusion", 
-    instruction: "Write a detailed conclusion section that summarizes the key findings, discusses their implications, and provides final thoughts on the research.", 
-    icon: FileText, 
+    label: "Research Proposal", 
+    instruction: "Generate a comprehensive research proposal based on this document. Include: Title, Introduction/Background, Statement of the Problem, Research Objectives, Research Questions/Hypotheses, Significance of the Study, Scope and Limitations, Literature Review outline, Methodology, Expected Results, Timeline, and References.", 
+    icon: BookOpen, 
     category: "generate",
-    credits: 3 
+    credits: 20 
   },
   { 
     label: "Journal Paper", 
     instruction: "Convert this document into a publishable journal article format. Create sections: Abstract (250 words), Introduction, Methods, Results, Discussion, Conclusion, and References placeholders.", 
     icon: BookOpen, 
     category: "generate",
-    credits: 3 
+    credits: 20 
   },
   { 
     label: "Literature Review", 
     instruction: "Generate a Literature Review section based on the themes and topics in this document. Organize by themes, identify gaps, and show how existing research relates to this study.", 
     icon: BookOpen, 
     category: "generate",
-    credits: 3 
+    credits: 10 
   },
 ];
 
@@ -238,9 +244,9 @@ export function AIInstructionInput({ onSubmit, isLoading, disabled }: AIInstruct
         {/* Credit info */}
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>
-            <span className="text-primary">●</span> Edit: 1cr | 
-            <span className="text-secondary-foreground ml-1">●</span> Analyze: 2cr | 
-            <span className="text-accent-foreground ml-1">●</span> Generate: 3cr
+            <span className="text-primary">●</span> Edit: 2cr | 
+            <span className="text-secondary-foreground ml-1">●</span> Analyze: 4cr | 
+            <span className="text-accent-foreground ml-1">●</span> Generate: 5-50cr
           </span>
         </div>
         
