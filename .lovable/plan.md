@@ -1,112 +1,122 @@
 
-# Fix Credit Loopholes, Add References, and Improve Chat UI
 
-## Problem Summary
+# Train AI for Law Student Project Structure
 
-1. **Credit loophole**: The `determineCreditCost()` function in `chat-ai` uses regex on the user's message to detect chapter requests. Users can bypass this by phrasing requests vaguely (e.g., "write the introduction for my project" instead of "Chapter 1") and get charged only 1-2 credits instead of the correct 5-25.
-2. **Missing references**: Chapter generations don't consistently include academic references.
-3. **References accuracy**: Generated references need to be real, verifiable sources.
-4. **Back button visibility**: Users want the header (with Back button) to always be visible regardless of scroll.
-5. **Scroll navigation**: Need scroll-to-top and scroll-to-bottom arrow buttons.
+## Overview
 
----
+The current system prompt in `chat-ai/index.ts` is designed for **science/social science** projects (surveys, questionnaires, hypotheses, ANOVA, Cronbach's alpha, etc.). Law students write **"Long Essays"** with a fundamentally different structure. The AI needs to recognize when a user is a law student and adapt its output accordingly.
 
-## 1. Fix Credit Loophole with AI-Based Classification
+## Key Differences Found in the Uploaded Law Projects
 
-**Current approach (broken)**: Regex pattern matching on user message keywords.
+From analyzing both documents, here are the structural patterns unique to Nigerian law school long essays:
 
-**New approach**: Replace the regex `determineCreditCost()` with a lightweight AI classification call using a fast, cheap model (`gemini-2.5-flash-lite`). This classifier receives the user's message PLUS the last 3 messages of conversation context and returns a JSON classification of the request type and appropriate credit cost.
+### Document Label
+- Called a **"Long Essay"**, NOT "project" or "thesis"
+- Submitted to "College of Law" for "Bachelor of Laws (LL.B Hons)"
+
+### Preliminary Pages (Law-Specific)
+- Title Page
+- Declaration Page (student declares original work)
+- Certification Page (supervisor certifies)
+- Dedication
+- Acknowledgements
+- **Table of Contents**
+- **Table of Cases** (e.g., *Donoghue v Stevenson*, *Abacha v Fawehinmi* -- with full citations)
+- **Table/List of Statutes** (e.g., FCCPA 2018, CFRN 1999)
+- **Table of International Conventions** (optional, if comparative)
+- **List of Abbreviations** (e.g., FCCPA, NAFDAC, NDPA, LFN)
+- Abstract
+
+### Chapter Structure (Law-Specific)
+
+**Chapter 1 -- General Introduction**
+- 1.0 Introduction / Background to the Study
+- 1.1 Statement of the Problem
+- 1.2 Aim and Objectives of the Study
+- 1.3 Research Questions (optional)
+- 1.4 Research Methodology (always **doctrinal/qualitative**, never quantitative)
+- 1.5 Significance of the Study
+- 1.6 Scope and Limitations
+- 1.7 Structure/Outline of Chapters
+- 1.8 Definition of Terms (legal definitions with case law citations)
+
+**Chapter 2 -- Conceptual/Theoretical Framework and Literature Review**
+- 2.0 Introduction
+- 2.1 Conceptual Clarification (define legal concepts with case citations and statutory references)
+- 2.2 Theoretical/Conceptual analysis of key legal doctrines
+- 2.3 Literature Review (organized thematically by legal scholars)
+- Subsections use legal analysis, not empirical data
+
+**Chapter 3 -- Legal and Regulatory Framework**
+- 3.0 Introduction
+- 3.1 Constitutional provisions
+- 3.2 Statutory provisions (analyze specific Acts section-by-section)
+- 3.3 Regulatory bodies and their roles
+- 3.4 Comparative Analysis with other jurisdictions (UK, US, South Africa, EU)
+- 3.5 Common law principles and key case law analysis
+- 3.6 Challenges and gaps in the legal framework
+
+**Chapter 4 -- Case Analysis / Application of Law**
+- 4.0 Introduction
+- 4.1-4.X Analysis of landmark cases
+- Breach/liability analysis
+- Judicial remedies and ADR mechanisms
+- Ethical implications
+- Institutional roles
+
+**Chapter 5 -- Summary, Conclusion and Recommendations**
+- 5.0/5.1 Summary of Findings
+- 5.2 Conclusion
+- 5.3 Recommendations (legislative reform proposals)
+
+### Citation and Reference Style (Law-Specific)
+- **Footnotes** are the primary citation method (not in-text APA)
+- Uses **NIALS (Nigerian Institute of Advanced Legal Studies) citation style** or a hybrid footnote style
+- Format: Author, 'Title of Article' (Year) Journal Name, Volume, Pages
+- Case citations: *Case Name* (Year) Report abbreviation (e.g., NWLR, All ER, QB)
+- Statute citations: Full Act name with year and section numbers
+- References section called "Bibliography" (sometimes split into Books, Journal Articles, Online Sources)
+
+### Writing Style
+- **Doctrinal methodology** (library-oriented, analyzing primary and secondary legal sources)
+- Heavy use of case law analysis (not data tables or statistical tests)
+- Legal reasoning and argumentation (not hypothesis testing)
+- Third person, formal legal writing
+- Extensive use of Latin maxims and legal terminology
+
+## Changes
 
 ### File: `supabase/functions/chat-ai/index.ts`
 
-- Replace the `determineCreditCost()` function with an async `classifyRequest()` function
-- The classifier calls `gemini-2.5-flash-lite` with a system prompt that says: "Classify this academic assistant request. Return JSON with `actionType` and `cost`. Categories: chapter_1 (5), chapter_2 (10), chapter_3 (25), chapter_4 (50), chapter_5 (5), research_proposal (20), article_search (1), generation_suggestion (2), simple_chat (1)." It also receives the last few conversation messages for context (so "continue writing" after a chapter 1 discussion is classified correctly)
-- Use `max_tokens: 50` and `temperature: 0` for fast, deterministic classification
-- Fallback to the existing regex function if the classification call fails
-- Call this classifier BEFORE the credit check, so the correct cost is enforced before generation
+**Update the system prompt** (lines 517-618) to add a complete Law department section alongside the existing structure. The AI will detect when a user mentions law, legal topics, LL.B, long essay, statutes, case law, etc., and switch to the law-appropriate structure.
+
+Add the following to the system prompt:
+
+1. A **department detection instruction** telling the AI to identify law students based on keywords (law, legal, LL.B, long essay, statute, case law, tort, contract, criminal law, constitutional law, etc.)
+
+2. A complete **LAW DEPARTMENT PROJECT STRUCTURE** section covering:
+   - Preliminary pages with Table of Cases, Table of Statutes, List of Abbreviations
+   - All 5 chapters with law-specific subsection patterns
+   - Footnote-based citation format (not APA)
+   - Doctrinal methodology (not quantitative)
+   - Case law analysis patterns
+   - Comparative jurisdiction analysis
+
+3. Update the **MANDATORY REFERENCES RULE** for law to specify:
+   - Use footnote numbering within text
+   - Include a Bibliography at the end (not "References")
+   - Split into: Books, Journal Articles, Online Sources, Table of Cases, Table of Statutes
+   - All cases must include proper law report citations
+   - All statutes must include full title and year
 
 ### File: `supabase/functions/document-ai-chat/index.ts`
 
-- Apply the same AI classification approach to the `determineCreditCost()` function here
-- This prevents users from using the Document Editor's AI to generate chapters at reduced cost
+Apply the same law department structure additions to the Document Editor's system prompt so that law students using the document editor also get properly formatted output.
 
----
+## Summary
 
-## 2. Always Include References with Chapter Generations
+| Change | File |
+|--------|------|
+| Add law department project structure to system prompt | `supabase/functions/chat-ai/index.ts` |
+| Add same law structure to document editor prompt | `supabase/functions/document-ai-chat/index.ts` |
 
-### File: `supabase/functions/chat-ai/index.ts`
-
-Update the system prompt (lines 430-518) to add a new explicit rule:
-
-```
-## MANDATORY REFERENCES RULE:
-When generating ANY chapter content (Chapter 1-5, Introduction, Literature Review,
-Methodology, Results, Conclusion), you MUST include a "References" section at the
-end of the generated content. The references must:
-- Be formatted in APA 7th Edition
-- Include at least 10-15 references for major chapters (Ch 1-4), 5-8 for Chapter 5
-- Be REAL, verifiable academic sources that exist and can be found on Google Scholar
-- Include actual author names, real journal names, real publication years, and DOIs where available
-- Use sources from Semantic Scholar, Google Scholar, and well-known academic databases
-- DO NOT fabricate or hallucinate references. Only cite sources you are confident exist.
-- If you cannot verify a reference, use "[Author] (Year)" format with a note to verify
-```
-
-### File: `supabase/functions/document-ai-chat/index.ts`
-
-Add the same references instruction to the generation/analysis system prompt so Document Editor chapter generations also include references.
-
----
-
-## 3. Sticky Header with Back Button
-
-### File: `src/pages/Chat.tsx`
-
-The current layout uses a flex column where the header is at the top and messages scroll inside a nested div. The header should already be non-scrolling, but to make it bulletproof:
-
-- Add `sticky top-0 z-30 bg-background` to the header element (line 565)
-- This ensures the Back button, credits display, and theme toggle are always visible regardless of scroll position
-
----
-
-## 4. Scroll-to-Top and Scroll-to-Bottom Buttons
-
-### File: `src/pages/Chat.tsx`
-
-Add floating arrow buttons that appear conditionally based on scroll position:
-
-- Add a `ref` to the scrollable messages container (line 596)
-- Track scroll position with `onScroll` handler to detect:
-  - `showScrollUp`: true when scrolled down more than 200px from top
-  - `showScrollDown`: true when not scrolled to bottom (more content below)
-- Render two floating buttons positioned at the right edge of the chat area:
-  - **Arrow Up** (top-right of chat area): Scrolls to the very top of messages
-  - **Arrow Down** (bottom-right of chat area, above input): Scrolls to the latest message
-- Buttons appear/disappear with a fade animation
-- Use `ChevronUp` and `ChevronDown` icons from lucide-react
-
-```text
-+----------------------------------+
-| Back  ProjectPal Chat   Credits  |  <-- always visible (sticky)
-+----------------------------------+
-|                            [^]   |  <-- scroll-to-top (when scrolled down)
-|  ... messages ...                |
-|                                  |
-|                            [v]   |  <-- scroll-to-bottom (when scrolled up)
-+----------------------------------+
-| [input field]           [send]   |
-+----------------------------------+
-```
-
----
-
-## Summary of All Changes
-
-| # | Change | File |
-|---|--------|------|
-| 1 | AI-based request classification (replace regex) | `supabase/functions/chat-ai/index.ts` |
-| 1 | Same classification fix for Document Editor | `supabase/functions/document-ai-chat/index.ts` |
-| 2 | Mandatory references rule in system prompt | `supabase/functions/chat-ai/index.ts` |
-| 2 | Same references rule for Document Editor | `supabase/functions/document-ai-chat/index.ts` |
-| 3 | Sticky header with Back button | `src/pages/Chat.tsx` |
-| 4 | Scroll-to-top and scroll-to-bottom buttons | `src/pages/Chat.tsx` |
