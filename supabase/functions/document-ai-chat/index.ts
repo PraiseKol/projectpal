@@ -14,47 +14,98 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Granular credit cost detection based on instruction keywords
-function determineCreditCost(instruction: string): { cost: number; category: "edit" | "analysis" | "generation" } {
+// Regex fallback for credit cost detection
+function determineCreditCostFallback(instruction: string): { cost: number; category: "edit" | "analysis" | "generation" } {
   const lower = instruction.toLowerCase();
 
-  // Fully Wrap Project - 50 credits
   if (/fully wrap|wrap project|full project|wrap my project/i.test(lower)) {
     return { cost: 50, category: "generation" };
   }
-
-  // Journal Paper / Research Proposal - 20 credits
   if (/journal paper|convert to journal|research proposal/i.test(lower)) {
     return { cost: 20, category: "generation" };
   }
-
-  // Chapter 5 / Conclusion - 15 credits
   if (/chapter\s*5|chapter\s*five|conclusion|recommendations/i.test(lower)) {
     return { cost: 15, category: "generation" };
   }
-
-  // Chapter 2 / Literature Review - 10 credits
   if (/chapter\s*2|chapter\s*two|literature review|review of literature/i.test(lower)) {
     return { cost: 10, category: "generation" };
   }
-
-  // Chapter 1 / Introduction / Abstract - 5 credits
   if (/chapter\s*1|chapter\s*one|introduction chapter|write introduction|write abstract|abstract/i.test(lower)) {
     return { cost: 5, category: "generation" };
   }
-
-  // Summarize / Extract Key Points - 4 credits
   if (/summarize|summary|extract key|key points|outline|overview/i.test(lower)) {
     return { cost: 4, category: "analysis" };
   }
-
-  // Edit tasks (grammar, clarity, tone) - 2 credits
   if (/fix grammar|spelling|improve clarity|academic tone|proofread|correct|edit|revise|simplify|punctuation|typo/i.test(lower)) {
     return { cost: 2, category: "edit" };
   }
-
-  // Default - 2 credits
   return { cost: 2, category: "generation" };
+}
+
+// AI-based request classification to prevent credit loopholes
+async function classifyRequestForDoc(instruction: string, apiKey: string): Promise<{ cost: number; category: "edit" | "analysis" | "generation" }> {
+  try {
+    const classificationPrompt = `You are a strict credit cost classifier for an academic document editor. Classify the user's instruction based on what they are ACTUALLY asking the AI to do with their document.
+
+CLASSIFICATION RULES:
+
+- "fully_wrap_project" (50 credits, generation): Wrapping an entire project, generating all preliminary/end pages
+- "journal_paper" (20 credits, generation): Converting to journal paper, research proposal
+- "chapter_5" (15 credits, generation): Writing Chapter 5, Conclusion, Recommendations
+- "chapter_3_4" (25 credits, generation): Writing Chapter 3 Methodology or Chapter 4 Results
+- "chapter_2" (10 credits, generation): Writing Chapter 2, Literature Review
+- "chapter_1" (5 credits, generation): Writing Chapter 1, Introduction, Abstract
+- "analysis" (4 credits, analysis): Summarize, extract key points, outline, overview
+- "edit" (2 credits, edit): Fix grammar, spelling, improve clarity, academic tone, proofread, revise
+- "generation_other" (2 credits, generation): Other content generation, expanding paragraphs
+
+IMPORTANT: Look at the INTENT. "Write the introduction" is chapter_1 (5 credits). "Help me with methodology" where they want WRITING is chapter_3_4 (25 credits).
+
+Return ONLY valid JSON: {"type": "category_name", "cost": number, "category": "edit|analysis|generation"}`;
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-lite',
+        messages: [
+          { role: 'system', content: classificationPrompt },
+          { role: 'user', content: instruction }
+        ],
+        max_tokens: 60,
+        temperature: 0,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('[CLASSIFY] AI classification failed:', response.status);
+      return determineCreditCostFallback(instruction);
+    }
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content?.trim() || '';
+    console.log(`[CLASSIFY] Raw AI response: ${raw}`);
+    
+    const jsonMatch = raw.match(/\{[\s\S]*?\}/);
+    if (!jsonMatch) return determineCreditCostFallback(instruction);
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    const validCategories = ["edit", "analysis", "generation"];
+    
+    if (parsed.cost && typeof parsed.cost === 'number' && parsed.cost > 0 && 
+        parsed.category && validCategories.includes(parsed.category)) {
+      console.log(`[CLASSIFY] AI classified as: ${parsed.type} (${parsed.cost} credits, ${parsed.category})`);
+      return { cost: parsed.cost, category: parsed.category as "edit" | "analysis" | "generation" };
+    }
+
+    return determineCreditCostFallback(instruction);
+  } catch (error) {
+    console.error('[CLASSIFY] Classification error:', error);
+    return determineCreditCostFallback(instruction);
+  }
 }
 
 serve(async (req) => {
@@ -129,8 +180,20 @@ serve(async (req) => {
       }
     }
 
-    // Determine request type and credit cost
-    const { cost: creditCost, category: requestType } = determineCreditCost(instruction);
+    // Determine request type and credit cost using AI classification
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    let creditCost: number;
+    let requestType: "edit" | "analysis" | "generation";
+    
+    if (lovableApiKey) {
+      const classification = await classifyRequestForDoc(instruction, lovableApiKey);
+      creditCost = classification.cost;
+      requestType = classification.category;
+    } else {
+      const fallback = determineCreditCostFallback(instruction);
+      creditCost = fallback.cost;
+      requestType = fallback.category;
+    }
 
     // Check credits
     const totalCredits = profile.daily_credits + profile.paid_credits;
@@ -141,8 +204,7 @@ serve(async (req) => {
       );
     }
 
-    // Call Lovable AI
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    // Call Lovable AI (reuse key if already fetched, otherwise get it)
     if (!lovableApiKey) {
       console.error("LOVABLE_API_KEY not configured");
       return new Response(
@@ -233,6 +295,17 @@ GUIDELINES:
 - Structure content with clear headings, subheadings, and logical flow
 - Be thorough and comprehensive - provide substantial, useful content
 - For summaries/analysis, be concise but capture all key points
+
+## MANDATORY REFERENCES RULE:
+When generating ANY chapter content (Chapter 1-5, Introduction, Literature Review, Methodology, Results, Conclusion, or any substantial academic section), you MUST include a "## References" section at the END of the generated content. The references must:
+- Be formatted in APA 7th Edition
+- Include at least 10-15 references for major chapters (Ch 1-4), 5-8 for Chapter 5
+- Be REAL, verifiable academic sources that actually exist and can be found on Google Scholar
+- Include actual author names, real journal names, real publication years, and DOIs where available
+- Use sources from well-known academic journals, conferences, and publishers
+- DO NOT fabricate or hallucinate references. Only cite sources you are confident exist.
+- If you cannot verify a reference, use "[Author] (Year)" format with a note to verify
+- References should be relevant to the specific topic being discussed in the chapter
 
 When generating chapters like "Chapter 5" or conclusions:
 - Reference findings and discussions from earlier parts of the document

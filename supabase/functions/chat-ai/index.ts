@@ -74,42 +74,105 @@ function isArticleSearchRequest(message: string): { isSearch: boolean; query: st
   return { isSearch: false, query: '' };
 }
 
-// Credit cost detection based on user request type
-function determineCreditCost(message: string): { cost: number; actionType: string } {
+// Regex fallback for credit cost detection
+function determineCreditCostFallback(message: string): { cost: number; actionType: string } {
   const msgLower = message.toLowerCase();
   
-  // Chapter 4 / Results / Data Analysis chapter (50 credits) - most expensive
   if (/\b(chapter\s*(4|four)|results\s+(and\s+)?discussion|data\s+presentation|data\s+analysis\s+chapter)\b/i.test(msgLower)) {
     return { cost: 50, actionType: 'chapter_4' };
   }
-  
-  // Chapter 3 / Methodology (25 credits)
   if (/\b(chapter\s*(3|three)|methodology|research\s+methodology|research\s+design)\b/i.test(msgLower)) {
     return { cost: 25, actionType: 'chapter_3' };
   }
-  
-  // Chapter 2 / Literature Review (10 credits)
   if (/\b(chapter\s*(2|two)|literature\s+review|review\s+of\s+(related\s+)?literature)\b/i.test(msgLower)) {
     return { cost: 10, actionType: 'chapter_2' };
   }
-  
-  // Chapter 1 / Introduction (5 credits)
   if (/\b(chapter\s*(1|one)|introduction\s+chapter)\b/i.test(msgLower)) {
     return { cost: 5, actionType: 'chapter_1' };
   }
-  
-  // Chapter 5 / Conclusion / Recommendations (5 credits)
   if (/\b(chapter\s*(5|five)|conclusion|recommendations)\b/i.test(msgLower)) {
     return { cost: 5, actionType: 'chapter_5' };
   }
-  
-  // Generation / Suggestions / Proposals (2 credits)
   if (/\b(suggest|generate|topic|proposal|outline|section|continue|expand|elaborate|extend|add\s+more)\b/i.test(msgLower)) {
     return { cost: 2, actionType: 'generation_suggestion' };
   }
-  
-  // Default: simple chat (1 credit)
   return { cost: 1, actionType: 'simple_chat' };
+}
+
+// AI-based request classification to prevent credit loopholes
+async function classifyRequest(message: string, conversationContext: string, apiKey: string): Promise<{ cost: number; actionType: string }> {
+  try {
+    const classificationPrompt = `You are a strict credit cost classifier for an academic writing assistant. Classify the user's request based on what they are ACTUALLY asking the AI to generate or do.
+
+CLASSIFICATION RULES (be strict - if the user is asking for content generation of any kind that matches a chapter, classify it as that chapter):
+
+- "chapter_1" (5 credits): Writing Chapter 1, Introduction chapter, Background to the Study, Statement of the Problem, Research Objectives, writing an introduction for a project/thesis/dissertation
+- "chapter_2" (10 credits): Writing Chapter 2, Literature Review, Review of Related Literature, Theoretical Framework, Conceptual Framework, reviewing literature for a topic
+- "chapter_3" (25 credits): Writing Chapter 3, Methodology, Research Design, Research Methods, Data Collection methods, writing methodology for a project
+- "chapter_4" (50 credits): Writing Chapter 4, Results and Discussion, Data Analysis chapter, Data Presentation, presenting findings
+- "chapter_5" (5 credits): Writing Chapter 5, Conclusion, Recommendations, Summary of Findings, writing conclusions for a project
+- "research_proposal" (20 credits): Writing a full research proposal, project proposal
+- "fully_wrap_project" (50 credits): Wrapping an entire project, generating all preliminary/end pages
+- "generation_suggestion" (2 credits): Generating topics, outlines, suggestions, expanding a paragraph, editing a section, continuing writing, improving text
+- "article_search" (1 credit): Searching for articles, finding papers, looking up references
+- "simple_chat" (1 credit): Asking questions, seeking advice, clarification, greetings, or any non-generation request
+
+IMPORTANT: Look at the INTENT, not just keywords. "Write the introduction for my project on climate change" is chapter_1 (5 credits), NOT simple_chat. "Help me with my methodology section" where they want you to WRITE it is chapter_3 (25 credits). "Continue from where you stopped" after a chapter generation is the SAME chapter type.
+
+Return ONLY valid JSON: {"actionType": "category_name", "cost": number}`;
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-lite',
+        messages: [
+          { role: 'system', content: classificationPrompt },
+          { role: 'user', content: `RECENT CONVERSATION CONTEXT:\n${conversationContext}\n\nCURRENT USER MESSAGE:\n${message}` }
+        ],
+        max_tokens: 60,
+        temperature: 0,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('[CLASSIFY] AI classification failed, status:', response.status);
+      return determineCreditCostFallback(message);
+    }
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content?.trim() || '';
+    console.log(`[CLASSIFY] Raw AI response: ${raw}`);
+    
+    // Extract JSON from response (handle markdown code blocks)
+    const jsonMatch = raw.match(/\{[\s\S]*?\}/);
+    if (!jsonMatch) {
+      console.error('[CLASSIFY] No JSON found in response');
+      return determineCreditCostFallback(message);
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    const validTypes: Record<string, number> = {
+      chapter_1: 5, chapter_2: 10, chapter_3: 25, chapter_4: 50, chapter_5: 5,
+      research_proposal: 20, fully_wrap_project: 50, generation_suggestion: 2,
+      article_search: 1, simple_chat: 1,
+    };
+
+    if (parsed.actionType && validTypes[parsed.actionType] !== undefined) {
+      const cost = validTypes[parsed.actionType];
+      console.log(`[CLASSIFY] AI classified as: ${parsed.actionType} (${cost} credits)`);
+      return { cost, actionType: parsed.actionType };
+    }
+
+    console.error('[CLASSIFY] Invalid actionType from AI:', parsed.actionType);
+    return determineCreditCostFallback(message);
+  } catch (error) {
+    console.error('[CLASSIFY] Classification error:', error);
+    return determineCreditCostFallback(message);
+  }
 }
 
 // Deduct credits with multi-credit support
@@ -189,10 +252,36 @@ serve(async (req) => {
     // Check if this is an article search request
     const articleSearchCheck = isArticleSearchRequest(message);
     
-    // Determine credit cost based on message
-    const { cost: creditCost, actionType } = articleSearchCheck.isSearch 
-      ? { cost: 1, actionType: 'article_search' } 
-      : determineCreditCost(message);
+    // Determine credit cost based on message using AI classification
+    const LOVABLE_API_KEY_FOR_CLASSIFY = Deno.env.get('LOVABLE_API_KEY');
+    
+    // Build conversation context from last 3 messages for classification
+    const { data: recentMsgs } = await supabaseClient
+      .from('messages')
+      .select('sender, content')
+      .eq('session_id', session_id)
+      .order('created_at', { ascending: false })
+      .limit(3);
+    
+    const conversationContext = (recentMsgs || []).reverse()
+      .map(m => `${m.sender === 'ai' ? 'Assistant' : 'User'}: ${m.content.substring(0, 200)}`)
+      .join('\n');
+
+    let creditCost: number;
+    let actionType: string;
+    
+    if (articleSearchCheck.isSearch) {
+      creditCost = 1;
+      actionType = 'article_search';
+    } else if (LOVABLE_API_KEY_FOR_CLASSIFY) {
+      const classification = await classifyRequest(message, conversationContext, LOVABLE_API_KEY_FOR_CLASSIFY);
+      creditCost = classification.cost;
+      actionType = classification.actionType;
+    } else {
+      const fallback = determineCreditCostFallback(message);
+      creditCost = fallback.cost;
+      actionType = fallback.actionType;
+    }
     console.log(`[CREDIT] Action detected: ${actionType}, Cost: ${creditCost} credits`);
 
     // Fetch dynamic credit defaults from app_settings
@@ -515,7 +604,18 @@ serve(async (req) => {
 - Methodology: detailed enough to replicate the study
 - Results: objective presentation without interpretation
 - Discussion: interpret findings, compare with existing literature
-- Always maintain academic integrity`,
+- Always maintain academic integrity
+
+## MANDATORY REFERENCES RULE:
+When generating ANY chapter content (Chapter 1-5, Introduction, Literature Review, Methodology, Results, Conclusion, or any substantial academic section), you MUST include a "## References" section at the END of the generated content. The references must:
+- Be formatted in APA 7th Edition
+- Include at least 10-15 references for major chapters (Ch 1-4), 5-8 for Chapter 5
+- Be REAL, verifiable academic sources that actually exist and can be found on Google Scholar
+- Include actual author names, real journal names, real publication years, and DOIs where available
+- Use sources from well-known academic journals, conferences, and publishers
+- DO NOT fabricate or hallucinate references. Only cite sources you are confident exist.
+- If you cannot verify a reference, use "[Author] (Year)" format with a note to verify
+- References should be relevant to the specific topic being discussed in the chapter`,
           },
           ...conversationHistory,
           { role: 'user', content: message },
