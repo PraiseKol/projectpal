@@ -29,6 +29,8 @@ import {
   Copy,
   Check,
   FastForward,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { TypingEffect } from "@/components/TypingEffect";
@@ -71,6 +73,9 @@ const Chat = () => {
   const [editingTitle, setEditingTitle] = useState("");
   const [showAllChats, setShowAllChats] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showScrollUp, setShowScrollUp] = useState(false);
+  const [showScrollDown, setShowScrollDown] = useState(false);
 
   const displayedSessions = showAllChats ? chatSessions : chatSessions.slice(0, 3);
 
@@ -100,6 +105,17 @@ const Chat = () => {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const scrollToTop = () => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleScroll = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    setShowScrollUp(el.scrollTop > 200);
+    setShowScrollDown(el.scrollHeight - el.scrollTop - el.clientHeight > 200);
   };
 
   const initializeChat = async () => {
@@ -562,7 +578,7 @@ const Chat = () => {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="border-b border-border">
+        <header className="border-b border-border sticky top-0 z-30 bg-background">
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2 md:gap-4">
               {/* Mobile hamburger menu */}
@@ -592,8 +608,20 @@ const Chat = () => {
         </header>
 
         {/* Chat Area */}
-        <div className="flex-1 px-4 py-6 overflow-hidden flex flex-col">
-          <div className="flex-1 overflow-y-auto space-y-4 mb-4">
+        <div className="flex-1 px-4 py-6 overflow-hidden flex flex-col relative">
+          <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto space-y-4 mb-4">
+            
+            {/* Scroll to top button */}
+            {showScrollUp && (
+              <Button
+                variant="secondary"
+                size="icon"
+                className="fixed right-8 top-24 z-20 rounded-full shadow-lg opacity-80 hover:opacity-100 transition-opacity"
+                onClick={scrollToTop}
+              >
+                <ChevronUp className="h-5 w-5" />
+              </Button>
+            )}
             {messages.length === 0 ? (
               <div className="text-center py-12">
                 <Sparkles className="h-16 w-16 mx-auto mb-4 text-primary" />
@@ -689,6 +717,18 @@ const Chat = () => {
             )}
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Scroll to bottom button */}
+          {showScrollDown && (
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute right-8 bottom-40 z-20 rounded-full shadow-lg opacity-80 hover:opacity-100 transition-opacity"
+              onClick={scrollToBottom}
+            >
+              <ChevronDown className="h-5 w-5" />
+            </Button>
+          )}
 
           {/* Quick Actions Bar */}
           {messages.length > 0 && (
