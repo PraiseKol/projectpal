@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const CREDIT_COST = 5;
+// Credit cost determined dynamically by mode
 
 function deductCredits(
   creditCost: number,
@@ -46,7 +46,8 @@ serve(async (req) => {
   }
 
   try {
-    const { message, history, currentQuestionnaire } = await req.json();
+    const { message, history, currentQuestionnaire, mode = 'chat' } = await req.json();
+    const CREDIT_COST = mode === 'build' ? 5 : 2;
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -116,11 +117,26 @@ serve(async (req) => {
       ? `\n\nThe user's current questionnaire state:\n\`\`\`json\n${JSON.stringify(currentQuestionnaire, null, 2)}\n\`\`\``
       : '';
 
-    const systemPrompt = `You are a questionnaire design assistant for ProjectPal. You help users create well-structured questionnaires for academic research.
+    const chatModePrompt = `You are a questionnaire design assistant for ProjectPal. Your job is to help users plan their questionnaire by asking clarifying questions. Do NOT generate any questionnaire JSON yet.
 
-When the user asks you to create, modify, or generate a questionnaire (or parts of one), you MUST include a structured JSON block in your response using the delimiter |||QUESTIONNAIRE_JSON||| followed by the JSON.
+Ask about the following topics one or two at a time (don't overwhelm the user):
+- Research topic and purpose of the questionnaire
+- Target audience (students, customers, employees, etc.)
+- Preferred question types (multiple choice, rating scales, open-ended, yes/no)
+- Number of sections they'd like
+- Any specific questions they want included
+- Rating scale preferences (1-5, 5-1, etc.)
+- Any introduction text or instructions they want
+- How many questions per section roughly
 
-When the user is just asking a question or chatting (not requesting generation), do NOT include the JSON block.
+Be conversational, thorough, and friendly. Guide the user step by step. Once you feel you have enough information to build a comprehensive questionnaire, tell the user: "I think we have enough to build your questionnaire! Click the **Build Questionnaire** button below when you're ready."
+
+Do NOT include |||QUESTIONNAIRE_JSON||| in your response under any circumstances in chat mode.
+${currentQuestionnaireContext}`;
+
+    const buildModePrompt = `You are a questionnaire design assistant for ProjectPal. Based on the entire conversation history, generate the complete questionnaire now.
+
+You MUST include a structured JSON block in your response using the delimiter |||QUESTIONNAIRE_JSON||| followed by the JSON.
 
 The JSON must match this exact TypeScript structure:
 {
@@ -148,15 +164,15 @@ The JSON must match this exact TypeScript structure:
 
 Guidelines:
 - Generate unique UUIDs for all id fields (use format like "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx")
-- Use appropriate question types based on what's being asked
-- For Likert-scale questions, use "rating_scale" with "scaleDirection": "1to5"
+- Use appropriate question types based on what was discussed
+- For Likert-scale questions, use "rating_scale" with the user's preferred direction
 - Group related questions into logical sections
 - Include helpful descriptions for sections and helper text for complex questions
 - For academic research questionnaires, follow standard survey methodology
-- If the user asks to modify the existing questionnaire, include the FULL updated questionnaire in the JSON (not just the changes)
 - Always provide a conversational explanation BEFORE the JSON block
-
 ${currentQuestionnaireContext}`;
+
+    const systemPrompt = mode === 'build' ? buildModePrompt : chatModePrompt;
 
     const conversationHistory = (history || []).map((msg: any) => ({
       role: msg.role === 'ai' ? 'assistant' : msg.role,

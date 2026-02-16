@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User, Sparkles, Loader2 } from "lucide-react";
+import { Send, Bot, User, Sparkles, Loader2, Hammer } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
@@ -19,17 +19,20 @@ interface QuestionnaireChatProps {
 }
 
 const SUGGESTION_CHIPS = [
-  "Create a customer satisfaction survey",
-  "Design a student feedback questionnaire",
-  "Build a research demographics section",
+  "I need a customer satisfaction survey",
+  "Help me design a student feedback questionnaire",
+  "I want to create a research demographics section",
 ];
 
 export const QuestionnaireChat = ({ currentQuestionnaire, onQuestionnaireGenerated }: QuestionnaireChatProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isBuilding, setIsBuilding] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const readyToBuild = messages.length >= 4; // At least 2 exchanges (user+ai each)
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -37,19 +40,25 @@ export const QuestionnaireChat = ({ currentQuestionnaire, onQuestionnaireGenerat
     }
   }, [messages]);
 
-  const sendMessage = async (text: string) => {
-    if (!text.trim() || isLoading) return;
+  const sendMessage = async (text: string, mode: "chat" | "build" = "chat") => {
+    if (!text.trim() || isLoading || isBuilding) return;
 
     const userMessage: ChatMessage = { role: "user", content: text.trim() };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
-    setIsLoading(true);
+
+    if (mode === "build") {
+      setIsBuilding(true);
+    } else {
+      setIsLoading(true);
+    }
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast.error("Please sign in to use the AI assistant");
         setIsLoading(false);
+        setIsBuilding(false);
         return;
       }
 
@@ -70,6 +79,7 @@ export const QuestionnaireChat = ({ currentQuestionnaire, onQuestionnaireGenerat
             message: text.trim(),
             history,
             currentQuestionnaire,
+            mode,
           }),
         }
       );
@@ -83,7 +93,6 @@ export const QuestionnaireChat = ({ currentQuestionnaire, onQuestionnaireGenerat
         } else {
           toast.error(err.error || "Failed to get AI response");
         }
-        setIsLoading(false);
         return;
       }
 
@@ -100,12 +109,17 @@ export const QuestionnaireChat = ({ currentQuestionnaire, onQuestionnaireGenerat
       toast.error("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
+      setIsBuilding(false);
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     sendMessage(input);
+  };
+
+  const handleBuild = () => {
+    sendMessage("Generate my questionnaire based on our discussion.", "build");
   };
 
   return (
@@ -121,7 +135,8 @@ export const QuestionnaireChat = ({ currentQuestionnaire, onQuestionnaireGenerat
               <div>
                 <h3 className="font-semibold text-lg">AI Questionnaire Assistant</h3>
                 <p className="text-muted-foreground text-sm mt-1 max-w-md">
-                  Describe the questionnaire you need and I'll generate it for you. Each message costs 5 credits.
+                  Chat with the AI to plan your questionnaire (2 credits/message).
+                  When you're ready, click Build to generate it (5 credits).
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 justify-center mt-2">
@@ -171,18 +186,36 @@ export const QuestionnaireChat = ({ currentQuestionnaire, onQuestionnaireGenerat
             </div>
           ))}
 
-          {isLoading && (
+          {(isLoading || isBuilding) && (
             <div className="flex gap-2.5 justify-start">
               <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <Bot className="h-4 w-4 text-primary" />
               </div>
               <div className="bg-muted rounded-lg px-4 py-3">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  {isBuilding && <span className="text-xs text-muted-foreground">Building questionnaire…</span>}
+                </div>
               </div>
             </div>
           )}
         </div>
       </ScrollArea>
+
+      {/* Build button */}
+      {readyToBuild && !isBuilding && (
+        <div className="pt-2 pb-1">
+          <Button
+            onClick={handleBuild}
+            disabled={isLoading || isBuilding}
+            className="w-full gap-2"
+            size="sm"
+          >
+            <Hammer className="h-4 w-4" />
+            Build Questionnaire (5 credits)
+          </Button>
+        </div>
+      )}
 
       {/* Input */}
       <form onSubmit={handleSubmit} className="flex gap-2 pt-3 border-t border-border mt-2">
@@ -190,11 +223,11 @@ export const QuestionnaireChat = ({ currentQuestionnaire, onQuestionnaireGenerat
           ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Describe your questionnaire..."
-          disabled={isLoading}
+          placeholder="Describe your questionnaire needs..."
+          disabled={isLoading || isBuilding}
           className="flex-1"
         />
-        <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
+        <Button type="submit" size="icon" disabled={isLoading || isBuilding || !input.trim()}>
           <Send className="h-4 w-4" />
         </Button>
       </form>
