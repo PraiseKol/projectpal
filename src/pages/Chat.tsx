@@ -82,11 +82,11 @@ const Chat = () => {
 
   // Generate a title from the first user message
   const generateTitle = (message: string): string => {
-    const cleaned = message.trim().replace(/\s+/g, ' ');
+    const cleaned = message.trim().replace(/\s+/g, " ");
     if (cleaned.length <= 35) return cleaned;
     const truncated = cleaned.substring(0, 35);
-    const lastSpace = truncated.lastIndexOf(' ');
-    return lastSpace > 15 ? truncated.substring(0, lastSpace) + '...' : truncated + '...';
+    const lastSpace = truncated.lastIndexOf(" ");
+    return lastSpace > 15 ? truncated.substring(0, lastSpace) + "..." : truncated + "...";
   };
 
   useEffect(() => {
@@ -121,20 +121,18 @@ const Chat = () => {
 
   const initializeChat = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
         navigate("/auth");
         return;
       }
 
       // Get profile
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-      
+      const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+
       setProfile(profileData);
 
       // Load chat sessions
@@ -142,7 +140,7 @@ const Chat = () => {
 
       // Check if there's a session_id in URL params
       const urlSessionId = searchParams.get("session_id");
-      
+
       if (urlSessionId) {
         // Load existing session
         await loadSession(urlSessionId);
@@ -186,7 +184,7 @@ const Chat = () => {
 
       if (error) throw error;
       setMessages(data || []);
-      
+
       // Close sidebar on mobile after selecting a chat
       if (isMobile) {
         setShowSidebar(false);
@@ -202,7 +200,7 @@ const Chat = () => {
     setSessionId(null);
     setMessages([]);
     navigate("/chat");
-    
+
     // Close sidebar on mobile after creating new chat
     if (isMobile) {
       setShowSidebar(false);
@@ -217,35 +215,31 @@ const Chat = () => {
     setIsDeleting(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       // Delete messages first (due to foreign key)
-      const { error: messagesError } = await supabase
-        .from("messages")
-        .delete()
-        .eq("session_id", sessionToDelete);
+      const { error: messagesError } = await supabase.from("messages").delete().eq("session_id", sessionToDelete);
 
       if (messagesError) {
         logError("Chat:deleteMessages", messagesError);
       }
 
       // Then delete the session
-      const { error } = await supabase
-        .from("chat_sessions")
-        .delete()
-        .eq("id", sessionToDelete);
+      const { error } = await supabase.from("chat_sessions").delete().eq("id", sessionToDelete);
 
       if (error) throw error;
 
       toast.success("Chat deleted");
-      
+
       // Close dialog first
       setDeleteSessionId(null);
-      
+
       // Reload chat sessions
       await loadChatSessions(user.id);
-      
+
       // If we deleted the current session, clear it and go to base chat route
       if (sessionToDelete === sessionId) {
         setSessionId(null);
@@ -269,16 +263,11 @@ const Chat = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from("chat_sessions")
-        .update({ title: trimmedTitle })
-        .eq("id", sessionId);
+      const { error } = await supabase.from("chat_sessions").update({ title: trimmedTitle }).eq("id", sessionId);
 
       if (error) throw error;
 
-      setChatSessions(prev =>
-        prev.map(s => s.id === sessionId ? { ...s, title: trimmedTitle } : s)
-      );
+      setChatSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, title: trimmedTitle } : s)));
       toast.success("Chat renamed");
     } catch (error) {
       logError("Chat:renameSession", error);
@@ -311,7 +300,9 @@ const Chat = () => {
     // Lazy session creation: create on first message
     if (!currentSessionId) {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (!user) return;
 
         const { data: session, error } = await supabase
@@ -333,11 +324,12 @@ const Chat = () => {
     }
 
     // Check credits based on user type
-    const isFreeUser = profile?.plan_type === 'free' || 
+    const isFreeUser =
+      profile?.plan_type === "free" ||
       (profile?.credits_expiry_date && new Date(profile.credits_expiry_date) < new Date());
     const hasCredits = isFreeUser
-      ? (profile?.monthly_credits > 0)
-      : (profile?.daily_credits > 0 || profile?.paid_credits > 0);
+      ? profile?.monthly_credits > 0
+      : profile?.daily_credits > 0 || profile?.paid_credits > 0;
 
     if (!hasCredits) {
       toast.error("You've run out of credits for this month. Upgrade your plan for more credits!");
@@ -388,15 +380,10 @@ const Chat = () => {
       if (isFirstMessage && currentSessionId) {
         // Use AI-generated title from response, fallback to local generation
         const title = data.generated_title || generateTitle(userMessage);
-        await supabase
-          .from("chat_sessions")
-          .update({ title })
-          .eq("id", currentSessionId);
-        
+        await supabase.from("chat_sessions").update({ title }).eq("id", currentSessionId);
+
         // Update local state
-        setChatSessions(prev => 
-          prev.map(s => s.id === currentSessionId ? { ...s, title } : s)
-        );
+        setChatSessions((prev) => prev.map((s) => (s.id === currentSessionId ? { ...s, title } : s)));
       }
 
       // Update profile credits
@@ -422,19 +409,23 @@ const Chat = () => {
 
   const quickActions = [
     { label: "Generate Project Topic", prompt: "Generate a project topic for my field of study" },
-    { label: "Search for Articles", prompt: "Search for academic articles about [your topic here]" },
-    { label: "Write Proposal", prompt: "Help me write a research proposal" },
     { label: "Write Chapter 1 (Introduction)", prompt: "Help me write Chapter 1: Introduction for my project" },
+    { label: "Search for Articles", prompt: "Search for academic articles about [your topic here]" },
     { label: "Write Chapter 2 (Literature Review)", prompt: "Help me write Chapter 2: Literature Review" },
+    { label: "Write Proposal", prompt: "Help me write a research proposal" },
     { label: "Write Chapter 3 (Methodology)", prompt: "Help me write Chapter 3: Methodology" },
-    { label: "Edit Chapter 4 (Results/Discussion)", prompt: "Help me edit and improve Chapter 4: Results and Discussion" },
-    { label: "Write Chapter 5 (Conclusion)", prompt: "Help me write Chapter 5: Conclusion and Recommendations" },
     { label: "Generate References", prompt: "Generate academic references in APA format" },
+    {
+      label: "Edit Chapter 4 (Results/Discussion)",
+      prompt: "Help me edit and improve Chapter 4: Results and Discussion",
+    },
+    { label: "Humanizer", prompt: "Humanize your written documents" },
+    { label: "Write Chapter 5 (Conclusion)", prompt: "Help me write Chapter 5: Conclusion and Recommendations" },
   ];
 
   // Get display credits based on plan type
   const getCreditsDisplay = () => {
-    if (profile?.plan_type === 'free') {
+    if (profile?.plan_type === "free") {
       return (
         <>
           <Badge variant="secondary" className="rounded-full px-3 py-1">
@@ -466,24 +457,21 @@ const Chat = () => {
       /^### \d+\.\d+/,
       /references|bibliography/i,
     ];
-    return docPatterns.some(pattern => pattern.test(content)) || content.length > 500;
+    return docPatterns.some((pattern) => pattern.test(content)) || content.length > 500;
   };
 
   return (
     <div className="min-h-screen bg-background flex relative">
       {/* Mobile Sidebar Overlay */}
       {isMobile && showSidebar && (
-        <div 
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
-          onClick={() => setShowSidebar(false)}
-        />
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40" onClick={() => setShowSidebar(false)} />
       )}
 
       {/* Sidebar */}
-      <div 
+      <div
         className={`
-          ${isMobile ? 'fixed inset-y-0 left-0 z-50' : 'sticky top-0 h-screen'}
-          ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
+          ${isMobile ? "fixed inset-y-0 left-0 z-50" : "sticky top-0 h-screen"}
+          ${showSidebar ? "translate-x-0" : "-translate-x-full"}
           w-64 bg-background border-r border-border flex flex-col transition-transform duration-300 ease-in-out shrink-0
         `}
       >
@@ -493,12 +481,7 @@ const Chat = () => {
             New Chat
           </Button>
           {isMobile && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="ml-2"
-              onClick={() => setShowSidebar(false)}
-            >
+            <Button variant="ghost" size="icon" className="ml-2" onClick={() => setShowSidebar(false)}>
               <X className="h-4 w-4" />
             </Button>
           )}
@@ -583,12 +566,7 @@ const Chat = () => {
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2 md:gap-4">
               {/* Mobile hamburger menu */}
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className="md:hidden"
-                onClick={() => setShowSidebar(true)}
-              >
+              <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setShowSidebar(true)}>
                 <Menu className="h-5 w-5" />
               </Button>
               <Button onClick={() => navigate("/dashboard")} variant="outline" size="sm">
@@ -612,7 +590,6 @@ const Chat = () => {
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
           {/* Scrollable messages area */}
           <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
-            
             {messages.length === 0 ? (
               <div className="text-center py-12">
                 <Sparkles className="h-16 w-16 mx-auto mb-4 text-primary" />
@@ -647,10 +624,7 @@ const Chat = () => {
                     <Card className="p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 mr-4 md:mr-12">
                       {msg.id === typingMessageId ? (
                         <>
-                          <TypingEffect
-                            text={msg.content}
-                            onComplete={() => setTypingMessageId(null)}
-                          >
+                          <TypingEffect text={msg.content} onComplete={() => setTypingMessageId(null)}>
                             {(displayedText, isComplete) => (
                               <>
                                 <MarkdownRenderer content={displayedText} />
@@ -687,9 +661,9 @@ const Chat = () => {
                                 <Copy className="h-4 w-4" />
                               )}
                             </Button>
-                            <ExportOptions 
-                              content={msg.content} 
-                              chatTitle={chatSessions.find(s => s.id === sessionId)?.title}
+                            <ExportOptions
+                              content={msg.content}
+                              chatTitle={chatSessions.find((s) => s.id === sessionId)?.title}
                             />
                           </div>
                         </>
@@ -770,15 +744,20 @@ const Chat = () => {
                 disabled={isLoading}
                 className="min-h-[40px] max-h-[120px] resize-none rounded-2xl py-2"
                 rows={1}
-                style={{ height: 'auto', overflow: 'hidden' }}
+                style={{ height: "auto", overflow: "hidden" }}
                 ref={(el) => {
                   if (el) {
-                    el.style.height = 'auto';
-                    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+                    el.style.height = "auto";
+                    el.style.height = Math.min(el.scrollHeight, 120) + "px";
                   }
                 }}
               />
-              <Button onClick={handleSend} disabled={isLoading || !input.trim()} size="icon" className="rounded-full shrink-0">
+              <Button
+                onClick={handleSend}
+                disabled={isLoading || !input.trim()}
+                size="icon"
+                className="rounded-full shrink-0"
+              >
                 <Send className="h-4 w-4" />
               </Button>
             </div>
@@ -787,11 +766,14 @@ const Chat = () => {
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteSessionId} onOpenChange={(open) => {
-        if (!open && !isDeleting) {
-          setDeleteSessionId(null);
-        }
-      }}>
+      <AlertDialog
+        open={!!deleteSessionId}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) {
+            setDeleteSessionId(null);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
@@ -801,11 +783,11 @@ const Chat = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
                 handleDeleteSession();
-              }} 
+              }}
               disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
