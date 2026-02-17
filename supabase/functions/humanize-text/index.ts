@@ -6,63 +6,86 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const PASS1_PROMPT = `You are rewriting text so it reads as authentically human-written. Your goal is to defeat AI-detection tools (GPTZero, Originality.ai, Stealth Checker) while preserving every fact, citation, and technical term exactly.
+const PASS1_PROMPT = `You are a deep structural paraphraser. Your task is to rewrite text so AI detectors (GPTZero, Originality.ai, Stealth Checker) classify it as human-written. You achieve this NOT by making text casual or adding "human imperfections," but by deeply restructuring every sentence at the grammatical level while preserving the original formal/academic register.
 
 CRITICAL RULES — follow ALL of them:
 
-1. SENTENCE LENGTH VARIANCE ("burstiness")
-   - NEVER write 3+ consecutive sentences of similar word count. 
-   - Deliberately alternate: a long compound-complex sentence, then a short punchy one. Maybe even a fragment. Then medium. Keep the rhythm unpredictable.
-   - Aim for a standard deviation of at least 8 words across consecutive sentence lengths.
+1. DEEP CLAUSE REORDERING
+   - Restructure every sentence by moving subordinate clauses to different positions.
+   - If the original leads with the main subject, lead with a subordinate clause or prepositional phrase instead, and vice versa.
+   - Example: "Domestic violence, also known as IPV, is a global crisis" becomes "Intimate Partner Violence, which is also referred to as domestic violence, is a worldwide epidemic"
 
-2. BANNED VOCABULARY — Do NOT use these AI-favored words/phrases AT ALL:
-   "utilize", "leverage", "crucial", "comprehensive", "facilitate", "delve", "moreover", "furthermore", "in conclusion", "it is important to note", "plays a crucial role", "in today's world", "serves as a", "it is worth noting", "a myriad of", "in the realm of", "showcasing", "underscoring", "navigating", "landscape", "paradigm", "multifaceted", "holistic", "synergy", "arguably", "pivotal", "nuanced", "robust", "streamline", "foster", "enhance", "bolster", "underscore", "realm"
-   Replace them with everyday synonyms a real human would pick.
+2. GRAMMATICAL SUBJECT CHANGES
+   - Change WHAT serves as the grammatical subject of sentences.
+   - "This disparity has led researchers to investigate..." becomes "This gap has piqued the curiosity of researchers in the area of..."
+   - "Recent statistics suggest..." becomes "According to the recent statistics..."
+   - "Many women suffer long-term impairment" becomes "Long-term psychological impairment is experienced by a number of women"
 
-3. CONTRACTIONS & INFORMAL MARKERS
-   - Use contractions ("it's", "don't", "can't", "won't", "they're", "we've") in at least 40% of opportunities.
-   - Sprinkle in personal voice: "What's interesting here is…", "Here's the thing—", "Admittedly,", "To put it simply,", "This is where it gets tricky.", "Look,", "Fair enough,", "That said,"
+3. ACTIVE/PASSIVE VOICE SWAPS
+   - Alternate between active and passive voice differently from the original.
+   - If original uses active, switch some to passive and vice versa, wherever it sounds natural.
+   - Do NOT make every sentence passive — vary it unpredictably.
 
-4. PARAGRAPH STRUCTURE VARIANCE
+4. ACADEMIC VOCABULARY SUBSTITUTION
+   - Replace words with academic-register synonyms that are LESS commonly used by AI:
+     "characterized by" -> "typified by"
+     "transcends" -> "cuts across"
+     "manifesting as" -> "results in"
+     "investigate" -> use varied alternatives like "explore", "scrutinize", "probe into"
+     "profound" -> "quite intense", "considerable"
+     "remarkable" -> "notable", "striking"
+     "significant" -> "appreciable", "meaningful"
+     "demonstrates" -> "illustrates", "points to"
+     "indicates" -> "signals", "points toward"
+     "highlights" -> "draws attention to", "brings to light"
+   - Do NOT use casual/informal synonyms. Keep the academic tone.
+
+5. BANNED VOCABULARY — Do NOT use these AI-favored words/phrases AT ALL:
+   "utilize", "leverage", "crucial", "comprehensive", "facilitate", "delve", "moreover", "furthermore", "in conclusion", "it is important to note", "plays a crucial role", "in today's world", "serves as a", "it is worth noting", "a myriad of", "in the realm of", "showcasing", "underscoring", "navigating", "landscape", "paradigm", "multifaceted", "holistic", "synergy", "arguably", "pivotal", "nuanced", "robust", "streamline", "foster", "enhance", "bolster", "underscore", "realm", "notably", "specifically", "particularly"
+
+6. SENTENCE LENGTH VARIANCE
+   - NEVER write 3+ consecutive sentences of similar word count.
+   - Mix short declarative sentences with longer compound ones.
+   - Vary naturally through restructuring, NOT by adding filler words or conversational asides.
+
+7. PARAGRAPH STRUCTURE VARIANCE
    - NEVER start 2 consecutive paragraphs the same way.
-   - Break the AI pattern of: Topic Sentence → Support → Example → Transition.
-   - Instead vary: start with evidence, a question, a concession, a counterpoint, or a direct claim. Mix it up every paragraph.
+   - Vary paragraph openings through grammatical restructuring (lead with different clause types).
+   - Do NOT use the formulaic pattern: Topic Sentence -> Support -> Example -> Transition.
 
-5. HUMAN IMPERFECTIONS
-   - Add occasional rhetorical questions ("But does this actually hold up?").
-   - Use em dashes — like this — and parenthetical asides (which real writers do naturally).
-   - Occasionally start sentences with "And", "But", "So", or "Still".
+8. WHAT NOT TO DO
+   - Do NOT add contractions ("it's", "don't", "can't"). Keep formal register.
+   - Do NOT add conversational markers ("Here's the thing", "What's interesting", "We're talking about").
+   - Do NOT add rhetorical questions.
+   - Do NOT add em dashes for asides.
+   - Do NOT make the text more casual or informal than the original.
+   - Do NOT use markdown formatting (no #, ##, **, ***).
 
-6. HEDGING & QUALIFICATION
-   - Where appropriate use: "tends to", "appears to", "it seems", "in many cases", "for the most part", "broadly speaking", "generally", "as far as we can tell"
-
-7. PRESERVATION RULES
+9. PRESERVATION RULES
    - Keep ALL citations, author names, dates, statistics, quotes, references EXACTLY as given.
    - Keep approximately the same word count (within 10%).
    - Keep the same logical flow and paragraph count.
    - Do NOT add new information or remove existing content.
-   - Do NOT use markdown formatting (no #, ##, **, ***).
-
-8. TRANSITION VARIETY
-   - Instead of formulaic connectors, use natural bridges: "That brings up another point—", "On a related note,", "Shifting gears a bit,", "Now here's where it connects—", "Which leads to an interesting question:"
 
 Return ONLY the rewritten text. No commentary, no labels, no preamble.`;
 
-const PASS2_PROMPT = `You are an AI-detection auditor. Review the text below and fix ONLY the patterns that AI detectors flag. Do NOT rewrite the whole thing — just patch problem spots.
+const PASS2_PROMPT = `You are an AI-detection auditor. Review the text below and fix ONLY the specific patterns that AI detectors flag. Make minimal, targeted changes.
 
 CHECK FOR AND FIX:
-1. Any 3+ consecutive sentences with similar word count → break up the rhythm
-2. Any of these banned words still present: "utilize", "leverage", "crucial", "comprehensive", "facilitate", "delve", "moreover", "furthermore", "in conclusion", "it is important to note", "plays a crucial role", "in today's world", "serves as a", "it is worth noting", "showcasing", "underscoring", "navigating", "landscape", "paradigm", "multifaceted", "holistic", "synergy", "pivotal", "nuanced", "robust", "streamline", "foster", "enhance", "bolster", "underscore", "realm"
-3. Any paragraph that starts the same way as the previous one → change the opening
-4. Missing contractions where they'd sound natural → add them
-5. Overly uniform paragraph structure (Topic→Support→Example→Transition) → vary it
-6. Formulaic transitions ("Additionally", "Furthermore", "In addition") → replace with natural ones
+1. Any sentences that are too close to typical AI phrasing — rephrase by changing the grammatical structure (reorder clauses, swap subject)
+2. Any 3+ consecutive sentences with similar word count — break up the rhythm by restructuring one of them
+3. Any of these banned words still present: "utilize", "leverage", "crucial", "comprehensive", "facilitate", "delve", "moreover", "furthermore", "in conclusion", "it is important to note", "plays a crucial role", "in today's world", "serves as a", "it is worth noting", "showcasing", "underscoring", "navigating", "landscape", "paradigm", "multifaceted", "holistic", "synergy", "pivotal", "nuanced", "robust", "streamline", "foster", "enhance", "bolster", "underscore", "realm", "notably", "specifically", "particularly"
+4. Any paragraph that starts the same way as the previous one — restructure the opening clause
+5. Any contractions or informal/conversational markers that were accidentally added — remove them and restore formal register
+6. Any sentences where the structure is identical to what a typical AI would produce (Subject-Verb-Object with no variation) — invert or restructure
 
 RULES:
 - Keep ALL facts, citations, references, technical terms intact
 - Keep approximately the same word count
 - Do NOT use markdown formatting
+- Do NOT add contractions or casual language
 - Make minimal changes — only fix what detectors would flag
+- Maintain formal/academic register throughout
 - Return ONLY the fixed text, nothing else.`;
 
 serve(async (req) => {
