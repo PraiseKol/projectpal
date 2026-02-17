@@ -1,122 +1,67 @@
 
 
-# Train AI for Law Student Project Structure
+# Fix Scroll Buttons & Add Credit Costs Admin Tab
 
-## Overview
+## 1. Fix Floating Scroll Buttons in Chat
 
-The current system prompt in `chat-ai/index.ts` is designed for **science/social science** projects (surveys, questionnaires, hypotheses, ANOVA, Cronbach's alpha, etc.). Law students write **"Long Essays"** with a fundamentally different structure. The AI needs to recognize when a user is a law student and adapt its output accordingly.
+**Problem**: The `ChevronUp` (scroll-to-top) button is currently rendered *inside* the scrollable `div` (line 615), so it scrolls away with the content and isn't visible when needed. The `ChevronDown` button is correctly placed outside the scrollable area using `absolute` positioning (line 722).
 
-## Key Differences Found in the Uploaded Law Projects
+**Fix in `src/pages/Chat.tsx`**:
+- Move the `showScrollUp` button from inside the scrollable div (line 615-624) to outside it, next to the `showScrollDown` button (around line 720)
+- Position both buttons using `absolute` within the `relative` chat area container
+- `ChevronUp`: positioned at `top-4 right-8` (just below the header)
+- `ChevronDown`: keep at `bottom-40 right-8` (above input area)
+- Both use `z-20 rounded-full shadow-lg` with opacity transition for visibility
 
-From analyzing both documents, here are the structural patterns unique to Nigerian law school long essays:
+## 2. Add "Credit Costs" Tab to Admin Panel
 
-### Document Label
-- Called a **"Long Essay"**, NOT "project" or "thesis"
-- Submitted to "College of Law" for "Bachelor of Laws (LL.B Hons)"
+**New component: `src/components/Admin/CreditCostsSettings.tsx`**
 
-### Preliminary Pages (Law-Specific)
-- Title Page
-- Declaration Page (student declares original work)
-- Certification Page (supervisor certifies)
-- Dedication
-- Acknowledgements
-- **Table of Contents**
-- **Table of Cases** (e.g., *Donoghue v Stevenson*, *Abacha v Fawehinmi* -- with full citations)
-- **Table/List of Statutes** (e.g., FCCPA 2018, CFRN 1999)
-- **Table of International Conventions** (optional, if comparative)
-- **List of Abbreviations** (e.g., FCCPA, NAFDAC, NDPA, LFN)
-- Abstract
+A new admin tab that displays all operation credit costs in an editable table. Each row shows:
+- Operation name (e.g., "Chapter 1 / Introduction")
+- Current credit cost
+- A number input + save button to update
 
-### Chapter Structure (Law-Specific)
+The costs will be stored in the existing `app_settings` table using keys like `credit_cost_chapter_1`, `credit_cost_chapter_2`, etc.
 
-**Chapter 1 -- General Introduction**
-- 1.0 Introduction / Background to the Study
-- 1.1 Statement of the Problem
-- 1.2 Aim and Objectives of the Study
-- 1.3 Research Questions (optional)
-- 1.4 Research Methodology (always **doctrinal/qualitative**, never quantitative)
-- 1.5 Significance of the Study
-- 1.6 Scope and Limitations
-- 1.7 Structure/Outline of Chapters
-- 1.8 Definition of Terms (legal definitions with case law citations)
+**Operations to manage**:
 
-**Chapter 2 -- Conceptual/Theoretical Framework and Literature Review**
-- 2.0 Introduction
-- 2.1 Conceptual Clarification (define legal concepts with case citations and statutory references)
-- 2.2 Theoretical/Conceptual analysis of key legal doctrines
-- 2.3 Literature Review (organized thematically by legal scholars)
-- Subsections use legal analysis, not empirical data
+| Key | Label | Default |
+|-----|-------|---------|
+| credit_cost_simple_chat | Simple Chat | 1 |
+| credit_cost_article_search | Article Search | 1 |
+| credit_cost_grammar_fix | Fix Grammar / Improve Clarity | 2 |
+| credit_cost_suggestions | Suggestions (Academic Tone, Topics, Outlines) | 2 |
+| credit_cost_paraphraser | Paraphraser | 2 |
+| credit_cost_analysis | Summarize / Extract Key Points | 4 |
+| credit_cost_chapter_1 | Chapter 1 (Introduction) | 5 |
+| credit_cost_chapter_5 | Chapter 5 (Conclusion) | 5 |
+| credit_cost_questionnaire_chat | Questionnaire Chat | 2 |
+| credit_cost_questionnaire_build | Questionnaire Build | 5 |
+| credit_cost_questionnaire_export | Questionnaire Export | 5 |
+| credit_cost_chapter_2 | Chapter 2 (Literature Review) | 10 |
+| credit_cost_ppt_base | PowerPoint Generator | 10 |
+| credit_cost_ppt_images | PowerPoint + Images | 15 |
+| credit_cost_chapter_5_alt | Chapter 5 (Advanced) | 15 |
+| credit_cost_research_proposal | Research Proposal | 20 |
+| credit_cost_journal_paper | Journal Paper | 20 |
+| credit_cost_chapter_3 | Chapter 3 (Methodology) | 25 |
+| credit_cost_data_analysis | Data Analysis | 30 |
+| credit_cost_chapter_4 | Chapter 4 (Results) | 50 |
+| credit_cost_full_wrap | Fully Wrap Project | 50 |
 
-**Chapter 3 -- Legal and Regulatory Framework**
-- 3.0 Introduction
-- 3.1 Constitutional provisions
-- 3.2 Statutory provisions (analyze specific Acts section-by-section)
-- 3.3 Regulatory bodies and their roles
-- 3.4 Comparative Analysis with other jurisdictions (UK, US, South Africa, EU)
-- 3.5 Common law principles and key case law analysis
-- 3.6 Challenges and gaps in the legal framework
+**Admin page changes (`src/pages/Admin.tsx`)**:
+- Import the new `CreditCostsSettings` component
+- Add a new tab trigger with a `Coins` icon labeled "Credit Costs"
+- Restrict to super_admin only (like Users, Transactions, Roles)
 
-**Chapter 4 -- Case Analysis / Application of Law**
-- 4.0 Introduction
-- 4.1-4.X Analysis of landmark cases
-- Breach/liability analysis
-- Judicial remedies and ADR mechanisms
-- Ethical implications
-- Institutional roles
+**Edge function integration (future-ready)**:
+- The edge functions (`chat-ai`, `document-ai-chat`, `questionnaire-ai`, etc.) already use `app_settings` for other configs. The AI classifier in `chat-ai` currently returns hardcoded costs. In a future iteration, these can be updated to fetch from `app_settings` using the keys above. For now, the admin tab provides visibility and the ability to set the values, and the display serves as a reference for what each operation costs.
 
-**Chapter 5 -- Summary, Conclusion and Recommendations**
-- 5.0/5.1 Summary of Findings
-- 5.2 Conclusion
-- 5.3 Recommendations (legislative reform proposals)
+## Summary of File Changes
 
-### Citation and Reference Style (Law-Specific)
-- **Footnotes** are the primary citation method (not in-text APA)
-- Uses **NIALS (Nigerian Institute of Advanced Legal Studies) citation style** or a hybrid footnote style
-- Format: Author, 'Title of Article' (Year) Journal Name, Volume, Pages
-- Case citations: *Case Name* (Year) Report abbreviation (e.g., NWLR, All ER, QB)
-- Statute citations: Full Act name with year and section numbers
-- References section called "Bibliography" (sometimes split into Books, Journal Articles, Online Sources)
-
-### Writing Style
-- **Doctrinal methodology** (library-oriented, analyzing primary and secondary legal sources)
-- Heavy use of case law analysis (not data tables or statistical tests)
-- Legal reasoning and argumentation (not hypothesis testing)
-- Third person, formal legal writing
-- Extensive use of Latin maxims and legal terminology
-
-## Changes
-
-### File: `supabase/functions/chat-ai/index.ts`
-
-**Update the system prompt** (lines 517-618) to add a complete Law department section alongside the existing structure. The AI will detect when a user mentions law, legal topics, LL.B, long essay, statutes, case law, etc., and switch to the law-appropriate structure.
-
-Add the following to the system prompt:
-
-1. A **department detection instruction** telling the AI to identify law students based on keywords (law, legal, LL.B, long essay, statute, case law, tort, contract, criminal law, constitutional law, etc.)
-
-2. A complete **LAW DEPARTMENT PROJECT STRUCTURE** section covering:
-   - Preliminary pages with Table of Cases, Table of Statutes, List of Abbreviations
-   - All 5 chapters with law-specific subsection patterns
-   - Footnote-based citation format (not APA)
-   - Doctrinal methodology (not quantitative)
-   - Case law analysis patterns
-   - Comparative jurisdiction analysis
-
-3. Update the **MANDATORY REFERENCES RULE** for law to specify:
-   - Use footnote numbering within text
-   - Include a Bibliography at the end (not "References")
-   - Split into: Books, Journal Articles, Online Sources, Table of Cases, Table of Statutes
-   - All cases must include proper law report citations
-   - All statutes must include full title and year
-
-### File: `supabase/functions/document-ai-chat/index.ts`
-
-Apply the same law department structure additions to the Document Editor's system prompt so that law students using the document editor also get properly formatted output.
-
-## Summary
-
-| Change | File |
-|--------|------|
-| Add law department project structure to system prompt | `supabase/functions/chat-ai/index.ts` |
-| Add same law structure to document editor prompt | `supabase/functions/document-ai-chat/index.ts` |
-
+| File | Change |
+|------|--------|
+| `src/pages/Chat.tsx` | Move scroll-up button outside scrollable div, fix positioning |
+| `src/components/Admin/CreditCostsSettings.tsx` | New component: editable credit costs table |
+| `src/pages/Admin.tsx` | Add "Credit Costs" tab (super_admin only) |
