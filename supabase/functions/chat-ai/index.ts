@@ -718,6 +718,7 @@ Organize the bibliography into these categories:
 ---
 
 ## FORMATTING RULES:
+- CRITICAL: Do NOT use markdown symbols in chapter content. Do NOT use # ## ### for headings. Do NOT use ** or *** for bold/italic. Instead, use plain numbered section headings (e.g., "1.1 Background to the Study") and write in natural flowing prose. The content should read cleanly without any special formatting characters.
 - Use hierarchical numbering: 1.1, 1.1.1, 1.1.2, etc.
 - Tables: "Table 1:", "Table 2:" with descriptive titles
 - For Science/Social Science: Statistical reporting: M = X.XX, SD = X.XX, t(df) = X.XX, p < .05

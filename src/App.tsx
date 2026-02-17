@@ -26,6 +26,7 @@ import Ambassador from "./pages/Ambassador";
 import NotFound from "./pages/NotFound";
 import DataAnalysis from "./pages/DataAnalysis";
 import QuestionnaireBuilder from "./pages/QuestionnaireBuilder";
+import Humanizer from "./pages/Humanizer";
 import OAuthCallback from "./components/OAuthCallback";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -78,6 +79,7 @@ const App = () => (
               <Route path="/ambassador" element={<ProtectedRoute><Ambassador /></ProtectedRoute>} />
               <Route path="/data-analysis" element={<ProtectedRoute><FeatureGate feature="data_analysis"><DataAnalysis /></FeatureGate></ProtectedRoute>} />
               <Route path="/questionnaire-builder" element={<ProtectedRoute><FeatureGate feature="questionnaire_builder"><QuestionnaireBuilder /></FeatureGate></ProtectedRoute>} />
+              <Route path="/humanizer" element={<ProtectedRoute><Humanizer /></ProtectedRoute>} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>

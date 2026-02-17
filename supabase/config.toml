@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.questionnaire-export]
 verify_jwt = false
+
+[functions.humanize-text]
+verify_jwt = false
