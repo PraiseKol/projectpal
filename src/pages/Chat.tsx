@@ -419,7 +419,7 @@ const Chat = () => {
       label: "Edit Chapter 4 (Results/Discussion)",
       prompt: "Help me edit and improve Chapter 4: Results and Discussion",
     },
-    { label: "Humanizer", prompt: "Humanize your written documents" },
+    { label: "Analyze", prompt: "Analyze your generated chapters" },
     { label: "Write Chapter 5 (Conclusion)", prompt: "Help me write Chapter 5: Conclusion and Recommendations" },
   ];
 
