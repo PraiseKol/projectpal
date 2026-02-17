@@ -1,97 +1,98 @@
 
 
-# Fix Chapter Formatting + Build Humanizer Feature
+# Improve AI Humanizer + Fix Chat UI Layout
 
-## Part 1: Fix Markdown Symbols in Generated Chapters
+## Part 1: Upgrade Humanizer to Actually Beat AI Detectors
 
-**Problem**: When users generate chapters, the AI output contains raw markdown symbols like `###`, `**`, `***` which appear as literal text instead of formatted content. This happens because the system prompt instructs the AI to use markdown headings, but when users copy or view the content, they see the raw symbols.
+**Problem**: The current humanizer prompt is too generic. AI detectors like GPTZero, Originality.ai, and Stealth Checker analyze specific patterns: uniform sentence length (low "burstiness"), predictable word choices (low "perplexity"), and formulaic transitions. The current prompt tells the AI to vary sentences and add hedging, but doesn't address the root patterns detectors flag.
 
-**Solution**: Add an explicit instruction to the system prompt in both `chat-ai` and `document-ai-chat` telling the AI to NOT use markdown heading symbols (`#`, `##`, `###`) or bold/italic markers (`**`, `***`) in chapter content. Instead, use plain numbered headings (e.g., "1.1 Background to the Study") and write naturally without markdown formatting marks.
+**Solution**: Rewrite the system prompt in `supabase/functions/humanize-text/index.ts` with a multi-pass approach and detector-specific techniques:
 
-### Files to Update
+### Key Techniques to Implement
 
-**1. `supabase/functions/chat-ai/index.ts`** -- Add to the FORMATTING RULES section:
-```
-- CRITICAL: Do NOT use markdown symbols in chapter content. 
-  Do NOT use # ## ### for headings. Do NOT use ** or *** for bold/italic.
-  Instead, use plain numbered section headings (e.g., "1.1 Background to the Study")
-  and write in natural flowing prose. The content should read cleanly 
-  without any special formatting characters.
-```
+1. **Bust uniform sentence length (burstiness)**: Explicitly instruct the model to never have 3+ consecutive sentences of similar length. Mix fragments, compound-complex sentences, and one-word emphasis.
 
-**2. `supabase/functions/document-ai-chat/index.ts`** -- Add the same formatting instruction to its system prompt.
+2. **Increase vocabulary unpredictability (perplexity)**: Replace common AI-favored words ("utilize", "leverage", "crucial", "comprehensive", "facilitate", "delve", "moreover", "furthermore", "in conclusion") with varied, less predictable synonyms.
+
+3. **Inject human imperfections**: Add occasional conversational asides, contractions ("it's", "don't", "can't"), rhetorical questions, and informal-but-academic phrasing.
+
+4. **Break formulaic paragraph patterns**: AI tends to write Topic Sentence -> Supporting Detail -> Example -> Transition. Instruct the model to vary paragraph openings (start with evidence, a question, a counterpoint, or an anecdote).
+
+5. **Add personal voice markers**: Phrases like "What's interesting here is...", "This is where things get tricky", "Admittedly,", "To put it simply,".
+
+6. **Use a two-pass approach**: First pass rewrites for naturalness. Second pass specifically targets AI-detectable patterns (word list avoidance, sentence length variance check).
+
+### Updated System Prompt Strategy
+
+The new prompt will:
+- Provide an explicit "banned words" list of AI-favored vocabulary
+- Require sentence length variance (short/long/fragment mixing)
+- Demand contractions and conversational markers
+- Instruct varied paragraph structures
+- Use `google/gemini-2.5-pro` instead of `gemini-3-flash-preview` for higher quality rewriting (the pro model produces more nuanced, less detectable output)
+- Add a second AI call that reviews the first output specifically for remaining AI patterns
+
+### File: `supabase/functions/humanize-text/index.ts`
+
+Replace the system prompt and add a two-pass rewriting flow:
+- Pass 1: Full humanization rewrite with the enhanced prompt
+- Pass 2: A shorter "polish" call that scans for remaining AI-detectable patterns and fixes them
+- Use `google/gemini-2.5-pro` for both passes (better reasoning = better humanization)
 
 ---
 
-## Part 2: Build Humanizer Feature
+## Part 2: Chat UI Layout Fixes
 
-### Overview
-A new "Humanizer" card on the Dashboard that opens a dedicated page (`/humanizer`). Users paste text, click "Humanize", and the AI rewrites it to sound more natural and human-written while preserving the original meaning. Costs 5 credits per use.
+### 2a. Fix Sidebar to be truly fixed (not affected by scroll)
 
-### New Files
+**File: `src/pages/Chat.tsx`**
 
-**1. `supabase/functions/humanize-text/index.ts`** -- New edge function
-- Authenticates user, checks credits (fetches `credit_cost_humanizer` from `app_settings`, default 5)
-- Sends text to Lovable AI with a specialized prompt that:
-  - Varies sentence length and structure
-  - Adds natural transitions and conversational connectors
-  - Replaces overly formal/robotic phrasing with academic but human-sounding alternatives
-  - Introduces minor stylistic variations (sentence starters, paragraph flow)
-  - Preserves the original meaning, facts, and academic rigor
-- Deducts credits after success
-- Returns humanized text
+The sidebar already has `fixed` positioning on mobile and `relative` on desktop. The issue is that on desktop it uses `relative` inside a flex container. Change to:
+- Desktop: Use `sticky top-0 h-screen` so it stays fixed while the main content scrolls
+- The sidebar already uses `ScrollArea` internally for its own chat list, so that's fine
 
-**2. `src/pages/Humanizer.tsx`** -- New page
-- Header with back button, title "AI Humanizer", credit cost badge (5 credits)
-- Large textarea for pasting input text (with word count display)
-- "Humanize" button
-- Output section showing the humanized result
-- Copy button and word count for the output
-- Loading state with spinner
+### 2b. Fix Input Area to bottom + Quick Actions above it
 
-### Existing Files to Update
+The current layout already has the input outside the scrollable area (from previous fix). Verify this is working correctly. The structure should be:
+- Header (sticky top)
+- Scrollable messages (flex-1 overflow-y-auto)
+- Quick actions (shrink-0, above input)
+- Input area (shrink-0, border-t, at bottom)
 
-**3. `src/pages/Dashboard.tsx`**
-- Add a new card in the Quick Actions grid:
-  - Icon: `Sparkles` or a pen icon
-  - Title: "AI Humanizer"
-  - Description: "Make AI-generated text sound more natural and human-written"
-  - Badge: "5 Credits"
-  - Available to all users (free included, costs credits)
-  - Navigates to `/humanizer`
+### 2c. Replace `Input` with `Textarea` + Shift+Enter behavior
 
-**4. `src/App.tsx`**
-- Import the new `Humanizer` page
-- Add route: `/humanizer` (protected, with FeatureGate)
+**Current**: Uses `<Input>` with `onKeyPress` that sends on Enter.
+**Fix**: 
+- Replace `<Input>` with `<Textarea>` (auto-resizing, max 5 rows)
+- `onKeyDown`: If Enter without Shift -> send message. If Shift+Enter -> allow newline (default textarea behavior).
+- Style the textarea to look like the current rounded input with auto-resize
 
-**5. `supabase/config.toml`**
-- Add `[functions.humanize-text]` with `verify_jwt = false`
+---
 
-**6. `src/components/Admin/CreditCostsSettings.tsx`**
-- Add `{ key: "credit_cost_humanizer", label: "AI Humanizer", defaultCost: 5, category: "Tools" }` to the operations list
-
-### Edge Function Logic (humanize-text)
-
-The system prompt will instruct the AI to:
-- Vary sentence lengths (mix short and long sentences)
-- Use natural transitions ("However," "That said," "Interestingly,")
-- Avoid repetitive sentence starters
-- Replace overly structured/formulaic phrasing
-- Add subtle hedging language ("tends to," "appears to," "it seems")
-- Maintain the same factual content and academic quality
-- Keep the same approximate word count
-- NOT change citations, references, or technical terms
-
-### Summary
+## Summary
 
 | # | File | Change |
 |---|------|--------|
-| 1 | `supabase/functions/chat-ai/index.ts` | Add no-markdown formatting rule |
-| 2 | `supabase/functions/document-ai-chat/index.ts` | Same no-markdown rule |
-| 3 | `supabase/functions/humanize-text/index.ts` | New edge function |
-| 4 | `src/pages/Humanizer.tsx` | New page |
-| 5 | `src/pages/Dashboard.tsx` | Add Humanizer card |
-| 6 | `src/App.tsx` | Add route |
-| 7 | `supabase/config.toml` | Register function |
-| 8 | `src/components/Admin/CreditCostsSettings.tsx` | Add humanizer cost entry |
+| 1 | `supabase/functions/humanize-text/index.ts` | Enhanced two-pass prompt + use gemini-2.5-pro model |
+| 2 | `src/pages/Chat.tsx` | Sidebar sticky fix, replace Input with Textarea, Shift+Enter support |
+
+### Technical Details
+
+**Humanizer Prompt Changes:**
+- Banned AI words list: "utilize", "leverage", "crucial", "comprehensive", "facilitate", "delve", "moreover", "furthermore", "in conclusion", "it is important to note", "plays a crucial role", "in today's world", "serves as a"
+- Sentence length rule: No 3+ consecutive sentences within 5 words of each other's length
+- Contraction requirement: Use contractions at least 30% of the time where grammatically appropriate
+- Paragraph structure: Never start 2+ consecutive paragraphs the same way
+- Two-pass flow: Pass 1 (humanize) -> Pass 2 (detect and fix remaining AI patterns)
+
+**Chat Textarea Implementation:**
+```
+// Shift+Enter = newline (default), Enter alone = send
+onKeyDown={(e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    handleSend();
+  }
+}}
+```
 
