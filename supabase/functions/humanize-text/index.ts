@@ -6,6 +6,65 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const PASS1_PROMPT = `You are rewriting text so it reads as authentically human-written. Your goal is to defeat AI-detection tools (GPTZero, Originality.ai, Stealth Checker) while preserving every fact, citation, and technical term exactly.
+
+CRITICAL RULES — follow ALL of them:
+
+1. SENTENCE LENGTH VARIANCE ("burstiness")
+   - NEVER write 3+ consecutive sentences of similar word count. 
+   - Deliberately alternate: a long compound-complex sentence, then a short punchy one. Maybe even a fragment. Then medium. Keep the rhythm unpredictable.
+   - Aim for a standard deviation of at least 8 words across consecutive sentence lengths.
+
+2. BANNED VOCABULARY — Do NOT use these AI-favored words/phrases AT ALL:
+   "utilize", "leverage", "crucial", "comprehensive", "facilitate", "delve", "moreover", "furthermore", "in conclusion", "it is important to note", "plays a crucial role", "in today's world", "serves as a", "it is worth noting", "a myriad of", "in the realm of", "showcasing", "underscoring", "navigating", "landscape", "paradigm", "multifaceted", "holistic", "synergy", "arguably", "pivotal", "nuanced", "robust", "streamline", "foster", "enhance", "bolster", "underscore", "realm"
+   Replace them with everyday synonyms a real human would pick.
+
+3. CONTRACTIONS & INFORMAL MARKERS
+   - Use contractions ("it's", "don't", "can't", "won't", "they're", "we've") in at least 40% of opportunities.
+   - Sprinkle in personal voice: "What's interesting here is…", "Here's the thing—", "Admittedly,", "To put it simply,", "This is where it gets tricky.", "Look,", "Fair enough,", "That said,"
+
+4. PARAGRAPH STRUCTURE VARIANCE
+   - NEVER start 2 consecutive paragraphs the same way.
+   - Break the AI pattern of: Topic Sentence → Support → Example → Transition.
+   - Instead vary: start with evidence, a question, a concession, a counterpoint, or a direct claim. Mix it up every paragraph.
+
+5. HUMAN IMPERFECTIONS
+   - Add occasional rhetorical questions ("But does this actually hold up?").
+   - Use em dashes — like this — and parenthetical asides (which real writers do naturally).
+   - Occasionally start sentences with "And", "But", "So", or "Still".
+
+6. HEDGING & QUALIFICATION
+   - Where appropriate use: "tends to", "appears to", "it seems", "in many cases", "for the most part", "broadly speaking", "generally", "as far as we can tell"
+
+7. PRESERVATION RULES
+   - Keep ALL citations, author names, dates, statistics, quotes, references EXACTLY as given.
+   - Keep approximately the same word count (within 10%).
+   - Keep the same logical flow and paragraph count.
+   - Do NOT add new information or remove existing content.
+   - Do NOT use markdown formatting (no #, ##, **, ***).
+
+8. TRANSITION VARIETY
+   - Instead of formulaic connectors, use natural bridges: "That brings up another point—", "On a related note,", "Shifting gears a bit,", "Now here's where it connects—", "Which leads to an interesting question:"
+
+Return ONLY the rewritten text. No commentary, no labels, no preamble.`;
+
+const PASS2_PROMPT = `You are an AI-detection auditor. Review the text below and fix ONLY the patterns that AI detectors flag. Do NOT rewrite the whole thing — just patch problem spots.
+
+CHECK FOR AND FIX:
+1. Any 3+ consecutive sentences with similar word count → break up the rhythm
+2. Any of these banned words still present: "utilize", "leverage", "crucial", "comprehensive", "facilitate", "delve", "moreover", "furthermore", "in conclusion", "it is important to note", "plays a crucial role", "in today's world", "serves as a", "it is worth noting", "showcasing", "underscoring", "navigating", "landscape", "paradigm", "multifaceted", "holistic", "synergy", "pivotal", "nuanced", "robust", "streamline", "foster", "enhance", "bolster", "underscore", "realm"
+3. Any paragraph that starts the same way as the previous one → change the opening
+4. Missing contractions where they'd sound natural → add them
+5. Overly uniform paragraph structure (Topic→Support→Example→Transition) → vary it
+6. Formulaic transitions ("Additionally", "Furthermore", "In addition") → replace with natural ones
+
+RULES:
+- Keep ALL facts, citations, references, technical terms intact
+- Keep approximately the same word count
+- Do NOT use markdown formatting
+- Make minimal changes — only fix what detectors would flag
+- Return ONLY the fixed text, nothing else.`;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -28,18 +87,12 @@ serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     );
 
-    // Get user
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) {
       return new Response(
@@ -48,7 +101,6 @@ serve(async (req) => {
       );
     }
 
-    // Get profile
     const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
       .select('daily_credits, monthly_credits, paid_credits, plan_type, credits_expiry_date, daily_reset_date')
@@ -62,7 +114,7 @@ serve(async (req) => {
       );
     }
 
-    // Fetch dynamic credit cost from app_settings
+    // Fetch dynamic settings
     const { data: settingsData } = await supabaseClient
       .from('app_settings')
       .select('key, value')
@@ -106,7 +158,6 @@ serve(async (req) => {
       }
     }
 
-    // Check credits
     const totalAvailable = isActiveSubscriber
       ? dailyCredits + paidCredits
       : Math.min(dailyCredits, monthlyCredits);
@@ -122,7 +173,6 @@ serve(async (req) => {
       );
     }
 
-    // Call Lovable AI
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       return new Response(
@@ -131,60 +181,48 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `You are an expert text humanizer. Your job is to rewrite the given text so that it reads as naturally human-written as possible, while preserving the original meaning, facts, and academic quality.
+    const callAI = async (systemPrompt: string, userContent: string) => {
+      const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-pro',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userContent },
+          ],
+        }),
+      });
 
-RULES:
-1. Vary sentence lengths naturally — mix short punchy sentences with longer, more complex ones.
-2. Use natural transitions and connectors: "However,", "That said,", "Interestingly,", "It's worth noting that", "On the other hand,", "In a similar vein,".
-3. Avoid repetitive sentence starters — don't begin consecutive sentences with the same word or structure.
-4. Replace overly formal or robotic phrasing with more natural academic alternatives. For example:
-   - "It is important to note that" → "Notably," or "What stands out here is"
-   - "This study aims to" → "The goal here is to" or "This research sets out to"
-   - "Furthermore" (overused) → "Beyond that," or "Adding to this,"
-5. Add subtle hedging language where appropriate: "tends to," "appears to," "it seems," "arguably," "in many cases."
-6. Introduce minor stylistic variations — occasionally use rhetorical questions, em dashes, or parenthetical asides.
-7. Maintain the SAME factual content, citations, references, and technical terms exactly as they are. Do NOT alter any citations, author names, dates, statistics, or quoted material.
-8. Keep approximately the same word count (within 10%).
-9. Preserve paragraph structure and logical flow.
-10. Do NOT add new information or remove existing content.
-11. Do NOT use markdown formatting symbols (no #, ##, **, ***). Write in plain text.
-12. The output should feel like it was written by a thoughtful human academic, not generated by AI.
-
-Return ONLY the humanized text, nothing else.`;
-
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: text },
-        ],
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      if (!resp.ok) {
+        if (resp.status === 429) {
+          throw { status: 429, message: 'Rate limit exceeded. Please try again in a moment.' };
+        }
+        if (resp.status === 402) {
+          throw { status: 402, message: 'AI service credits exhausted. Please contact support.' };
+        }
+        throw new Error('AI service error');
       }
-      if (aiResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'AI service credits exhausted. Please contact support.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      throw new Error('AI service error');
+
+      const data = await resp.json();
+      return data.choices?.[0]?.message?.content || '';
+    };
+
+    // === TWO-PASS HUMANIZATION ===
+    // Pass 1: Full humanization rewrite
+    const pass1Result = await callAI(PASS1_PROMPT, text);
+
+    if (!pass1Result) {
+      throw new Error('Pass 1 returned empty result');
     }
 
-    const aiData = await aiResponse.json();
-    const humanizedText = aiData.choices?.[0]?.message?.content || '';
+    // Pass 2: Audit and fix remaining AI patterns
+    const humanizedText = await callAI(PASS2_PROMPT, pass1Result);
+
+    const finalText = humanizedText || pass1Result;
 
     // Deduct credits
     if (isActiveSubscriber) {
@@ -212,7 +250,7 @@ Return ONLY the humanized text, nothing else.`;
 
     return new Response(
       JSON.stringify({
-        humanizedText,
+        humanizedText: finalText,
         credits_used: creditCost,
         profile: {
           daily_credits: dailyCredits,
@@ -223,11 +261,13 @@ Return ONLY the humanized text, nothing else.`;
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('humanize-text error:', error);
+    const status = error?.status || 500;
+    const message = error?.message || (error instanceof Error ? error.message : 'Unknown error');
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: message }),
+      { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
