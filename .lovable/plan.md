@@ -1,98 +1,77 @@
 
 
-# Improve AI Humanizer + Fix Chat UI Layout
+# Retrain Humanizer Based on Stealth Checker Analysis
 
-## Part 1: Upgrade Humanizer to Actually Beat AI Detectors
+## Problem Analysis
 
-**Problem**: The current humanizer prompt is too generic. AI detectors like GPTZero, Originality.ai, and Stealth Checker analyze specific patterns: uniform sentence length (low "burstiness"), predictable word choices (low "perplexity"), and formulaic transitions. The current prompt tells the AI to vary sentences and add hedging, but doesn't address the root patterns detectors flag.
+Comparing the three outputs reveals exactly why ProjectPal's humanizer scores poorly:
 
-**Solution**: Rewrite the system prompt in `supabase/functions/humanize-text/index.ts` with a multi-pass approach and detector-specific techniques:
+| Technique | ProjectPal (48% human) | Stealth Checker (97% human) |
+|---|---|---|
+| Tone | Casual/conversational ("Here's the thing", "We're talking about") | Academic/formal throughout |
+| Contractions | Heavy use ("it's", "isn't", "don't") | Almost none |
+| Rhetorical questions | Added ("Why do some women...?") | None |
+| Em dashes/asides | Frequent ("—often called—") | Rare |
+| Paraphrasing depth | Surface-level word swaps | Deep restructuring of clauses and grammar |
+| Vocabulary | Casual synonyms ("just keep climbing") | Academic synonyms ("typified by", "piqued the curiosity") |
+| Sentence structure | Same structure, just more informal | Inverted clauses, changed subject-verb order, passive/active swaps |
 
-### Key Techniques to Implement
+The core insight: AI detectors don't just look for "robotic" text. They also flag text that tries too hard to sound human. Stealth Checker succeeds by **deeply restructuring sentences at the grammatical level** while keeping the original academic register.
 
-1. **Bust uniform sentence length (burstiness)**: Explicitly instruct the model to never have 3+ consecutive sentences of similar length. Mix fragments, compound-complex sentences, and one-word emphasis.
-
-2. **Increase vocabulary unpredictability (perplexity)**: Replace common AI-favored words ("utilize", "leverage", "crucial", "comprehensive", "facilitate", "delve", "moreover", "furthermore", "in conclusion") with varied, less predictable synonyms.
-
-3. **Inject human imperfections**: Add occasional conversational asides, contractions ("it's", "don't", "can't"), rhetorical questions, and informal-but-academic phrasing.
-
-4. **Break formulaic paragraph patterns**: AI tends to write Topic Sentence -> Supporting Detail -> Example -> Transition. Instruct the model to vary paragraph openings (start with evidence, a question, a counterpoint, or an anecdote).
-
-5. **Add personal voice markers**: Phrases like "What's interesting here is...", "This is where things get tricky", "Admittedly,", "To put it simply,".
-
-6. **Use a two-pass approach**: First pass rewrites for naturalness. Second pass specifically targets AI-detectable patterns (word list avoidance, sentence length variance check).
-
-### Updated System Prompt Strategy
-
-The new prompt will:
-- Provide an explicit "banned words" list of AI-favored vocabulary
-- Require sentence length variance (short/long/fragment mixing)
-- Demand contractions and conversational markers
-- Instruct varied paragraph structures
-- Use `google/gemini-2.5-pro` instead of `gemini-3-flash-preview` for higher quality rewriting (the pro model produces more nuanced, less detectable output)
-- Add a second AI call that reviews the first output specifically for remaining AI patterns
+## Solution: Rewrite Both Prompts
 
 ### File: `supabase/functions/humanize-text/index.ts`
 
-Replace the system prompt and add a two-pass rewriting flow:
-- Pass 1: Full humanization rewrite with the enhanced prompt
-- Pass 2: A shorter "polish" call that scans for remaining AI-detectable patterns and fixes them
-- Use `google/gemini-2.5-pro` for both passes (better reasoning = better humanization)
+Replace PASS1_PROMPT and PASS2_PROMPT entirely with prompts modeled on Stealth Checker's actual behavior:
 
----
+**New PASS1_PROMPT strategy:**
+- Deep structural paraphrasing: reorder clauses, invert sentence structure, change active to passive and vice versa
+- Use academic synonym substitution (not casual), e.g. "characterized by" becomes "typified by", "transcends" becomes "cuts across"
+- NO contractions, NO conversational markers, NO rhetorical questions, NO em dashes
+- Change the grammatical subject of sentences (e.g., "Researchers have investigated" becomes "The topic of X has piqued the curiosity of researchers")
+- Vary sentence openings by restructuring, not by adding filler phrases
+- Preserve all citations, statistics, technical terms exactly
+- Keep the same formal/academic register as the original
 
-## Part 2: Chat UI Layout Fixes
+**New PASS2_PROMPT strategy:**
+- Check for any sentences that remain too close to the original wording and rephrase them
+- Ensure no two consecutive sentences start with the same grammatical pattern
+- Verify all citations and facts are preserved
+- Fix any remaining AI-detectable patterns (uniform length, predictable transitions)
 
-### 2a. Fix Sidebar to be truly fixed (not affected by scroll)
+**Key differences from current prompts:**
+- REMOVE: contractions requirement, informal markers, rhetorical questions, em dashes, "human imperfections"
+- ADD: clause reordering, passive/active voice swaps, academic synonym replacement, grammatical restructuring
+- KEEP: banned AI words list, sentence length variance, paragraph structure variance
 
-**File: `src/pages/Chat.tsx`**
+### No other files change -- only the prompts in the edge function.
 
-The sidebar already has `fixed` positioning on mobile and `relative` on desktop. The issue is that on desktop it uses `relative` inside a flex container. Change to:
-- Desktop: Use `sticky top-0 h-screen` so it stays fixed while the main content scrolls
-- The sidebar already uses `ScrollArea` internally for its own chat list, so that's fine
+## Technical Details
 
-### 2b. Fix Input Area to bottom + Quick Actions above it
+The new PASS1_PROMPT will include specific restructuring techniques observed in Stealth Checker's output:
 
-The current layout already has the input outside the scrollable area (from previous fix). Verify this is working correctly. The structure should be:
-- Header (sticky top)
-- Scrollable messages (flex-1 overflow-y-auto)
-- Quick actions (shrink-0, above input)
-- Input area (shrink-0, border-t, at bottom)
-
-### 2c. Replace `Input` with `Textarea` + Shift+Enter behavior
-
-**Current**: Uses `<Input>` with `onKeyPress` that sends on Enter.
-**Fix**: 
-- Replace `<Input>` with `<Textarea>` (auto-resizing, max 5 rows)
-- `onKeyDown`: If Enter without Shift -> send message. If Shift+Enter -> allow newline (default textarea behavior).
-- Style the textarea to look like the current rounded input with auto-resize
-
----
-
-## Summary
-
-| # | File | Change |
-|---|------|--------|
-| 1 | `supabase/functions/humanize-text/index.ts` | Enhanced two-pass prompt + use gemini-2.5-pro model |
-| 2 | `src/pages/Chat.tsx` | Sidebar sticky fix, replace Input with Textarea, Shift+Enter support |
-
-### Technical Details
-
-**Humanizer Prompt Changes:**
-- Banned AI words list: "utilize", "leverage", "crucial", "comprehensive", "facilitate", "delve", "moreover", "furthermore", "in conclusion", "it is important to note", "plays a crucial role", "in today's world", "serves as a"
-- Sentence length rule: No 3+ consecutive sentences within 5 words of each other's length
-- Contraction requirement: Use contractions at least 30% of the time where grammatically appropriate
-- Paragraph structure: Never start 2+ consecutive paragraphs the same way
-- Two-pass flow: Pass 1 (humanize) -> Pass 2 (detect and fix remaining AI patterns)
-
-**Chat Textarea Implementation:**
 ```
-// Shift+Enter = newline (default), Enter alone = send
-onKeyDown={(e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    handleSend();
-  }
-}}
+RESTRUCTURING TECHNIQUES (use all of these):
+
+1. CLAUSE REORDERING
+   Original: "Domestic violence, also known as IPV, is a global crisis"
+   Rewrite:  "Intimate Partner Violence, which is also referred to as domestic violence, is a worldwide epidemic"
+
+2. VOCABULARY SUBSTITUTION (academic, not casual)
+   "characterized by" -> "typified by"
+   "transcends" -> "cuts across" 
+   "manifesting as" -> "results in"
+   "investigate" -> "piqued the curiosity of researchers"
+   "profound" -> "quite intense"
+   "remarkable" -> "notable"
+
+3. GRAMMATICAL SUBJECT CHANGES
+   "This disparity has led researchers to..." -> "This gap has piqued the curiosity of researchers in..."
+   "Recent statistics suggest..." -> "According to the recent statistics..."
+
+4. SENTENCE STRUCTURE INVERSION  
+   Active -> Passive or vice versa where natural
+   Front-load different clause than original
 ```
 
+The banned AI words list stays. The model remains `google/gemini-2.5-pro`. The two-pass flow stays. Only the prompt content changes.
