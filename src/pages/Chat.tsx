@@ -607,9 +607,10 @@ const Chat = () => {
           </div>
         </header>
 
-        {/* Chat Area */}
-        <div className="flex-1 px-4 py-6 overflow-hidden flex flex-col relative">
-          <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto space-y-4 mb-4">
+        {/* Chat Area - flex column with only messages scrolling */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+          {/* Scrollable messages area */}
+          <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
             
             {messages.length === 0 ? (
               <div className="text-center py-12">
@@ -731,9 +732,9 @@ const Chat = () => {
             </Button>
           )}
 
-          {/* Quick Actions Bar */}
+          {/* Quick Actions Bar - fixed above input */}
           {messages.length > 0 && (
-            <div className="mb-4">
+            <div className="px-4 pb-2 pt-2 shrink-0">
               <ScrollArea className="w-full whitespace-nowrap">
                 <div className="flex gap-2 pb-2">
                   {quickActions.map((action, idx) => (
@@ -752,8 +753,8 @@ const Chat = () => {
             </div>
           )}
 
-          {/* Input Area */}
-          <div className="border-t border-border pt-4">
+          {/* Input Area - fixed at bottom */}
+          <div className="px-4 pb-4 pt-2 border-t border-border shrink-0">
             <div className="flex gap-2">
               <Input
                 value={input}

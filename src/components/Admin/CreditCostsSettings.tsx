@@ -155,7 +155,7 @@ export const CreditCostsSettings = () => {
       <CardHeader>
         <CardTitle>Credit Costs</CardTitle>
         <CardDescription>
-          Manage the credit cost for each AI operation. Changes here serve as a reference — edge functions will need to be updated to read these values dynamically.
+          Manage the credit cost for each AI operation. Changes here are enforced dynamically across all features — edge functions read these values at runtime.
         </CardDescription>
       </CardHeader>
       <CardContent>

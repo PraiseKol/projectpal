@@ -47,7 +47,9 @@ serve(async (req) => {
 
   try {
     const { message, history, currentQuestionnaire, mode = 'chat' } = await req.json();
-    const CREDIT_COST = mode === 'build' ? 5 : 2;
+    
+    // Will be set after fetching from app_settings
+    let CREDIT_COST = mode === 'build' ? 5 : 2;
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -78,11 +80,22 @@ serve(async (req) => {
     const paidCreditsExpired = profile.credits_expiry_date ? new Date(profile.credits_expiry_date) < new Date() : true;
     const isActiveSubscriber = profile.plan_type !== 'free' && !paidCreditsExpired;
 
-    // Fetch dynamic credit defaults from app_settings
+    // Fetch dynamic credit defaults AND questionnaire costs from app_settings
+    const costKey = mode === 'build' ? 'credit_cost_questionnaire_build' : 'credit_cost_questionnaire_chat';
     const { data: settingsData } = await supabaseClient
       .from('app_settings')
       .select('key, value')
-      .in('key', ['default_daily_credits', 'default_monthly_credits']);
+      .in('key', ['default_daily_credits', 'default_monthly_credits', costKey]);
+
+    // Override credit cost from app_settings if set
+    const costSetting = settingsData?.find((s: { key: string; value: string }) => s.key === costKey);
+    if (costSetting) {
+      const dynamicCost = parseInt(costSetting.value);
+      if (!isNaN(dynamicCost) && dynamicCost > 0) {
+        CREDIT_COST = dynamicCost;
+        console.log(`[QUESTIONNAIRE] Dynamic cost from app_settings: ${costKey} = ${CREDIT_COST}`);
+      }
+    }
 
     let DEFAULT_DAILY = 8;
     let DEFAULT_MONTHLY = 40;

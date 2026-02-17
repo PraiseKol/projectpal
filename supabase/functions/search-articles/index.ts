@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const CREDIT_COST = 1;
+let CREDIT_COST = 1;
 
 interface SemanticScholarPaper {
   paperId: string;
@@ -96,6 +96,21 @@ serve(async (req) => {
 
     if (profileError) {
       throw new Error('Failed to fetch user profile');
+    }
+
+    // Fetch dynamic article search cost from app_settings
+    const { data: costSettings } = await supabaseClient
+      .from('app_settings')
+      .select('key, value')
+      .in('key', ['credit_cost_article_search']);
+    
+    const costSetting = costSettings?.find((s: { key: string; value: string }) => s.key === 'credit_cost_article_search');
+    if (costSetting) {
+      const dynamicCost = parseInt(costSetting.value);
+      if (!isNaN(dynamicCost) && dynamicCost > 0) {
+        CREDIT_COST = dynamicCost;
+        console.log(`[ARTICLE_SEARCH] Dynamic cost from app_settings: ${CREDIT_COST}`);
+      }
     }
 
     // Check subscription status
