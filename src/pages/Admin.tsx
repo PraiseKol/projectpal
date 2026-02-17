@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, LayoutDashboard, Users, CreditCard, Activity, Shield, Settings, History, UserCheck, Mail } from "lucide-react";
+import { ArrowLeft, LayoutDashboard, Users, CreditCard, Activity, Shield, Settings, History, UserCheck, Mail, Coins } from "lucide-react";
 import { toast } from "sonner";
 import { StatsOverview } from "@/components/Admin/StatsOverview";
 import { AdminCharts } from "@/components/Admin/AdminCharts";
@@ -17,6 +17,7 @@ import { AppSettings } from "@/components/Admin/AppSettings";
 import { AuditLog } from "@/components/Admin/AuditLog";
 import { AmbassadorManagement } from "@/components/Admin/AmbassadorManagement";
 import { EmailCampaigns } from "@/components/Admin/EmailCampaigns";
+import { CreditCostsSettings } from "@/components/Admin/CreditCostsSettings";
 import { AdminSkeleton } from "@/components/skeletons/AdminSkeleton";
 import { translateError, logError } from "@/utils/errorMessages";
 
@@ -180,6 +181,7 @@ const Admin = () => {
             <TabsTrigger value="ambassadors"><UserCheck className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Ambassadors</span></TabsTrigger>
             <TabsTrigger value="emails"><Mail className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Emails</span></TabsTrigger>
             <TabsTrigger value="settings"><Settings className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Settings</span></TabsTrigger>
+            {isSuperAdmin && <TabsTrigger value="credits"><Coins className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Credit Costs</span></TabsTrigger>}
             {isSuperAdmin && <TabsTrigger value="audit"><History className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Audit</span></TabsTrigger>}
           </TabsList>
 
@@ -265,6 +267,12 @@ const Admin = () => {
           <TabsContent value="settings">
             <AppSettings />
           </TabsContent>
+
+          {isSuperAdmin && (
+            <TabsContent value="credits">
+              <CreditCostsSettings />
+            </TabsContent>
+          )}
 
           {isSuperAdmin && (
             <TabsContent value="audit">

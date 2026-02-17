@@ -611,17 +611,6 @@ const Chat = () => {
         <div className="flex-1 px-4 py-6 overflow-hidden flex flex-col relative">
           <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto space-y-4 mb-4">
             
-            {/* Scroll to top button */}
-            {showScrollUp && (
-              <Button
-                variant="secondary"
-                size="icon"
-                className="fixed right-8 top-24 z-20 rounded-full shadow-lg opacity-80 hover:opacity-100 transition-opacity"
-                onClick={scrollToTop}
-              >
-                <ChevronUp className="h-5 w-5" />
-              </Button>
-            )}
             {messages.length === 0 ? (
               <div className="text-center py-12">
                 <Sparkles className="h-16 w-16 mx-auto mb-4 text-primary" />
@@ -717,6 +706,18 @@ const Chat = () => {
             )}
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Scroll to top button */}
+          {showScrollUp && (
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute right-8 top-4 z-20 rounded-full shadow-lg opacity-80 hover:opacity-100 transition-opacity"
+              onClick={scrollToTop}
+            >
+              <ChevronUp className="h-5 w-5" />
+            </Button>
+          )}
 
           {/* Scroll to bottom button */}
           {showScrollDown && (
