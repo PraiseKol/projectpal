@@ -560,7 +560,8 @@ const Chat = () => {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Added h-screen and overflow-hidden to lock the page height */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Header */}
         <header className="border-b border-border sticky top-0 z-30 bg-background">
           <div className="px-4 py-3 flex items-center justify-between">
@@ -729,7 +730,7 @@ const Chat = () => {
           )}
 
           {/* Input Area - fixed at bottom */}
-          <div className="px-4 pb-4 pt-2 border-t border-border shrink-0">
+          <div className="px-4 pb-4 pt-2 border-t border-border shrink-0 bg-background">
             <div className="flex gap-2 items-end">
               <Textarea
                 value={input}
