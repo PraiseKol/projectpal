@@ -730,6 +730,23 @@ const Dashboard = () => {
             </CardHeader>
           </Card>
 
+          {/* AI Humanizer - Available to all */}
+          <Card 
+            className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in" 
+            onClick={() => navigate("/humanizer")}
+          >
+            <CardHeader>
+              <Sparkles className="h-12 w-12 mb-4 text-secondary" />
+              <div className="flex items-center gap-2">
+                <CardTitle>AI Humanizer</CardTitle>
+                <Badge variant="secondary" className="text-xs">5 Credits</Badge>
+              </div>
+              <CardDescription>
+                Make AI-generated text sound more natural and human-written
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
           {/* Data Analysis - Scholar Only */}
           <Card 
             variant={canAccessFeature('scholar') ? "glass" : "default"} 

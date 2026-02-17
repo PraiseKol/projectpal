@@ -389,8 +389,12 @@ If the user asks to "fully wrap" or "wrap project", you must generate ALL prelim
 
 Use markdown formatting. Extract as much real information from the document as possible. Use [brackets] only for information that cannot be determined from the document content.
 
+FORMATTING RULES:
+- CRITICAL: Do NOT use markdown symbols like # ## ### for headings or ** *** for bold/italic in generated chapter content. Instead, use plain numbered section headings (e.g., "1.1 Background to the Study") and write in natural flowing prose without special formatting characters.
+- Use hierarchical numbering for sections and subsections.
+
 OUTPUT:
-Return ONLY the requested content as clean, well-formatted text. Use markdown formatting for structure (# for headings, ## for subheadings, - for bullet points). Do not include meta-commentary about what you're doing unless specifically asked.`;
+Return ONLY the requested content as clean, well-formatted text. Do not include meta-commentary about what you're doing unless specifically asked.`;
     }
 
     const requestBody: any = {
