@@ -129,8 +129,15 @@ serve(async (req) => {
       );
     }
 
-    // Credit deduction logic - 2 credits per paraphrase
-    const paraphraseCost = 2;
+    // Fetch dynamic paraphrase cost from app_settings
+    const { data: costSettings } = await supabaseClient
+      .from('app_settings')
+      .select('key, value')
+      .in('key', ['credit_cost_paraphraser']);
+    
+    const paraphraseCostSetting = costSettings?.find((s: { key: string; value: string }) => s.key === 'credit_cost_paraphraser');
+    const paraphraseCost = paraphraseCostSetting ? (parseInt(paraphraseCostSetting.value) || 2) : 2;
+    console.log(`[PARAPHRASE] Credit cost: ${paraphraseCost}`);
     let canProceed = false;
     let creditSource = '';
 

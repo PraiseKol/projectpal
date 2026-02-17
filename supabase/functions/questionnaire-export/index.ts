@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const EXPORT_COST = 5;
+let EXPORT_COST = 5;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -34,11 +34,21 @@ serve(async (req) => {
       .single();
     if (profileError) throw profileError;
 
-    // Fetch dynamic credit defaults
+    // Fetch dynamic credit defaults AND export cost
     const { data: settingsData } = await supabaseClient
       .from('app_settings')
       .select('key, value')
-      .in('key', ['default_daily_credits', 'default_monthly_credits']);
+      .in('key', ['default_daily_credits', 'default_monthly_credits', 'credit_cost_questionnaire_export']);
+
+    // Override export cost from app_settings if set
+    const exportCostSetting = settingsData?.find((s: { key: string; value: string }) => s.key === 'credit_cost_questionnaire_export');
+    if (exportCostSetting) {
+      const dynamicCost = parseInt(exportCostSetting.value);
+      if (!isNaN(dynamicCost) && dynamicCost > 0) {
+        EXPORT_COST = dynamicCost;
+        console.log(`[EXPORT] Dynamic cost from app_settings: ${EXPORT_COST}`);
+      }
+    }
 
     let DEFAULT_DAILY = 8;
     let DEFAULT_MONTHLY = 40;

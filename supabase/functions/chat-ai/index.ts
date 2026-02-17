@@ -155,16 +155,16 @@ Return ONLY valid JSON: {"actionType": "category_name", "cost": number}`;
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
-    const validTypes: Record<string, number> = {
+    const defaultTypes: Record<string, number> = {
       chapter_1: 5, chapter_2: 10, chapter_3: 25, chapter_4: 50, chapter_5: 5,
       research_proposal: 20, fully_wrap_project: 50, generation_suggestion: 2,
       article_search: 1, simple_chat: 1,
     };
 
-    if (parsed.actionType && validTypes[parsed.actionType] !== undefined) {
-      const cost = validTypes[parsed.actionType];
-      console.log(`[CLASSIFY] AI classified as: ${parsed.actionType} (${cost} credits)`);
-      return { cost, actionType: parsed.actionType };
+    if (parsed.actionType && defaultTypes[parsed.actionType] !== undefined) {
+      // Return with default cost; actual cost will be fetched from app_settings later
+      console.log(`[CLASSIFY] AI classified as: ${parsed.actionType}`);
+      return { cost: defaultTypes[parsed.actionType], actionType: parsed.actionType };
     }
 
     console.error('[CLASSIFY] Invalid actionType from AI:', parsed.actionType);
@@ -284,11 +284,22 @@ serve(async (req) => {
     }
     console.log(`[CREDIT] Action detected: ${actionType}, Cost: ${creditCost} credits`);
 
-    // Fetch dynamic credit defaults from app_settings
+    // Fetch dynamic credit defaults AND credit costs from app_settings
+    const creditCostKey = `credit_cost_${actionType}`;
     const { data: settingsData } = await supabaseClient
       .from('app_settings')
       .select('key, value')
-      .in('key', ['default_daily_credits', 'default_monthly_credits']);
+      .in('key', ['default_daily_credits', 'default_monthly_credits', creditCostKey]);
+
+    // Override credit cost from app_settings if set
+    const costSetting = settingsData?.find((s: { key: string; value: string }) => s.key === creditCostKey);
+    if (costSetting) {
+      const dynamicCost = parseInt(costSetting.value);
+      if (!isNaN(dynamicCost) && dynamicCost > 0) {
+        creditCost = dynamicCost;
+        console.log(`[CREDIT] Dynamic cost from app_settings: ${creditCostKey} = ${creditCost}`);
+      }
+    }
 
     let DEFAULT_DAILY = 8;
     let DEFAULT_MONTHLY = 40;

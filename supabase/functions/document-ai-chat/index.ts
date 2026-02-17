@@ -195,6 +195,39 @@ serve(async (req) => {
       requestType = fallback.category;
     }
 
+    // Fetch dynamic credit cost from app_settings based on classification
+    const costKeyMap: Record<string, string> = {
+      edit: 'credit_cost_grammar_fix',
+      analysis: 'credit_cost_analysis',
+      generation: 'credit_cost_suggestions',
+    };
+    // Try to find more specific key based on cost value
+    const specificKeys: Record<number, string> = {
+      50: 'credit_cost_full_wrap',
+      25: 'credit_cost_chapter_3',
+      20: 'credit_cost_research_proposal',
+      15: 'credit_cost_chapter_5_alt',
+      10: 'credit_cost_chapter_2',
+      5: 'credit_cost_chapter_1',
+      4: 'credit_cost_analysis',
+      2: requestType === 'edit' ? 'credit_cost_grammar_fix' : 'credit_cost_suggestions',
+    };
+    const settingKey = specificKeys[creditCost] || costKeyMap[requestType] || 'credit_cost_suggestions';
+    
+    const { data: docCostSettings } = await supabase
+      .from('app_settings')
+      .select('key, value')
+      .in('key', [settingKey]);
+    
+    const docCostSetting = docCostSettings?.find((s: any) => s.key === settingKey);
+    if (docCostSetting) {
+      const dynamicCost = parseInt(docCostSetting.value);
+      if (!isNaN(dynamicCost) && dynamicCost > 0) {
+        creditCost = dynamicCost;
+        console.log(`[DOC-AI] Dynamic cost from app_settings: ${settingKey} = ${creditCost}`);
+      }
+    }
+
     // Check credits
     const totalCredits = profile.daily_credits + profile.paid_credits;
     if (totalCredits < creditCost) {

@@ -8,8 +8,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const BASE_CREDIT_COST = 10;
-const IMAGE_CREDIT_COST = 5;
+let BASE_CREDIT_COST = 10;
+let IMAGE_CREDIT_COST = 5;
 
 // Avoid call-stack overflow when converting large binary buffers
 function uint8ToBase64(bytes: Uint8Array): string {
@@ -1521,15 +1521,23 @@ serve(async (req) => {
       );
     }
 
-    // Fetch dynamic credit defaults from app_settings
+    // Fetch dynamic credit defaults AND PPT costs from app_settings
     const { data: settingsData } = await supabaseClient
       .from('app_settings')
       .select('key, value')
-      .in('key', ['default_daily_credits']);
+      .in('key', ['default_daily_credits', 'credit_cost_ppt_base', 'credit_cost_ppt_images']);
 
     let DEFAULT_DAILY = 8;
     settingsData?.forEach((s: { key: string; value: string }) => {
       if (s.key === 'default_daily_credits') DEFAULT_DAILY = parseInt(s.value) || 8;
+      if (s.key === 'credit_cost_ppt_base') {
+        const v = parseInt(s.value);
+        if (!isNaN(v) && v > 0) { BASE_CREDIT_COST = v; console.log(`[PPT] Dynamic base cost: ${v}`); }
+      }
+      if (s.key === 'credit_cost_ppt_images') {
+        const v = parseInt(s.value);
+        if (!isNaN(v) && v > 0) { IMAGE_CREDIT_COST = v; console.log(`[PPT] Dynamic image cost: ${v}`); }
+      }
     });
 
     if (needsDailyReset) {
