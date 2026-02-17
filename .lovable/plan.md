@@ -1,107 +1,97 @@
 
-# Make Admin Credit Costs Take Effect App-Wide + Fix Chat UI Layout
 
-## Part 1: Dynamic Credit Costs from app_settings
+# Fix Chapter Formatting + Build Humanizer Feature
 
-Currently, every edge function has **hardcoded** credit costs. The admin can update values in `app_settings`, but no edge function reads them. This plan updates **all 7 edge functions** to fetch their cost from `app_settings` at runtime, falling back to defaults if no setting exists.
+## Part 1: Fix Markdown Symbols in Generated Chapters
 
-### Helper Pattern (added to each function)
+**Problem**: When users generate chapters, the AI output contains raw markdown symbols like `###`, `**`, `***` which appear as literal text instead of formatted content. This happens because the system prompt instructs the AI to use markdown headings, but when users copy or view the content, they see the raw symbols.
 
-Each function will fetch its relevant `credit_cost_*` keys from `app_settings` before the credit check. Example:
-
-```
-const { data: costSettings } = await supabaseClient
-  .from('app_settings')
-  .select('key, value')
-  .in('key', ['credit_cost_paraphraser']);
-
-const paraphraseCost = costSettings?.find(s => s.key === 'credit_cost_paraphraser')?.value 
-  ? parseInt(costSettings.find(s => s.key === 'credit_cost_paraphraser').value) 
-  : 2;
-```
+**Solution**: Add an explicit instruction to the system prompt in both `chat-ai` and `document-ai-chat` telling the AI to NOT use markdown heading symbols (`#`, `##`, `###`) or bold/italic markers (`**`, `***`) in chapter content. Instead, use plain numbered headings (e.g., "1.1 Background to the Study") and write naturally without markdown formatting marks.
 
 ### Files to Update
 
-**1. `supabase/functions/chat-ai/index.ts`**
-- After classification determines `actionType`, fetch the matching `credit_cost_{actionType}` from `app_settings`
-- Replace the hardcoded `validTypes` map with dynamically fetched values
-- Fallback to current defaults if no setting found
+**1. `supabase/functions/chat-ai/index.ts`** -- Add to the FORMATTING RULES section:
+```
+- CRITICAL: Do NOT use markdown symbols in chapter content. 
+  Do NOT use # ## ### for headings. Do NOT use ** or *** for bold/italic.
+  Instead, use plain numbered section headings (e.g., "1.1 Background to the Study")
+  and write in natural flowing prose. The content should read cleanly 
+  without any special formatting characters.
+```
 
-**2. `supabase/functions/document-ai-chat/index.ts`**
-- Same approach: after classification, fetch cost from `app_settings`
-- Map classifier categories to the appropriate `credit_cost_*` keys
-
-**3. `supabase/functions/paraphrase-ai/index.ts`**
-- Replace `const paraphraseCost = 2` with a fetch of `credit_cost_paraphraser` from `app_settings`
-- Fallback to 2
-
-**4. `supabase/functions/questionnaire-ai/index.ts`**
-- Replace `const CREDIT_COST = mode === 'build' ? 5 : 2` with fetches of `credit_cost_questionnaire_build` and `credit_cost_questionnaire_chat`
-- Fallback to 5 and 2 respectively
-
-**5. `supabase/functions/questionnaire-export/index.ts`**
-- Replace `const EXPORT_COST = 5` with fetch of `credit_cost_questionnaire_export`
-- Fallback to 5
-
-**6. `supabase/functions/search-articles/index.ts`**
-- Replace `const CREDIT_COST = 1` with fetch of `credit_cost_article_search`
-- Fallback to 1
-
-**7. `supabase/functions/generate-ppt/index.ts`**
-- Replace `const BASE_CREDIT_COST = 10` and `const IMAGE_CREDIT_COST = 5` with fetches of `credit_cost_ppt_base` and `credit_cost_ppt_images`
-- Fallback to 10 and 5
-
-**8. `src/components/Admin/CreditCostsSettings.tsx`**
-- Update the description text to remove the "reference only" caveat since costs will now be enforced dynamically
+**2. `supabase/functions/document-ai-chat/index.ts`** -- Add the same formatting instruction to its system prompt.
 
 ---
 
-## Part 2: Chat UI Layout Fix
+## Part 2: Build Humanizer Feature
 
-**Problem**: The sidebar (chat list), input area, and quick action suggestions all scroll with the messages. The user wants only the messages to scroll.
+### Overview
+A new "Humanizer" card on the Dashboard that opens a dedicated page (`/humanizer`). Users paste text, click "Humanize", and the AI rewrites it to sound more natural and human-written while preserving the original meaning. Costs 5 credits per use.
 
-**Fix in `src/pages/Chat.tsx`**:
+### New Files
 
-The main chat area (line 611) currently uses `overflow-hidden flex flex-col` with everything inside. The fix restructures it so:
+**1. `supabase/functions/humanize-text/index.ts`** -- New edge function
+- Authenticates user, checks credits (fetches `credit_cost_humanizer` from `app_settings`, default 5)
+- Sends text to Lovable AI with a specialized prompt that:
+  - Varies sentence length and structure
+  - Adds natural transitions and conversational connectors
+  - Replaces overly formal/robotic phrasing with academic but human-sounding alternatives
+  - Introduces minor stylistic variations (sentence starters, paragraph flow)
+  - Preserves the original meaning, facts, and academic rigor
+- Deducts credits after success
+- Returns humanized text
 
-1. **Sidebar** (left panel) -- already uses `flex flex-col` with `ScrollArea` inside, so only the chat list scrolls. No change needed.
+**2. `src/pages/Humanizer.tsx`** -- New page
+- Header with back button, title "AI Humanizer", credit cost badge (5 credits)
+- Large textarea for pasting input text (with word count display)
+- "Humanize" button
+- Output section showing the humanized result
+- Copy button and word count for the output
+- Loading state with spinner
 
-2. **Main chat area** -- restructure the flex column:
-   - Header: already `sticky top-0` -- keep as is
-   - Messages area: `flex-1 overflow-y-auto` -- this is the ONLY scrollable section
-   - Quick actions bar: move OUTSIDE the scrollable area, position it just above the input
-   - Input area: move OUTSIDE the scrollable area, fixed at the bottom
+### Existing Files to Update
 
-The layout becomes:
-```
-<div className="flex-1 flex flex-col min-w-0">
-  <header>...</header>                          <!-- fixed at top -->
-  <div className="flex-1 overflow-y-auto relative">  <!-- only this scrolls -->
-    {/* scroll buttons */}
-    {/* messages */}
-  </div>
-  <div className="quick-actions px-4">...</div>  <!-- fixed above input -->
-  <div className="input-area px-4 pb-4 border-t">...</div>  <!-- fixed at bottom -->
-</div>
-```
+**3. `src/pages/Dashboard.tsx`**
+- Add a new card in the Quick Actions grid:
+  - Icon: `Sparkles` or a pen icon
+  - Title: "AI Humanizer"
+  - Description: "Make AI-generated text sound more natural and human-written"
+  - Badge: "5 Credits"
+  - Available to all users (free included, costs credits)
+  - Navigates to `/humanizer`
 
-This ensures:
-- The sidebar chat names section stays fixed (already works)
-- The quick action suggestions and input area stick to the bottom
-- Only the actual chat messages scroll
+**4. `src/App.tsx`**
+- Import the new `Humanizer` page
+- Add route: `/humanizer` (protected, with FeatureGate)
 
----
+**5. `supabase/config.toml`**
+- Add `[functions.humanize-text]` with `verify_jwt = false`
 
-## Summary
+**6. `src/components/Admin/CreditCostsSettings.tsx`**
+- Add `{ key: "credit_cost_humanizer", label: "AI Humanizer", defaultCost: 5, category: "Tools" }` to the operations list
+
+### Edge Function Logic (humanize-text)
+
+The system prompt will instruct the AI to:
+- Vary sentence lengths (mix short and long sentences)
+- Use natural transitions ("However," "That said," "Interestingly,")
+- Avoid repetitive sentence starters
+- Replace overly structured/formulaic phrasing
+- Add subtle hedging language ("tends to," "appears to," "it seems")
+- Maintain the same factual content and academic quality
+- Keep the same approximate word count
+- NOT change citations, references, or technical terms
+
+### Summary
 
 | # | File | Change |
 |---|------|--------|
-| 1 | `supabase/functions/chat-ai/index.ts` | Fetch credit costs from `app_settings` dynamically |
-| 2 | `supabase/functions/document-ai-chat/index.ts` | Same |
-| 3 | `supabase/functions/paraphrase-ai/index.ts` | Same |
-| 4 | `supabase/functions/questionnaire-ai/index.ts` | Same |
-| 5 | `supabase/functions/questionnaire-export/index.ts` | Same |
-| 6 | `supabase/functions/search-articles/index.ts` | Same |
-| 7 | `supabase/functions/generate-ppt/index.ts` | Same |
-| 8 | `src/components/Admin/CreditCostsSettings.tsx` | Update description text |
-| 9 | `src/pages/Chat.tsx` | Fix layout so only messages scroll |
+| 1 | `supabase/functions/chat-ai/index.ts` | Add no-markdown formatting rule |
+| 2 | `supabase/functions/document-ai-chat/index.ts` | Same no-markdown rule |
+| 3 | `supabase/functions/humanize-text/index.ts` | New edge function |
+| 4 | `src/pages/Humanizer.tsx` | New page |
+| 5 | `src/pages/Dashboard.tsx` | Add Humanizer card |
+| 6 | `src/App.tsx` | Add route |
+| 7 | `supabase/config.toml` | Register function |
+| 8 | `src/components/Admin/CreditCostsSettings.tsx` | Add humanizer cost entry |
+
