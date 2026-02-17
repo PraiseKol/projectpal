@@ -1,67 +1,107 @@
 
+# Make Admin Credit Costs Take Effect App-Wide + Fix Chat UI Layout
 
-# Fix Scroll Buttons & Add Credit Costs Admin Tab
+## Part 1: Dynamic Credit Costs from app_settings
 
-## 1. Fix Floating Scroll Buttons in Chat
+Currently, every edge function has **hardcoded** credit costs. The admin can update values in `app_settings`, but no edge function reads them. This plan updates **all 7 edge functions** to fetch their cost from `app_settings` at runtime, falling back to defaults if no setting exists.
 
-**Problem**: The `ChevronUp` (scroll-to-top) button is currently rendered *inside* the scrollable `div` (line 615), so it scrolls away with the content and isn't visible when needed. The `ChevronDown` button is correctly placed outside the scrollable area using `absolute` positioning (line 722).
+### Helper Pattern (added to each function)
+
+Each function will fetch its relevant `credit_cost_*` keys from `app_settings` before the credit check. Example:
+
+```
+const { data: costSettings } = await supabaseClient
+  .from('app_settings')
+  .select('key, value')
+  .in('key', ['credit_cost_paraphraser']);
+
+const paraphraseCost = costSettings?.find(s => s.key === 'credit_cost_paraphraser')?.value 
+  ? parseInt(costSettings.find(s => s.key === 'credit_cost_paraphraser').value) 
+  : 2;
+```
+
+### Files to Update
+
+**1. `supabase/functions/chat-ai/index.ts`**
+- After classification determines `actionType`, fetch the matching `credit_cost_{actionType}` from `app_settings`
+- Replace the hardcoded `validTypes` map with dynamically fetched values
+- Fallback to current defaults if no setting found
+
+**2. `supabase/functions/document-ai-chat/index.ts`**
+- Same approach: after classification, fetch cost from `app_settings`
+- Map classifier categories to the appropriate `credit_cost_*` keys
+
+**3. `supabase/functions/paraphrase-ai/index.ts`**
+- Replace `const paraphraseCost = 2` with a fetch of `credit_cost_paraphraser` from `app_settings`
+- Fallback to 2
+
+**4. `supabase/functions/questionnaire-ai/index.ts`**
+- Replace `const CREDIT_COST = mode === 'build' ? 5 : 2` with fetches of `credit_cost_questionnaire_build` and `credit_cost_questionnaire_chat`
+- Fallback to 5 and 2 respectively
+
+**5. `supabase/functions/questionnaire-export/index.ts`**
+- Replace `const EXPORT_COST = 5` with fetch of `credit_cost_questionnaire_export`
+- Fallback to 5
+
+**6. `supabase/functions/search-articles/index.ts`**
+- Replace `const CREDIT_COST = 1` with fetch of `credit_cost_article_search`
+- Fallback to 1
+
+**7. `supabase/functions/generate-ppt/index.ts`**
+- Replace `const BASE_CREDIT_COST = 10` and `const IMAGE_CREDIT_COST = 5` with fetches of `credit_cost_ppt_base` and `credit_cost_ppt_images`
+- Fallback to 10 and 5
+
+**8. `src/components/Admin/CreditCostsSettings.tsx`**
+- Update the description text to remove the "reference only" caveat since costs will now be enforced dynamically
+
+---
+
+## Part 2: Chat UI Layout Fix
+
+**Problem**: The sidebar (chat list), input area, and quick action suggestions all scroll with the messages. The user wants only the messages to scroll.
 
 **Fix in `src/pages/Chat.tsx`**:
-- Move the `showScrollUp` button from inside the scrollable div (line 615-624) to outside it, next to the `showScrollDown` button (around line 720)
-- Position both buttons using `absolute` within the `relative` chat area container
-- `ChevronUp`: positioned at `top-4 right-8` (just below the header)
-- `ChevronDown`: keep at `bottom-40 right-8` (above input area)
-- Both use `z-20 rounded-full shadow-lg` with opacity transition for visibility
 
-## 2. Add "Credit Costs" Tab to Admin Panel
+The main chat area (line 611) currently uses `overflow-hidden flex flex-col` with everything inside. The fix restructures it so:
 
-**New component: `src/components/Admin/CreditCostsSettings.tsx`**
+1. **Sidebar** (left panel) -- already uses `flex flex-col` with `ScrollArea` inside, so only the chat list scrolls. No change needed.
 
-A new admin tab that displays all operation credit costs in an editable table. Each row shows:
-- Operation name (e.g., "Chapter 1 / Introduction")
-- Current credit cost
-- A number input + save button to update
+2. **Main chat area** -- restructure the flex column:
+   - Header: already `sticky top-0` -- keep as is
+   - Messages area: `flex-1 overflow-y-auto` -- this is the ONLY scrollable section
+   - Quick actions bar: move OUTSIDE the scrollable area, position it just above the input
+   - Input area: move OUTSIDE the scrollable area, fixed at the bottom
 
-The costs will be stored in the existing `app_settings` table using keys like `credit_cost_chapter_1`, `credit_cost_chapter_2`, etc.
+The layout becomes:
+```
+<div className="flex-1 flex flex-col min-w-0">
+  <header>...</header>                          <!-- fixed at top -->
+  <div className="flex-1 overflow-y-auto relative">  <!-- only this scrolls -->
+    {/* scroll buttons */}
+    {/* messages */}
+  </div>
+  <div className="quick-actions px-4">...</div>  <!-- fixed above input -->
+  <div className="input-area px-4 pb-4 border-t">...</div>  <!-- fixed at bottom -->
+</div>
+```
 
-**Operations to manage**:
+This ensures:
+- The sidebar chat names section stays fixed (already works)
+- The quick action suggestions and input area stick to the bottom
+- Only the actual chat messages scroll
 
-| Key | Label | Default |
-|-----|-------|---------|
-| credit_cost_simple_chat | Simple Chat | 1 |
-| credit_cost_article_search | Article Search | 1 |
-| credit_cost_grammar_fix | Fix Grammar / Improve Clarity | 2 |
-| credit_cost_suggestions | Suggestions (Academic Tone, Topics, Outlines) | 2 |
-| credit_cost_paraphraser | Paraphraser | 2 |
-| credit_cost_analysis | Summarize / Extract Key Points | 4 |
-| credit_cost_chapter_1 | Chapter 1 (Introduction) | 5 |
-| credit_cost_chapter_5 | Chapter 5 (Conclusion) | 5 |
-| credit_cost_questionnaire_chat | Questionnaire Chat | 2 |
-| credit_cost_questionnaire_build | Questionnaire Build | 5 |
-| credit_cost_questionnaire_export | Questionnaire Export | 5 |
-| credit_cost_chapter_2 | Chapter 2 (Literature Review) | 10 |
-| credit_cost_ppt_base | PowerPoint Generator | 10 |
-| credit_cost_ppt_images | PowerPoint + Images | 15 |
-| credit_cost_chapter_5_alt | Chapter 5 (Advanced) | 15 |
-| credit_cost_research_proposal | Research Proposal | 20 |
-| credit_cost_journal_paper | Journal Paper | 20 |
-| credit_cost_chapter_3 | Chapter 3 (Methodology) | 25 |
-| credit_cost_data_analysis | Data Analysis | 30 |
-| credit_cost_chapter_4 | Chapter 4 (Results) | 50 |
-| credit_cost_full_wrap | Fully Wrap Project | 50 |
+---
 
-**Admin page changes (`src/pages/Admin.tsx`)**:
-- Import the new `CreditCostsSettings` component
-- Add a new tab trigger with a `Coins` icon labeled "Credit Costs"
-- Restrict to super_admin only (like Users, Transactions, Roles)
+## Summary
 
-**Edge function integration (future-ready)**:
-- The edge functions (`chat-ai`, `document-ai-chat`, `questionnaire-ai`, etc.) already use `app_settings` for other configs. The AI classifier in `chat-ai` currently returns hardcoded costs. In a future iteration, these can be updated to fetch from `app_settings` using the keys above. For now, the admin tab provides visibility and the ability to set the values, and the display serves as a reference for what each operation costs.
-
-## Summary of File Changes
-
-| File | Change |
-|------|--------|
-| `src/pages/Chat.tsx` | Move scroll-up button outside scrollable div, fix positioning |
-| `src/components/Admin/CreditCostsSettings.tsx` | New component: editable credit costs table |
-| `src/pages/Admin.tsx` | Add "Credit Costs" tab (super_admin only) |
+| # | File | Change |
+|---|------|--------|
+| 1 | `supabase/functions/chat-ai/index.ts` | Fetch credit costs from `app_settings` dynamically |
+| 2 | `supabase/functions/document-ai-chat/index.ts` | Same |
+| 3 | `supabase/functions/paraphrase-ai/index.ts` | Same |
+| 4 | `supabase/functions/questionnaire-ai/index.ts` | Same |
+| 5 | `supabase/functions/questionnaire-export/index.ts` | Same |
+| 6 | `supabase/functions/search-articles/index.ts` | Same |
+| 7 | `supabase/functions/generate-ppt/index.ts` | Same |
+| 8 | `src/components/Admin/CreditCostsSettings.tsx` | Update description text |
+| 9 | `src/pages/Chat.tsx` | Fix layout so only messages scroll |
