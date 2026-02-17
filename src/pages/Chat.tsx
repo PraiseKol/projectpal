@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -481,9 +482,9 @@ const Chat = () => {
       {/* Sidebar */}
       <div 
         className={`
-          ${isMobile ? 'fixed inset-y-0 left-0 z-50' : 'relative'}
+          ${isMobile ? 'fixed inset-y-0 left-0 z-50' : 'sticky top-0 h-screen'}
           ${showSidebar ? 'translate-x-0' : '-translate-x-full'}
-          w-64 bg-background border-r border-border flex flex-col transition-transform duration-300 ease-in-out
+          w-64 bg-background border-r border-border flex flex-col transition-transform duration-300 ease-in-out shrink-0
         `}
       >
         <div className="p-4 border-b border-border flex items-center justify-between">
@@ -755,16 +756,29 @@ const Chat = () => {
 
           {/* Input Area - fixed at bottom */}
           <div className="px-4 pb-4 pt-2 border-t border-border shrink-0">
-            <div className="flex gap-2">
-              <Input
+            <div className="flex gap-2 items-end">
+              <Textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleSend()}
-                placeholder="Ask ScholarAI anything..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder="Ask ScholarAI anything... (Shift+Enter for new line)"
                 disabled={isLoading}
-                className="rounded-full"
+                className="min-h-[40px] max-h-[120px] resize-none rounded-2xl py-2"
+                rows={1}
+                style={{ height: 'auto', overflow: 'hidden' }}
+                ref={(el) => {
+                  if (el) {
+                    el.style.height = 'auto';
+                    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+                  }
+                }}
               />
-              <Button onClick={handleSend} disabled={isLoading || !input.trim()} size="icon" className="rounded-full">
+              <Button onClick={handleSend} disabled={isLoading || !input.trim()} size="icon" className="rounded-full shrink-0">
                 <Send className="h-4 w-4" />
               </Button>
             </div>
