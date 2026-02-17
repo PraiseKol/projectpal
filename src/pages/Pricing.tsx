@@ -5,20 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Check, X, ArrowLeft, Sparkles, CreditCard, Calendar, Coins, Info, GraduationCap, Tag } from "lucide-react";
 import { ProjectPalLogo } from "@/components/ProjectPalLogo";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
@@ -56,16 +44,16 @@ const Pricing = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedPurchase, setSelectedPurchase] = useState<SelectedPurchase | null>(null);
   const [paystackKey, setPaystackKey] = useState<string | undefined>(
-    import.meta.env.VITE_PAYSTACK_PUBLIC_KEY as string | undefined
+    import.meta.env.VITE_PAYSTACK_PUBLIC_KEY as string | undefined,
   );
   const [hasReferralDiscount, setHasReferralDiscount] = useState(false);
   const [freeDaily, setFreeDaily] = useState("8");
   const [freeMonthly, setFreeMonthly] = useState("40");
-  
+
   // Get pre-selected values from URL params (for renewals)
   const preSelectedPlan = searchParams.get("plan") as "pro" | "scholar" | null;
   const preSelectedBilling = searchParams.get("billing") as BillingPeriod | null;
-  
+
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>(preSelectedBilling || "monthly");
 
   useEffect(() => {
@@ -99,7 +87,9 @@ const Pricing = () => {
   };
 
   const getUserEmail = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (user) {
       setUserEmail(user.email || "");
     }
@@ -107,14 +97,12 @@ const Pricing = () => {
 
   const checkReferralDiscount = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("referred_by")
-        .eq("id", user.id)
-        .single();
+      const { data: profile } = await supabase.from("profiles").select("referred_by").eq("id", user.id).single();
 
       if (!profile?.referred_by) return;
 
@@ -137,7 +125,7 @@ const Pricing = () => {
         .select("key, value")
         .in("key", ["default_daily_credits", "default_monthly_credits"]);
       if (!error && data) {
-        data.forEach(s => {
+        data.forEach((s) => {
           if (s.key === "default_daily_credits") setFreeDaily(s.value);
           if (s.key === "default_monthly_credits") setFreeMonthly(s.value);
         });
@@ -169,7 +157,7 @@ const Pricing = () => {
       toast.error("Payment system not configured");
       return;
     }
-    
+
     setIsLoading(true);
 
     try {
@@ -186,10 +174,10 @@ const Pricing = () => {
           billing_period: billingPeriod,
           ...(hasReferralDiscount && { referral_discount: true, original_amount: selectedPurchase?.price }),
         },
-        callback: function(response: any) {
+        callback: function (response: any) {
           navigate(`/checkout-success?reference=${response.reference}`);
         },
-        onClose: function() {
+        onClose: function () {
           setIsLoading(false);
           toast.info("Payment cancelled");
         },
@@ -221,19 +209,19 @@ const Pricing = () => {
   const getPlans = (basePlans: { price: number; credits: number }[]): PlanOption[] => {
     switch (billingPeriod) {
       case "quarterly":
-        return basePlans.map(plan => ({
+        return basePlans.map((plan) => ({
           price: Math.round(plan.price * 3 * 0.9), // 10% discount
           credits: plan.credits * 3,
           durationDays: 90,
         }));
       case "yearly":
-        return basePlans.map(plan => ({
+        return basePlans.map((plan) => ({
           price: Math.round(plan.price * 12 * 0.8), // 20% discount
           credits: plan.credits * 12,
           durationDays: 365,
         }));
       default:
-        return basePlans.map(plan => ({
+        return basePlans.map((plan) => ({
           price: plan.price,
           credits: plan.credits,
           durationDays: 30,
@@ -244,31 +232,33 @@ const Pricing = () => {
   const proPlans = getPlans(baseProPlans);
   const scholarPlans = getPlans(baseScholarPlans);
 
-  const scholarFeatures = [
-    "PowerPoint presentation generator",
-    "Advanced paraphraser tool",
-    "AI Document Editor",
-  ];
+  const scholarFeatures = ["PowerPoint presentation generator", "Data Analysis"];
 
   const getBillingLabel = () => {
     switch (billingPeriod) {
-      case "quarterly": return "3 months";
-      case "yearly": return "year";
-      default: return "month";
+      case "quarterly":
+        return "3 months";
+      case "yearly":
+        return "year";
+      default:
+        return "month";
     }
   };
 
   const getMonthlyEquivalent = (price: number) => {
     switch (billingPeriod) {
-      case "quarterly": return Math.round(price / 3);
-      case "yearly": return Math.round(price / 12);
-      default: return price;
+      case "quarterly":
+        return Math.round(price / 3);
+      case "yearly":
+        return Math.round(price / 12);
+      default:
+        return price;
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <SEO 
+      <SEO
         title="Pricing | ProjectPal"
         description="Choose the perfect plan for your academic journey. Get credits for AI-powered project assistance, from free to Scholar plans."
         keywords="academic writing pricing, AI assistant plans, research credits, thesis writing subscription"
@@ -289,8 +279,8 @@ const Pricing = () => {
             {preSelectedPlan ? "Renew Your Plan" : "Choose Your Plan"}
           </h1>
           <p className="text-lg text-muted-foreground mb-6">
-            {preSelectedPlan 
-              ? `Renewing your ${preSelectedPlan.toUpperCase()} plan` 
+            {preSelectedPlan
+              ? `Renewing your ${preSelectedPlan.toUpperCase()} plan`
               : "Select the perfect plan for your academic journey"}
           </p>
 
@@ -301,7 +291,7 @@ const Pricing = () => {
               <span>5% referral discount applied to your first purchase!</span>
             </div>
           )}
-          
+
           {/* Billing Period Toggle */}
           <div className="inline-flex items-center gap-1 p-1 bg-muted rounded-lg">
             <Button
@@ -376,9 +366,7 @@ const Pricing = () => {
         <div className={`mb-8 ${preSelectedPlan === "pro" ? "ring-2 ring-primary ring-offset-4 rounded-xl p-4" : ""}`}>
           <h2 className="text-3xl font-bold text-center mb-6">
             Pro Plans
-            {preSelectedPlan === "pro" && (
-              <Badge className="ml-2 rounded-full">Recommended</Badge>
-            )}
+            {preSelectedPlan === "pro" && <Badge className="ml-2 rounded-full">Recommended</Badge>}
           </h2>
           <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {proPlans.map((plan, index) => (
@@ -395,8 +383,8 @@ const Pricing = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button 
-                    className="w-full" 
+                  <Button
+                    className="w-full"
                     onClick={() => openConfirmModal("pro", plan.price, plan.credits, plan.durationDays)}
                     disabled={isLoading}
                   >
@@ -409,15 +397,15 @@ const Pricing = () => {
         </div>
 
         {/* Scholar Plans */}
-        <div className={`mb-8 ${preSelectedPlan === "scholar" ? "ring-2 ring-primary ring-offset-4 rounded-xl p-4" : ""}`}>
+        <div
+          className={`mb-8 ${preSelectedPlan === "scholar" ? "ring-2 ring-primary ring-offset-4 rounded-xl p-4" : ""}`}
+        >
           <div className="text-center mb-6">
             <div className="flex items-center justify-center gap-2 mb-2">
               <Sparkles className="h-6 w-6 text-primary" />
               <h2 className="text-3xl font-bold">
                 Scholar Plans
-                {preSelectedPlan === "scholar" && (
-                  <Badge className="ml-2 rounded-full">Recommended</Badge>
-                )}
+                {preSelectedPlan === "scholar" && <Badge className="ml-2 rounded-full">Recommended</Badge>}
               </h2>
             </div>
             <p className="text-muted-foreground">Includes all Pro features plus:</p>
@@ -444,9 +432,9 @@ const Pricing = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button 
+                  <Button
                     variant="gradient"
-                    className="w-full" 
+                    className="w-full"
                     onClick={() => openConfirmModal("scholar", plan.price, plan.credits, plan.durationDays)}
                     disabled={isLoading}
                   >
@@ -476,9 +464,15 @@ const Pricing = () => {
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
                     <div className="space-y-2 text-sm">
-                      <p><strong>Daily Credits:</strong> Reset at midnight each day (subscribers only)</p>
-                      <p><strong>Monthly Cap:</strong> Maximum credits per month for free users</p>
-                      <p><strong>Paid Credits:</strong> Pool of credits from subscription, valid until expiry</p>
+                      <p>
+                        <strong>Daily Credits:</strong> Reset at midnight each day (subscribers only)
+                      </p>
+                      <p>
+                        <strong>Monthly Cap:</strong> Maximum credits per month for free users
+                      </p>
+                      <p>
+                        <strong>Paid Credits:</strong> Pool of credits from subscription, valid until expiry
+                      </p>
                     </div>
                   </TooltipContent>
                 </Tooltip>
@@ -489,8 +483,8 @@ const Pricing = () => {
             {/* Mobile Cards View */}
             <div className="md:hidden space-y-6">
               {[
-                { 
-                  name: "Free", 
+                {
+                  name: "Free",
                   badge: "Basic",
                   dailyCredits: `${freeDaily} credits/day`,
                   monthlyCap: `${freeMonthly} total`,
@@ -505,11 +499,11 @@ const Pricing = () => {
                     documents: false,
                     ppt: false,
                     paraphraser: false,
-                    support: "Basic"
-                  }
+                    support: "Basic",
+                  },
                 },
-                { 
-                  name: "Pro", 
+                {
+                  name: "Pro",
                   badge: "Popular",
                   dailyCredits: `${freeDaily} credits/day`,
                   monthlyCap: "No cap",
@@ -524,11 +518,11 @@ const Pricing = () => {
                     documents: false,
                     ppt: false,
                     paraphraser: false,
-                    support: "Priority"
-                  }
+                    support: "Priority",
+                  },
                 },
-                { 
-                  name: "Scholar", 
+                {
+                  name: "Scholar",
                   badge: "Best Value",
                   dailyCredits: `${freeDaily} credits/day`,
                   monthlyCap: "No cap",
@@ -543,11 +537,15 @@ const Pricing = () => {
                     documents: true,
                     ppt: true,
                     paraphraser: true,
-                    support: "Priority"
-                  }
-                }
+                    support: "Priority",
+                  },
+                },
               ].map((plan) => (
-                <Card key={plan.name} variant={plan.name === "Scholar" ? "glass" : "default"} className="overflow-hidden">
+                <Card
+                  key={plan.name}
+                  variant={plan.name === "Scholar" ? "glass" : "default"}
+                  className="overflow-hidden"
+                >
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-xl">{plan.name}</CardTitle>
@@ -576,7 +574,7 @@ const Pricing = () => {
                         <p className="font-semibold">{plan.creditsReset}</p>
                       </div>
                     </div>
-                    
+
                     {/* Features */}
                     <div className="space-y-2">
                       <p className="text-sm font-medium text-muted-foreground">Features</p>
@@ -594,8 +592,10 @@ const Pricing = () => {
                         ].map((feature) => (
                           <div key={feature.label} className="flex items-center justify-between text-sm">
                             <span>{feature.label}</span>
-                            {typeof feature.value === 'string' ? (
-                              <Badge variant="outline" className="text-xs">{feature.value}</Badge>
+                            {typeof feature.value === "string" ? (
+                              <Badge variant="outline" className="text-xs">
+                                {feature.value}
+                              </Badge>
                             ) : feature.value ? (
                               <Check className="h-4 w-4 text-secondary" />
                             ) : (
@@ -605,7 +605,9 @@ const Pricing = () => {
                         ))}
                         <div className="flex items-center justify-between text-sm">
                           <span>Support</span>
-                          <Badge variant="outline" className="text-xs">{plan.features.support}</Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {plan.features.support}
+                          </Badge>
                         </div>
                       </div>
                     </div>
@@ -623,13 +625,17 @@ const Pricing = () => {
                     <TableHead className="text-center">
                       <div className="flex flex-col items-center gap-1">
                         <span>Free</span>
-                        <Badge variant="outline" className="text-xs">Basic</Badge>
+                        <Badge variant="outline" className="text-xs">
+                          Basic
+                        </Badge>
                       </div>
                     </TableHead>
                     <TableHead className="text-center">
                       <div className="flex flex-col items-center gap-1">
                         <span>Pro</span>
-                        <Badge variant="secondary" className="text-xs">Popular</Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          Popular
+                        </Badge>
                       </div>
                     </TableHead>
                     <TableHead className="text-center">
@@ -714,33 +720,63 @@ const Pricing = () => {
                   </TableRow>
                   <TableRow>
                     <TableCell>AI Chat Assistance</TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Project Topics Generation</TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Proposal Writing</TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Chapter Writing (1-5)</TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Academic References</TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
                   </TableRow>
 
                   {/* Scholar-Only Features */}
@@ -754,21 +790,39 @@ const Pricing = () => {
                   </TableRow>
                   <TableRow>
                     <TableCell>Document Upload & Editing</TableCell>
-                    <TableCell className="text-center"><X className="h-4 w-4 text-muted-foreground mx-auto" /></TableCell>
-                    <TableCell className="text-center"><X className="h-4 w-4 text-muted-foreground mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center">
+                      <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>PowerPoint Generator</TableCell>
-                    <TableCell className="text-center"><X className="h-4 w-4 text-muted-foreground mx-auto" /></TableCell>
-                    <TableCell className="text-center"><X className="h-4 w-4 text-muted-foreground mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center">
+                      <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Advanced Paraphraser</TableCell>
-                    <TableCell className="text-center"><X className="h-4 w-4 text-muted-foreground mx-auto" /></TableCell>
-                    <TableCell className="text-center"><X className="h-4 w-4 text-muted-foreground mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center">
+                      <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>
@@ -787,13 +841,19 @@ const Pricing = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-center text-muted-foreground">1/month (Basic)</TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
-                    <TableCell className="text-center"><Check className="h-4 w-4 text-secondary mx-auto" /></TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Check className="h-4 w-4 text-secondary mx-auto" />
+                    </TableCell>
                   </TableRow>
 
                   {/* Support */}
                   <TableRow className="bg-muted/50">
-                    <TableCell colSpan={4} className="font-semibold">Support</TableCell>
+                    <TableCell colSpan={4} className="font-semibold">
+                      Support
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Support Level</TableCell>
@@ -818,9 +878,18 @@ const Pricing = () => {
                 How Credits Work
               </h4>
               <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• <strong>Free users:</strong> Get {freeDaily} credits per day, up to {freeMonthly} credits per month total. Credits reset monthly.</li>
-                <li>• <strong>Active subscribers:</strong> Get {freeDaily} fresh credits every day (no monthly cap) + your paid credits pool until subscription expires.</li>
-                <li>• <strong>Expired subscriptions:</strong> Revert to free user limits ({freeDaily} daily, {freeMonthly} monthly cap).</li>
+                <li>
+                  • <strong>Free users:</strong> Get {freeDaily} credits per day, up to {freeMonthly} credits per month
+                  total. Credits reset monthly.
+                </li>
+                <li>
+                  • <strong>Active subscribers:</strong> Get {freeDaily} fresh credits every day (no monthly cap) + your
+                  paid credits pool until subscription expires.
+                </li>
+                <li>
+                  • <strong>Expired subscriptions:</strong> Revert to free user limits ({freeDaily} daily, {freeMonthly}{" "}
+                  monthly cap).
+                </li>
               </ul>
             </div>
           </CardContent>
@@ -835,11 +904,9 @@ const Pricing = () => {
               <CreditCard className="h-5 w-5" />
               Confirm Purchase
             </DialogTitle>
-            <DialogDescription>
-              Review your order before proceeding to payment
-            </DialogDescription>
+            <DialogDescription>Review your order before proceeding to payment</DialogDescription>
           </DialogHeader>
-          
+
           {selectedPurchase && (
             <div className="space-y-4">
               {/* Plan Type */}
@@ -849,9 +916,9 @@ const Pricing = () => {
                   {selectedPurchase.planType.toUpperCase()}
                 </Badge>
               </div>
-              
+
               <Separator />
-              
+
               {/* Billing Period */}
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground flex items-center gap-2">
@@ -859,17 +926,16 @@ const Pricing = () => {
                   Billing Period
                 </span>
                 <span className="font-medium">
-                  {billingPeriod === "monthly" ? "Monthly" : 
-                   billingPeriod === "quarterly" ? "3 Months" : "Yearly"}
+                  {billingPeriod === "monthly" ? "Monthly" : billingPeriod === "quarterly" ? "3 Months" : "Yearly"}
                 </span>
               </div>
-              
+
               {/* Duration */}
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Duration</span>
                 <span className="font-medium">{selectedPurchase.durationDays} days</span>
               </div>
-              
+
               {/* Credits */}
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground flex items-center gap-2">
@@ -878,9 +944,9 @@ const Pricing = () => {
                 </span>
                 <span className="font-medium">{selectedPurchase.credits.toLocaleString()}</span>
               </div>
-              
+
               <Separator />
-              
+
               {/* Total Cost */}
               {hasReferralDiscount ? (
                 <div className="space-y-1">
@@ -903,12 +969,10 @@ const Pricing = () => {
               ) : (
                 <div className="flex justify-between items-center text-lg">
                   <span className="font-semibold">Total</span>
-                  <span className="font-bold text-primary">
-                    ₦{selectedPurchase.price.toLocaleString()}
-                  </span>
+                  <span className="font-bold text-primary">₦{selectedPurchase.price.toLocaleString()}</span>
                 </div>
               )}
-              
+
               {/* Monthly equivalent for non-monthly billing */}
               {billingPeriod !== "monthly" && (
                 <p className="text-sm text-muted-foreground text-center">
@@ -917,7 +981,7 @@ const Pricing = () => {
               )}
             </div>
           )}
-          
+
           <DialogFooter className="flex gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowConfirmModal(false)}>
               Cancel
