@@ -31,6 +31,7 @@ export const AppSettings = () => {
     feature_chat_enabled: "true",
     feature_questionnaire_builder_enabled: "true",
     feature_powerpoint_generator_enabled: "true",
+    feature_humanizer_enabled: "true",
     ambassador_claim_status: "open",
   };
 
@@ -304,6 +305,19 @@ export const AppSettings = () => {
             <Switch
               checked={settings.feature_powerpoint_generator_enabled === "true"}
               onCheckedChange={() => handleToggle("feature_powerpoint_generator_enabled")}
+              disabled={isSaving}
+            />
+          </div>
+          <Separator />
+
+          <div className="flex items-center justify-between py-3">
+            <div>
+              <p className="font-medium">AI Humanizer</p>
+              <p className="text-sm text-muted-foreground">Enable the AI text humanizer tool</p>
+            </div>
+            <Switch
+              checked={settings.feature_humanizer_enabled === "true"}
+              onCheckedChange={() => handleToggle("feature_humanizer_enabled")}
               disabled={isSaving}
             />
           </div>
