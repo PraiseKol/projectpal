@@ -116,6 +116,53 @@ RULES:
 - Maintain formal/academic register throughout
 - Return ONLY the fixed text, nothing else.`;
 
+// Helper: call AI with a timeout
+async function callAIWithTimeout(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  userContent: string,
+  timeoutMs = 90000
+): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timer);
+
+    if (!resp.ok) {
+      if (resp.status === 429) throw { status: 429, message: 'Rate limit exceeded. Please try again in a moment.' };
+      if (resp.status === 402) throw { status: 402, message: 'AI service credits exhausted. Please contact support.' };
+      throw new Error(`AI service error: ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    return data.choices?.[0]?.message?.content || '';
+  } catch (err: any) {
+    clearTimeout(timer);
+    if (err?.name === 'AbortError' || err?.message?.includes('aborted')) {
+      throw { status: 408, message: 'Text is too long for a single request — try pasting one section at a time.' };
+    }
+    throw err;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -131,9 +178,10 @@ serve(async (req) => {
       );
     }
 
-    if (text.length > 50000) {
+    // Reduced limit to prevent timeouts on very long inputs
+    if (text.length > 40000) {
       return new Response(
-        JSON.stringify({ error: 'Text is too long. Maximum 50,000 characters.' }),
+        JSON.stringify({ error: 'Text is too long. Maximum 40,000 characters (~7,000 words). Try pasting one section at a time.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -232,46 +280,44 @@ serve(async (req) => {
       );
     }
 
-    const callAI = async (systemPrompt: string, userContent: string) => {
-      const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-pro',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userContent },
-          ],
-        }),
-      });
-
-      if (!resp.ok) {
-        if (resp.status === 429) {
-          throw { status: 429, message: 'Rate limit exceeded. Please try again in a moment.' };
-        }
-        if (resp.status === 402) {
-          throw { status: 402, message: 'AI service credits exhausted. Please contact support.' };
-        }
-        throw new Error('AI service error');
-      }
-
-      const data = await resp.json();
-      return data.choices?.[0]?.message?.content || '';
-    };
-
     // === TWO-PASS HUMANIZATION ===
-    // Pass 1: Full humanization rewrite
-    const pass1Result = await callAI(PASS1_PROMPT, text);
+    // PASS1 uses gemini-2.5-pro (quality matters for the deep rewrite)
+    // PASS2 uses gemini-2.5-flash (audit pass — fast & cheap, quality difference is negligible)
+
+    let pass1Result: string;
+
+    // Chunk very long texts (>20,000 chars) to avoid timeouts on a single Pro call
+    if (text.length > 20000) {
+      console.log(`[HUMANIZE] Long text detected (${text.length} chars), splitting into chunks`);
+      const mid = Math.floor(text.length / 2);
+      // Find a paragraph break near the midpoint
+      const breakPoint = text.lastIndexOf('\n\n', mid) !== -1
+        ? text.lastIndexOf('\n\n', mid)
+        : text.lastIndexOf('\n', mid) !== -1
+          ? text.lastIndexOf('\n', mid)
+          : mid;
+
+      const chunk1 = text.substring(0, breakPoint).trim();
+      const chunk2 = text.substring(breakPoint).trim();
+
+      console.log(`[HUMANIZE] Chunk 1: ${chunk1.length} chars, Chunk 2: ${chunk2.length} chars`);
+
+      const [result1, result2] = await Promise.all([
+        callAIWithTimeout(LOVABLE_API_KEY, 'google/gemini-2.5-pro', PASS1_PROMPT, chunk1, 90000),
+        callAIWithTimeout(LOVABLE_API_KEY, 'google/gemini-2.5-pro', PASS1_PROMPT, chunk2, 90000),
+      ]);
+
+      pass1Result = result1 + '\n\n' + result2;
+    } else {
+      pass1Result = await callAIWithTimeout(LOVABLE_API_KEY, 'google/gemini-2.5-pro', PASS1_PROMPT, text, 90000);
+    }
 
     if (!pass1Result) {
       throw new Error('Pass 1 returned empty result');
     }
 
-    // Pass 2: Audit and fix remaining AI patterns
-    const humanizedText = await callAI(PASS2_PROMPT, pass1Result);
+    // Pass 2: Audit pass — use Flash (fast, cheap, more than adequate for pattern checking)
+    const humanizedText = await callAIWithTimeout(LOVABLE_API_KEY, 'google/gemini-2.5-flash', PASS2_PROMPT, pass1Result, 90000);
 
     const finalText = humanizedText || pass1Result;
 
