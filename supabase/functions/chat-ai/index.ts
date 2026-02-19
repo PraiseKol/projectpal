@@ -74,10 +74,59 @@ function isArticleSearchRequest(message: string): { isSearch: boolean; query: st
   return { isSearch: false, query: '' };
 }
 
-// Regex fallback for credit cost detection
-function determineCreditCostFallback(message: string): { cost: number; actionType: string } {
+// Chapter cost map (default values; overridden by app_settings at runtime)
+const CHAPTER_COSTS: Record<string, number> = {
+  chapter_1: 5,
+  chapter_2: 10,
+  chapter_3: 25,
+  chapter_4: 50,
+  chapter_5: 5,
+};
+
+// Detect all chapters explicitly requested in a single message
+function detectRequestedChapters(message: string): string[] {
+  const chapters: string[] = [];
   const msgLower = message.toLowerCase();
-  
+
+  // Range patterns: "chapters 1-3", "chapters 1 to 3", "chapters 1 through 3"
+  const rangeMatch = msgLower.match(/chapters?\s+(\d+|one|two|three|four|five)\s*(?:to|through|-)\s*(\d+|one|two|three|four|five)/i);
+  if (rangeMatch) {
+    const wordToNum: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5 };
+    const start = parseInt(rangeMatch[1]) || wordToNum[rangeMatch[1].toLowerCase()] || 0;
+    const end = parseInt(rangeMatch[2]) || wordToNum[rangeMatch[2].toLowerCase()] || 0;
+    for (let i = start; i <= end && i >= 1 && i <= 5; i++) {
+      chapters.push(`chapter_${i}`);
+    }
+    return chapters;
+  }
+
+  // List patterns: "chapter 1 and 2", "chapters 1, 2, and 3"
+  const listMatch = msgLower.match(/chapters?\s+([\d,\s]+(?:and\s+)?[\d]+)/i);
+  if (listMatch) {
+    const nums = listMatch[1].match(/\d+/g);
+    if (nums) {
+      nums.forEach(n => {
+        const num = parseInt(n);
+        if (num >= 1 && num <= 5) chapters.push(`chapter_${num}`);
+      });
+      if (chapters.length >= 2) return chapters;
+    }
+  }
+
+  return [];
+}
+
+// Regex fallback for credit cost detection
+function determineCreditCostFallback(message: string): { cost: number; actionType: string; chapters?: string[] } {
+  const msgLower = message.toLowerCase();
+
+  // Multi-chapter detection first
+  const requestedChapters = detectRequestedChapters(message);
+  if (requestedChapters.length >= 2) {
+    const totalCost = requestedChapters.reduce((sum, ch) => sum + (CHAPTER_COSTS[ch] || 5), 0);
+    return { cost: totalCost, actionType: 'multi_chapter', chapters: requestedChapters };
+  }
+
   if (/\b(chapter\s*(4|four)|results\s+(and\s+)?discussion|data\s+presentation|data\s+analysis\s+chapter)\b/i.test(msgLower)) {
     return { cost: 50, actionType: 'chapter_4' };
   }
@@ -100,8 +149,16 @@ function determineCreditCostFallback(message: string): { cost: number; actionTyp
 }
 
 // AI-based request classification to prevent credit loopholes
-async function classifyRequest(message: string, conversationContext: string, apiKey: string): Promise<{ cost: number; actionType: string }> {
+async function classifyRequest(message: string, conversationContext: string, apiKey: string): Promise<{ cost: number; actionType: string; chapters?: string[] }> {
   try {
+    // Multi-chapter regex check first (fast, no AI needed)
+    const multiChapterCheck = detectRequestedChapters(message);
+    if (multiChapterCheck.length >= 2) {
+      const totalCost = multiChapterCheck.reduce((sum, ch) => sum + (CHAPTER_COSTS[ch] || 5), 0);
+      console.log(`[CLASSIFY] Multi-chapter detected via regex: ${multiChapterCheck.join(', ')}, cost: ${totalCost}`);
+      return { cost: totalCost, actionType: 'multi_chapter', chapters: multiChapterCheck };
+    }
+
     const classificationPrompt = `You are a strict credit cost classifier for an academic writing assistant. Classify the user's request based on what they are ACTUALLY asking the AI to generate or do.
 
 CLASSIFICATION RULES (be strict - if the user is asking for content generation of any kind that matches a chapter, classify it as that chapter):
@@ -162,7 +219,6 @@ Return ONLY valid JSON: {"actionType": "category_name", "cost": number}`;
     };
 
     if (parsed.actionType && defaultTypes[parsed.actionType] !== undefined) {
-      // Return with default cost; actual cost will be fetched from app_settings later
       console.log(`[CLASSIFY] AI classified as: ${parsed.actionType}`);
       return { cost: defaultTypes[parsed.actionType], actionType: parsed.actionType };
     }
@@ -269,6 +325,7 @@ serve(async (req) => {
 
     let creditCost: number;
     let actionType: string;
+    let requestedChapters: string[] | undefined;
     
     if (articleSearchCheck.isSearch) {
       creditCost = 1;
@@ -277,27 +334,37 @@ serve(async (req) => {
       const classification = await classifyRequest(message, conversationContext, LOVABLE_API_KEY_FOR_CLASSIFY);
       creditCost = classification.cost;
       actionType = classification.actionType;
+      requestedChapters = classification.chapters;
     } else {
       const fallback = determineCreditCostFallback(message);
       creditCost = fallback.cost;
       actionType = fallback.actionType;
+      requestedChapters = fallback.chapters;
     }
     console.log(`[CREDIT] Action detected: ${actionType}, Cost: ${creditCost} credits`);
 
-    // Fetch dynamic credit defaults AND credit costs from app_settings
-    const creditCostKey = `credit_cost_${actionType}`;
+    // Fetch dynamic credit costs from app_settings (all chapter costs + defaults)
     const { data: settingsData } = await supabaseClient
       .from('app_settings')
       .select('key, value')
-      .in('key', ['default_daily_credits', 'default_monthly_credits', creditCostKey]);
+      .or('key.like.credit_cost_%,key.eq.default_daily_credits,key.eq.default_monthly_credits');
 
-    // Override credit cost from app_settings if set
-    const costSetting = settingsData?.find((s: { key: string; value: string }) => s.key === creditCostKey);
-    if (costSetting) {
-      const dynamicCost = parseInt(costSetting.value);
-      if (!isNaN(dynamicCost) && dynamicCost > 0) {
+    // Build a dynamic cost map from app_settings
+    const dynamicCostMap: Record<string, number> = { ...CHAPTER_COSTS };
+    settingsData?.forEach((s: { key: string; value: string }) => {
+      if (s.key.startsWith('credit_cost_')) {
+        const actionKey = s.key.replace('credit_cost_', '');
+        const v = parseInt(s.value);
+        if (!isNaN(v) && v > 0) dynamicCostMap[actionKey] = v;
+      }
+    });
+
+    // Override credit cost from app_settings if set (single-chapter or other action)
+    if (actionType !== 'multi_chapter') {
+      const dynamicCost = dynamicCostMap[actionType];
+      if (dynamicCost !== undefined) {
         creditCost = dynamicCost;
-        console.log(`[CREDIT] Dynamic cost from app_settings: ${creditCostKey} = ${creditCost}`);
+        console.log(`[CREDIT] Dynamic cost from app_settings: credit_cost_${actionType} = ${creditCost}`);
       }
     }
 
@@ -359,26 +426,72 @@ serve(async (req) => {
       }
     }
 
-    // Check if user has enough credits BEFORE calling AI
+    // Total available credits for this user
     const totalAvailable = isActiveSubscriber 
       ? dailyCredits + paidCredits 
       : Math.min(dailyCredits, monthlyCredits);
-    
-    if (totalAvailable < creditCost) {
-      let errorMessage: string;
-      if (isActiveSubscriber) {
-        errorMessage = `This action requires ${creditCost} credits. You have ${totalAvailable} credits remaining. Please purchase more credits.`;
-      } else if (profile.plan_type !== 'free' && paidCreditsExpired) {
-        errorMessage = `Your subscription has expired. This action requires ${creditCost} credits. Upgrade to continue!`;
-      } else {
-        errorMessage = `You've run out of credits for this month. Upgrade to Pro or Scholar for more credits!`;
+
+    // === MULTI-CHAPTER PARTIAL FULFILLMENT ===
+    // If user requested multiple chapters, only generate those they can afford
+    if (actionType === 'multi_chapter' && requestedChapters && requestedChapters.length >= 2) {
+      // Determine which chapters the user can actually afford
+      const affordableChapters: string[] = [];
+      const skippedChapters: string[] = [];
+      let runningCost = 0;
+
+      for (const ch of requestedChapters) {
+        const chCost = dynamicCostMap[ch] || CHAPTER_COSTS[ch] || 5;
+        if (runningCost + chCost <= totalAvailable) {
+          affordableChapters.push(ch);
+          runningCost += chCost;
+        } else {
+          skippedChapters.push(ch);
+        }
       }
 
-      console.log(`[CREDIT] Insufficient credits for ${actionType} (need ${creditCost}, have ${totalAvailable})`);
-      return new Response(
-        JSON.stringify({ error: errorMessage, credits_required: creditCost, credits_available: totalAvailable }),
-        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (affordableChapters.length === 0) {
+        const chapterListStr = requestedChapters.map(c => `Chapter ${c.replace('chapter_', '')}`).join(', ');
+        const totalNeeded = requestedChapters.reduce((sum, ch) => sum + (dynamicCostMap[ch] || CHAPTER_COSTS[ch] || 5), 0);
+        return new Response(
+          JSON.stringify({
+            error: `You don't have enough credits for ${chapterListStr}. This requires ${totalNeeded} credits but you only have ${totalAvailable}. Upgrade to Pro or Scholar for more credits!`,
+            credits_required: totalNeeded,
+            credits_available: totalAvailable,
+          }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Narrow down to affordable chapters
+      requestedChapters = affordableChapters;
+      creditCost = runningCost;
+
+      // Update the effective action type to the chapters being generated
+      if (skippedChapters.length > 0) {
+        const skippedNums = skippedChapters.map(c => `Chapter ${c.replace('chapter_', '')}`).join(', ');
+        const skippedCost = skippedChapters.reduce((sum, ch) => sum + (dynamicCostMap[ch] || CHAPTER_COSTS[ch] || 5), 0);
+        console.log(`[MULTI_CHAPTER] Partial fulfillment: generating ${affordableChapters.join(', ')}, skipping ${skippedChapters.join(', ')}`);
+        // We'll append a notice at the end of the AI response
+        (req as any)._skippedChaptersNotice = `\n\n---\n⚠️ **Credit Notice:** You had enough credits to generate ${affordableChapters.map(c => `Chapter ${c.replace('chapter_', '')}`).join(' and ')}. ${skippedNums} require${skippedChapters.length === 1 ? 's' : ''} ${skippedCost} more credits — upgrade to continue.`;
+      }
+    } else if (actionType !== 'multi_chapter') {
+      // Single chapter / other action — standard credit check
+      if (totalAvailable < creditCost) {
+        let errorMessage: string;
+        if (isActiveSubscriber) {
+          errorMessage = `This action requires ${creditCost} credits. You have ${totalAvailable} credits remaining. Please purchase more credits.`;
+        } else if (profile.plan_type !== 'free' && paidCreditsExpired) {
+          errorMessage = `Your subscription has expired. This action requires ${creditCost} credits. Upgrade to continue!`;
+        } else {
+          errorMessage = `You've run out of credits for this month. Upgrade to Pro or Scholar for more credits!`;
+        }
+
+        console.log(`[CREDIT] Insufficient credits for ${actionType} (need ${creditCost}, have ${totalAvailable})`);
+        return new Response(
+          JSON.stringify({ error: errorMessage, credits_required: creditCost, credits_available: totalAvailable }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Handle article search requests
@@ -760,7 +873,15 @@ When generating ANY chapter content (Chapter 1-5, Introduction, Literature Revie
 - Be REAL, verifiable legal sources. Cases must be real decided cases. Statutes must be real enacted legislation.
 - DO NOT fabricate cases or statutes. Only cite sources you are confident exist.
 - Include at least 10-15 sources for major chapters (Ch 1-4), 5-8 for Chapter 5
-- Include a mix of Nigerian and international legal sources where appropriate`,
+- Include a mix of Nigerian and international legal sources where appropriate
+
+## CRITICAL CHAPTER RULE — MANDATORY:
+Generate ONLY the specific chapter(s) the user explicitly requests in their current message.
+- If the user asks for "Chapter 2", generate ONLY Chapter 2. Do NOT generate Chapter 1 as an introduction to Chapter 2.
+- If the user asks for "Chapter 3", generate ONLY Chapter 3. Do NOT include Chapter 1 or 2 before it.
+- Do NOT generate any chapter the user did not explicitly request in their current message.
+- Partial requests such as "continue" or "add more to chapter 2" apply only to that specific chapter.
+- This rule overrides any other instruction that might cause you to include extra chapters.`,
           },
           ...conversationHistory,
           { role: 'user', content: message },
@@ -775,7 +896,13 @@ When generating ANY chapter content (Chapter 1-5, Introduction, Literature Revie
     }
 
     const aiData = await aiResponse.json();
-    const aiMessage = aiData.choices[0].message.content;
+    let aiMessage = aiData.choices[0].message.content;
+
+    // Append skipped-chapters notice for partial multi-chapter fulfillment
+    const skippedNotice = (req as any)._skippedChaptersNotice;
+    if (skippedNotice) {
+      aiMessage += skippedNotice;
+    }
 
     // Save AI message to database
     await supabaseClient.from('messages').insert({
