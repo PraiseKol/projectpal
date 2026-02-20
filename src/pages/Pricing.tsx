@@ -27,6 +27,7 @@ interface PlanOption {
   price: number;
   credits: number;
   durationDays: number;
+  originalPrice: number;
 }
 
 interface SelectedPurchase {
@@ -192,37 +193,40 @@ const Pricing = () => {
 
   // Base monthly prices and credits
   const baseProPlans = [
-    { price: 10000, credits: 120 },
-    { price: 20000, credits: 240 },
-    { price: 40000, credits: 480 },
-    { price: 80000, credits: 960 },
+    { price: 10000, credits: 120, originalPrice: 15000 },
+    { price: 20000, credits: 240, originalPrice: 30000 },
+    { price: 40000, credits: 480, originalPrice: 60000 },
+    { price: 80000, credits: 960, originalPrice: 120000 },
   ];
 
   const baseScholarPlans = [
-    { price: 15000, credits: 120 },
-    { price: 30000, credits: 240 },
-    { price: 60000, credits: 480 },
-    { price: 120000, credits: 960 },
+    { price: 15000, credits: 120, originalPrice: 22500 },
+    { price: 30000, credits: 240, originalPrice: 45000 },
+    { price: 60000, credits: 480, originalPrice: 90000 },
+    { price: 120000, credits: 960, originalPrice: 180000 },
   ];
 
   // Calculate plans based on billing period
-  const getPlans = (basePlans: { price: number; credits: number }[]): PlanOption[] => {
+  const getPlans = (basePlans: { price: number; credits: number; originalPrice: number }[]): PlanOption[] => {
     switch (billingPeriod) {
       case "quarterly":
         return basePlans.map((plan) => ({
-          price: Math.round(plan.price * 3 * 0.9), // 10% discount
+          price: Math.round(plan.price * 3 * 0.9),
+          originalPrice: Math.round(plan.originalPrice * 3 * 0.9),
           credits: plan.credits * 3,
           durationDays: 90,
         }));
       case "yearly":
         return basePlans.map((plan) => ({
-          price: Math.round(plan.price * 12 * 0.8), // 20% discount
+          price: Math.round(plan.price * 12 * 0.8),
+          originalPrice: Math.round(plan.originalPrice * 12 * 0.8),
           credits: plan.credits * 12,
           durationDays: 365,
         }));
       default:
         return basePlans.map((plan) => ({
           price: plan.price,
+          originalPrice: plan.originalPrice,
           credits: plan.credits,
           durationDays: 30,
         }));
@@ -283,6 +287,12 @@ const Pricing = () => {
               ? `Renewing your ${preSelectedPlan.toUpperCase()} plan`
               : "Select the perfect plan for your academic journey"}
           </p>
+
+          {/* Limited Time Discount Banner */}
+          <div className="inline-flex items-center gap-2 px-5 py-3 mb-4 bg-gradient-to-r from-primary/15 to-secondary/15 border border-primary/20 rounded-xl text-sm font-semibold animate-pulse">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <span>🎉 Limited Time Offer — Current prices are discounted! Prices will be restored in 1-2 months.</span>
+          </div>
 
           {/* Referral Discount Banner */}
           {hasReferralDiscount && (
@@ -372,7 +382,10 @@ const Pricing = () => {
             {proPlans.map((plan, index) => (
               <Card key={index} className="hover:shadow-lg transition-all hover:scale-[1.02]">
                 <CardHeader>
-                  <CardTitle className="text-2xl">₦{plan.price.toLocaleString()}</CardTitle>
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <span className="text-sm text-muted-foreground line-through">₦{plan.originalPrice.toLocaleString()}</span>
+                    <CardTitle className="text-2xl text-primary">₦{plan.price.toLocaleString()}</CardTitle>
+                  </div>
                   <CardDescription>
                     {plan.credits} credits / {getBillingLabel()}
                     {billingPeriod !== "monthly" && (
@@ -421,7 +434,10 @@ const Pricing = () => {
             {scholarPlans.map((plan, index) => (
               <Card key={index} variant="glass" className="hover:shadow-xl transition-all hover:scale-[1.02]">
                 <CardHeader>
-                  <CardTitle className="text-2xl">₦{plan.price.toLocaleString()}</CardTitle>
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <span className="text-sm text-muted-foreground line-through">₦{plan.originalPrice.toLocaleString()}</span>
+                    <CardTitle className="text-2xl text-primary">₦{plan.price.toLocaleString()}</CardTitle>
+                  </div>
                   <CardDescription>
                     {plan.credits} credits / {getBillingLabel()}
                     {billingPeriod !== "monthly" && (
