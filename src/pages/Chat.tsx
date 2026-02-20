@@ -32,7 +32,10 @@ import {
   FastForward,
   ChevronUp,
   ChevronDown,
+  Coins,
+  Shield,
 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import { TypingEffect } from "@/components/TypingEffect";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
@@ -54,6 +57,30 @@ interface ChatSession {
   title: string;
   created_at: string;
 }
+
+const CREDIT_OPERATIONS = [
+  { key: "credit_cost_simple_chat", label: "Simple Chat", defaultCost: 1, category: "Basic" },
+  { key: "credit_cost_article_search", label: "Article Search", defaultCost: 1, category: "Basic" },
+  { key: "credit_cost_grammar_fix", label: "Fix Grammar", defaultCost: 2, category: "Editing" },
+  { key: "credit_cost_suggestions", label: "Suggestions", defaultCost: 2, category: "Editing" },
+  { key: "credit_cost_paraphraser", label: "Paraphraser", defaultCost: 2, category: "Editing" },
+  { key: "credit_cost_analysis", label: "Summarize / Key Points", defaultCost: 4, category: "Analysis" },
+  { key: "credit_cost_chapter_1", label: "Chapter 1", defaultCost: 5, category: "Writing" },
+  { key: "credit_cost_chapter_5", label: "Chapter 5", defaultCost: 5, category: "Writing" },
+  { key: "credit_cost_questionnaire_chat", label: "Questionnaire Chat", defaultCost: 2, category: "Tools" },
+  { key: "credit_cost_questionnaire_build", label: "Questionnaire Build", defaultCost: 5, category: "Tools" },
+  { key: "credit_cost_questionnaire_export", label: "Questionnaire Export", defaultCost: 5, category: "Tools" },
+  { key: "credit_cost_chapter_2", label: "Chapter 2", defaultCost: 10, category: "Writing" },
+  { key: "credit_cost_ppt_base", label: "PowerPoint", defaultCost: 10, category: "Tools" },
+  { key: "credit_cost_ppt_images", label: "PPT + Images", defaultCost: 15, category: "Tools" },
+  { key: "credit_cost_humanizer", label: "AI Humanizer", defaultCost: 5, category: "Tools" },
+  { key: "credit_cost_research_proposal", label: "Research Proposal", defaultCost: 20, category: "Writing" },
+  { key: "credit_cost_journal_paper", label: "Journal Paper", defaultCost: 20, category: "Writing" },
+  { key: "credit_cost_chapter_3", label: "Chapter 3", defaultCost: 25, category: "Writing" },
+  { key: "credit_cost_data_analysis", label: "Data Analysis", defaultCost: 30, category: "Analysis" },
+  { key: "credit_cost_chapter_4", label: "Chapter 4", defaultCost: 50, category: "Writing" },
+  { key: "credit_cost_full_wrap", label: "Full Project Wrap", defaultCost: 50, category: "Writing" },
+];
 
 const Chat = () => {
   const navigate = useNavigate();
@@ -77,6 +104,8 @@ const Chat = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollUp, setShowScrollUp] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
+  const [creditCosts, setCreditCosts] = useState<Record<string, number>>({});
+  const [costsOpen, setCostsOpen] = useState(false);
 
   const displayedSessions = showAllChats ? chatSessions : chatSessions.slice(0, 3);
 
@@ -91,6 +120,23 @@ const Chat = () => {
 
   useEffect(() => {
     initializeChat();
+    // Fetch live credit costs
+    const fetchCreditCosts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("app_settings")
+          .select("key, value")
+          .like("key", "credit_cost_%");
+        if (!error && data) {
+          const map: Record<string, number> = {};
+          data.forEach((s) => { map[s.key] = parseInt(s.value, 10); });
+          setCreditCosts(map);
+        }
+      } catch (e) {
+        // fall back to defaults
+      }
+    };
+    fetchCreditCosts();
   }, []);
 
   useEffect(() => {
@@ -556,6 +602,31 @@ const Chat = () => {
               </Button>
             )}
           </div>
+
+          {/* Action Costs Section */}
+          <div className="px-2 pb-2">
+            <Collapsible open={costsOpen} onOpenChange={setCostsOpen}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-accent/50">
+                <span className="flex items-center gap-1.5">
+                  <Coins className="h-3.5 w-3.5" />
+                  Action Costs
+                </span>
+                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", costsOpen && "rotate-180")} />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="space-y-0.5 mt-1 max-h-60 overflow-y-auto">
+                  {CREDIT_OPERATIONS.map((op) => (
+                    <div key={op.key} className="flex items-center justify-between px-2 py-1 text-xs rounded-md hover:bg-accent/30">
+                      <span className="text-muted-foreground truncate mr-2">{op.label}</span>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 shrink-0">
+                        {creditCosts[op.key] ?? op.defaultCost}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
         </ScrollArea>
       </div>
 
@@ -649,6 +720,30 @@ const Chat = () => {
                       ) : (
                         <>
                           <MarkdownRenderer content={msg.content} />
+                          {/* Chapter Action Prompt */}
+                          {isDocumentContent(msg.content) && (
+                            <div className="mt-3 flex items-center gap-2 bg-primary/5 border border-primary/10 rounded-lg p-2">
+                              <Shield className="h-4 w-4 text-primary shrink-0" />
+                              <span className="text-xs text-muted-foreground flex-1">Make this content undetectable by AI checkers</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs shrink-0"
+                                onClick={() => handleCopyMessage(msg.content, msg.id)}
+                              >
+                                {copiedMessageId === msg.id ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3 mr-1" />}
+                                {copiedMessageId === msg.id ? "" : "Copy"}
+                              </Button>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="h-7 text-xs shrink-0"
+                                onClick={() => navigate("/humanizer")}
+                              >
+                                Humanize
+                              </Button>
+                            </div>
+                          )}
                           <div className="mt-3 flex justify-end gap-1">
                             <Button
                               variant="ghost"
