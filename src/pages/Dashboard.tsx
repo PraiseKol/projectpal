@@ -68,29 +68,24 @@ const Dashboard = () => {
 
   const checkAuth = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
         navigate("/auth");
         return;
       }
 
-      const { data: profileData, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+      const { data: profileData, error } = await supabase.from("profiles").select("*").eq("id", user.id).single();
 
       if (error) throw error;
       setProfile(profileData);
 
       // Check user roles (admin, super_admin, ambassador)
-      const { data: rolesData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
-      
-      const roles = rolesData?.map(r => r.role) || [];
+      const { data: rolesData } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
+
+      const roles = rolesData?.map((r) => r.role) || [];
       setIsAdmin(roles.includes("admin") || roles.includes("super_admin"));
       setIsAmbassador(roles.includes("ambassador"));
 
@@ -144,7 +139,9 @@ const Dashboard = () => {
 
     setIsDeletingChat(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         navigate("/auth");
         return;
@@ -167,7 +164,6 @@ const Dashboard = () => {
     }
   };
 
-
   // Format expiry date
   const formatExpiryDate = (dateString: string | null) => {
     if (!dateString) return null;
@@ -177,7 +173,7 @@ const Dashboard = () => {
 
   // Check if user has active subscription
   const isActiveSubscriber = () => {
-    if (profile?.plan_type === 'free') return false;
+    if (profile?.plan_type === "free") return false;
     if (!profile?.credits_expiry_date) return false;
     return new Date(profile.credits_expiry_date) > new Date();
   };
@@ -186,9 +182,9 @@ const Dashboard = () => {
   // Only active subscribers get unlimited daily credits
   const getSmartDailyCredits = () => {
     if (!profile?.daily_reset_date) return profile?.daily_credits ?? defaultDailyCredits;
-    const today = new Date().toISOString().split('T')[0];
-    const resetDate = new Date(profile.daily_reset_date).toISOString().split('T')[0];
-    
+    const today = new Date().toISOString().split("T")[0];
+    const resetDate = new Date(profile.daily_reset_date).toISOString().split("T")[0];
+
     if (isActiveSubscriber()) {
       return resetDate !== today ? defaultDailyCredits : (profile?.daily_credits ?? defaultDailyCredits);
     } else {
@@ -206,11 +202,11 @@ const Dashboard = () => {
     const now = new Date();
     const diffTime = expiry.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     // Estimate total days based on common billing periods
     const totalDays = diffDays > 200 ? 365 : diffDays > 60 ? 90 : 30;
     const percentage = Math.max(0, Math.min(100, (diffDays / totalDays) * 100));
-    
+
     return {
       daysRemaining: diffDays > 0 ? diffDays : 0,
       percentage,
@@ -224,12 +220,12 @@ const Dashboard = () => {
 
   // Access control helpers
   const planHierarchy: Record<string, number> = { free: 0, pro: 1, scholar: 2 };
-  
-  const canAccessFeature = (requiredPlan: 'pro' | 'scholar') => {
-    const userPlanLevel = planHierarchy[profile?.plan_type || 'free'];
+
+  const canAccessFeature = (requiredPlan: "pro" | "scholar") => {
+    const userPlanLevel = planHierarchy[profile?.plan_type || "free"];
     const requiredLevel = planHierarchy[requiredPlan];
     // Also check if subscription is expired
-    if (profile?.plan_type !== 'free' && expiryInfo?.isExpired) {
+    if (profile?.plan_type !== "free" && expiryInfo?.isExpired) {
       return false;
     }
     return userPlanLevel >= requiredLevel;
@@ -238,8 +234,8 @@ const Dashboard = () => {
   const handleFeatureClick = (
     feature: string,
     route: string,
-    requiredPlan?: 'pro' | 'scholar',
-    description?: string
+    requiredPlan?: "pro" | "scholar",
+    description?: string,
   ) => {
     if (!requiredPlan || canAccessFeature(requiredPlan)) {
       navigate(route);
@@ -332,19 +328,20 @@ const Dashboard = () => {
             <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-xl sm:text-2xl">
-                  Welcome Back{profile?.first_name ? `, ${profile.first_name}` : ''}!
+                  Welcome Back{profile?.first_name ? `, ${profile.first_name}` : ""}!
                 </CardTitle>
                 <div className="text-sm text-muted-foreground mt-1 flex items-center">
-                  Plan: <Badge className="ml-2 rounded-full">
-                    {profile?.plan_type !== 'free' && expiryInfo?.isExpired 
-                      ? 'FREE (Subscription Expired)' 
+                  Plan:{" "}
+                  <Badge className="ml-2 rounded-full">
+                    {profile?.plan_type !== "free" && expiryInfo?.isExpired
+                      ? "FREE (Subscription Expired)"
                       : profile?.plan_type?.toUpperCase()}
                   </Badge>
                 </div>
               </div>
               <Button onClick={() => navigate("/pricing")} variant="gradient" className="gap-2 w-full xs:w-auto">
                 <CreditCard className="h-4 w-4" />
-                {expiryInfo?.isExpired ? 'Renew Plan' : 'Upgrade Plan'}
+                {expiryInfo?.isExpired ? "Renew Plan" : "Upgrade Plan"}
               </Button>
             </div>
           </CardHeader>
@@ -352,21 +349,21 @@ const Dashboard = () => {
             <div className="grid gap-3 sm:gap-4 grid-cols-1 xs:grid-cols-2">
               <div className="p-4 bg-accent/50 rounded-2xl border border-border/50">
                 <div className="text-sm text-muted-foreground">
-                  Daily Credits {isActiveSubscriber() ? '(Unlimited)' : '(From Monthly Pool)'}
+                  Daily Credits {isActiveSubscriber() ? "(Unlimited)" : "(From Monthly Pool)"}
                 </div>
                 <div className="text-3xl font-bold mt-1">
                   <span>{getSmartDailyCredits()}</span>
                   <span className="text-lg text-muted-foreground font-normal">/{defaultDailyCredits}</span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  {isActiveSubscriber() 
-                    ? 'Resets daily at midnight (no monthly cap)' 
+                  {isActiveSubscriber()
+                    ? "Resets daily at midnight (no monthly cap)"
                     : `Counts towards ${defaultMonthlyCredits}/month limit`}
                 </div>
               </div>
-              
+
               {/* Show monthly credits for free users OR expired subscribers */}
-              {(profile?.plan_type === 'free' || (profile?.plan_type !== 'free' && expiryInfo?.isExpired)) ? (
+              {profile?.plan_type === "free" || (profile?.plan_type !== "free" && expiryInfo?.isExpired) ? (
                 <div className="p-4 bg-accent/50 rounded-2xl border border-border/50">
                   <div className="text-sm text-muted-foreground">Monthly Credits</div>
                   <div className="text-3xl font-bold mt-1">
@@ -376,13 +373,15 @@ const Dashboard = () => {
                   <div className="text-xs text-muted-foreground mt-1">Resets monthly</div>
                 </div>
               ) : (
-                <div className={`p-4 rounded-2xl border ${
-                  expiryInfo?.isExpiringSoon 
-                    ? 'bg-destructive/10 border-destructive/30' 
-                    : expiryInfo?.isWarning 
-                      ? 'bg-yellow-500/10 border-yellow-500/30' 
-                      : 'bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20'
-                }`}>
+                <div
+                  className={`p-4 rounded-2xl border ${
+                    expiryInfo?.isExpiringSoon
+                      ? "bg-destructive/10 border-destructive/30"
+                      : expiryInfo?.isWarning
+                        ? "bg-yellow-500/10 border-yellow-500/30"
+                        : "bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20"
+                  }`}
+                >
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-muted-foreground">Paid Credits</div>
                     {expiryInfo?.isExpiringSoon && (
@@ -396,38 +395,42 @@ const Dashboard = () => {
                     <span>{profile?.paid_credits || 0}</span>
                     <span className="text-lg text-muted-foreground font-normal"> remaining</span>
                   </div>
-                  
+
                   {expiryInfo && !expiryInfo.isExpired && (
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="mt-3 space-y-2 cursor-help">
                             <div className="flex items-center gap-2 text-sm">
-                              <Clock className={`h-4 w-4 ${
-                                expiryInfo.isExpiringSoon 
-                                  ? 'text-destructive' 
-                                  : expiryInfo.isWarning 
-                                    ? 'text-yellow-500' 
-                                    : 'text-primary'
-                              }`} />
-                              <span className={`font-medium ${
-                                expiryInfo.isExpiringSoon 
-                                  ? 'text-destructive' 
-                                  : expiryInfo.isWarning 
-                                    ? 'text-yellow-600 dark:text-yellow-400' 
-                                    : ''
-                              }`}>
+                              <Clock
+                                className={`h-4 w-4 ${
+                                  expiryInfo.isExpiringSoon
+                                    ? "text-destructive"
+                                    : expiryInfo.isWarning
+                                      ? "text-yellow-500"
+                                      : "text-primary"
+                                }`}
+                              />
+                              <span
+                                className={`font-medium ${
+                                  expiryInfo.isExpiringSoon
+                                    ? "text-destructive"
+                                    : expiryInfo.isWarning
+                                      ? "text-yellow-600 dark:text-yellow-400"
+                                      : ""
+                                }`}
+                              >
                                 {expiryInfo.daysRemaining} days left
                               </span>
                             </div>
-                            <Progress 
-                              value={expiryInfo.percentage} 
+                            <Progress
+                              value={expiryInfo.percentage}
                               className={`h-2 ${
-                                expiryInfo.isExpiringSoon 
-                                  ? '[&>div]:bg-destructive' 
-                                  : expiryInfo.isWarning 
-                                    ? '[&>div]:bg-yellow-500' 
-                                    : '[&>div]:bg-primary'
+                                expiryInfo.isExpiringSoon
+                                  ? "[&>div]:bg-destructive"
+                                  : expiryInfo.isWarning
+                                    ? "[&>div]:bg-yellow-500"
+                                    : "[&>div]:bg-primary"
                               }`}
                             />
                             <div className="flex items-center justify-between">
@@ -435,8 +438,8 @@ const Dashboard = () => {
                                 Expires: {formatExpiryDate(profile.credits_expiry_date)}
                               </div>
                               {(expiryInfo.isExpiringSoon || expiryInfo.isWarning) && (
-                                <Button 
-                                  size="sm" 
+                                <Button
+                                  size="sm"
                                   variant={expiryInfo.isExpiringSoon ? "destructive" : "outline"}
                                   className="h-7 text-xs gap-1"
                                   onClick={() => navigate(`/pricing?plan=${profile.plan_type}&billing=monthly`)}
@@ -452,23 +455,25 @@ const Dashboard = () => {
                           <div className="space-y-1.5">
                             <p className="font-medium text-sm">Subscription Status</p>
                             <p className="text-xs text-muted-foreground leading-relaxed">
-                              You have <span className="font-medium text-foreground">{profile?.paid_credits || 0} credits</span> remaining. 
-                              Your subscription expires on <span className="font-medium text-foreground">{formatExpiryDate(profile.credits_expiry_date)}</span>.
-                              Daily credits ({defaultDailyCredits}/day) are used first, then paid credits.
+                              You have{" "}
+                              <span className="font-medium text-foreground">{profile?.paid_credits || 0} credits</span>{" "}
+                              remaining. Your subscription expires on{" "}
+                              <span className="font-medium text-foreground">
+                                {formatExpiryDate(profile.credits_expiry_date)}
+                              </span>
+                              . Daily credits ({defaultDailyCredits}/day) are used first, then paid credits.
                             </p>
                           </div>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   )}
-                  
+
                   {expiryInfo?.isExpired && (
                     <div className="mt-3 space-y-2">
-                      <div className="text-sm text-destructive font-medium">
-                        Credits have expired
-                      </div>
-                      <Button 
-                        size="sm" 
+                      <div className="text-sm text-destructive font-medium">Credits have expired</div>
+                      <Button
+                        size="sm"
                         variant="destructive"
                         className="w-full gap-1"
                         onClick={() => navigate(`/pricing?plan=${profile.plan_type}&billing=monthly`)}
@@ -478,14 +483,12 @@ const Dashboard = () => {
                       </Button>
                     </div>
                   )}
-                  
-                  {!expiryInfo && (
-                    <div className="text-xs text-muted-foreground mt-1">No expiry set</div>
-                  )}
+
+                  {!expiryInfo && <div className="text-xs text-muted-foreground mt-1">No expiry set</div>}
                 </div>
               )}
             </div>
-            {profile?.plan_type !== 'free' && (
+            {profile?.plan_type !== "free" && (
               <p className="text-xs text-muted-foreground mt-2">Daily credits are consumed first, then paid credits</p>
             )}
           </CardContent>
@@ -495,7 +498,7 @@ const Dashboard = () => {
         {(recentChats.length > 0 || recentParaphrases.length > 0) && (
           <div className="mb-8 space-y-4 overflow-hidden">
             <h2 className="text-2xl font-bold">Recent Activity</h2>
-            
+
             {recentChats.length > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -561,7 +564,11 @@ const Dashboard = () => {
                 </div>
                 <div className="grid gap-3">
                   {recentParaphrases.map((para) => (
-                    <Card key={para.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate("/paraphraser")}>
+                    <Card
+                      key={para.id}
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => navigate("/paraphraser")}
+                    >
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
@@ -585,40 +592,43 @@ const Dashboard = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          <Card className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in" onClick={() => navigate("/chat")}>
+          <Card
+            className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in"
+            onClick={() => navigate("/chat")}
+          >
             <CardHeader>
               <MessageSquare className="h-12 w-12 mb-4 text-primary" />
               <CardTitle>Start Chat</CardTitle>
-              <CardDescription>
-                Chat with ScholarAI to generate topics, proposals, and chapters
-              </CardDescription>
+              <CardDescription>Chat with ProjectPal AI to generate topics, proposals, and chapters</CardDescription>
             </CardHeader>
           </Card>
 
-          <Card className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in" onClick={() => navigate("/chat")}>
+          <Card
+            className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in"
+            onClick={() => navigate("/chat")}
+          >
             <CardHeader>
               <FileText className="h-12 w-12 mb-4 text-primary" />
               <CardTitle>Generate Project</CardTitle>
-              <CardDescription>
-                Quick access to project topic generation and proposal writing
-              </CardDescription>
+              <CardDescription>Quick access to project topic generation and proposal writing</CardDescription>
             </CardHeader>
           </Card>
 
-          <Card className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in" onClick={() => navigate("/chat")}>
+          <Card
+            className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in"
+            onClick={() => navigate("/chat")}
+          >
             <CardHeader>
               <Sparkles className="h-12 w-12 mb-4 text-primary" />
               <CardTitle>Academic Writing</CardTitle>
-              <CardDescription>
-                Generate chapters, references, and edit your content
-              </CardDescription>
+              <CardDescription>Generate chapters, references, and edit your content</CardDescription>
             </CardHeader>
           </Card>
 
           {/* Paraphraser - Available to all users with different limits */}
-          <Card 
-            variant={profile?.plan_type === "scholar" || profile?.plan_type === "pro" ? "glass" : "default"} 
-            className="hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in relative" 
+          <Card
+            variant={profile?.plan_type === "scholar" || profile?.plan_type === "pro" ? "glass" : "default"}
+            className="hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in relative"
             onClick={() => navigate("/paraphraser")}
           >
             <CardHeader>
@@ -626,37 +636,42 @@ const Dashboard = () => {
               <div className="flex items-center gap-2">
                 <CardTitle>Paraphraser</CardTitle>
                 {profile?.plan_type === "free" && (
-                  <Badge variant="secondary" className="text-xs">3 Free/Day</Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    3 Free/Day
+                  </Badge>
                 )}
               </div>
               <CardDescription>
-                {profile?.plan_type === "free" 
+                {profile?.plan_type === "free"
                   ? "Try it free! 3 paraphrases per day (120 words max)"
-                  : "Rephrase and improve your academic text"
-                }
+                  : "Rephrase and improve your academic text"}
               </CardDescription>
             </CardHeader>
           </Card>
 
           {/* PPT Generator - Visible to all, Scholar Only access */}
-          <Card 
-            variant={canAccessFeature('scholar') ? "glass" : "default"} 
+          <Card
+            variant={canAccessFeature("scholar") ? "glass" : "default"}
             className={`hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in ${
-              !canAccessFeature('scholar') ? 'opacity-80' : ''
+              !canAccessFeature("scholar") ? "opacity-80" : ""
             }`}
-            onClick={() => handleFeatureClick(
-              'PPT Generator',
-              '/documents',
-              'scholar',
-              'Create professional PowerPoint presentations from your documents with AI. This premium feature is exclusively available for Scholar plan users.'
-            )}
+            onClick={() =>
+              handleFeatureClick(
+                "PPT Generator",
+                "/documents",
+                "scholar",
+                "Create professional PowerPoint presentations from your documents with AI. This premium feature is exclusively available for Scholar plan users.",
+              )
+            }
           >
             <CardHeader>
               <Sparkles className="h-12 w-12 mb-4 text-secondary" />
               <div className="flex items-center gap-2">
                 <CardTitle>PPT Generator</CardTitle>
-                {canAccessFeature('scholar') ? (
-                  <Badge variant="secondary" className="text-xs">6 Credits</Badge>
+                {canAccessFeature("scholar") ? (
+                  <Badge variant="secondary" className="text-xs">
+                    6 Credits
+                  </Badge>
                 ) : (
                   <Badge variant="outline" className="text-xs gap-1">
                     <Lock className="h-3 w-3" />
@@ -664,60 +679,60 @@ const Dashboard = () => {
                   </Badge>
                 )}
               </div>
-              <CardDescription>
-                Upload documents and generate PowerPoint presentations
-              </CardDescription>
+              <CardDescription>Upload documents and generate PowerPoint presentations</CardDescription>
             </CardHeader>
           </Card>
 
           {/* Document Editor - Visible to all, Pro & Scholar access */}
-          <Card 
-            variant={canAccessFeature('pro') ? "glass" : "default"} 
+          <Card
+            variant={canAccessFeature("pro") ? "glass" : "default"}
             className={`hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in ${
-              !canAccessFeature('pro') ? 'opacity-80' : ''
+              !canAccessFeature("pro") ? "opacity-80" : ""
             }`}
-            onClick={() => handleFeatureClick(
-              'Document Editor',
-              '/document-editor',
-              'pro',
-              'Upload documents to edit, generate or analyze. Available for Pro and Scholar plan users.'
-            )}
+            onClick={() =>
+              handleFeatureClick(
+                "Document Editor",
+                "/document-editor",
+                "pro",
+                "Upload documents to edit, generate or analyze. Available for Pro and Scholar plan users.",
+              )
+            }
           >
             <CardHeader>
               <FileText className="h-12 w-12 mb-4 text-secondary" />
               <div className="flex items-center gap-2">
                 <CardTitle>Document Editor</CardTitle>
-                {!canAccessFeature('pro') && (
+                {!canAccessFeature("pro") && (
                   <Badge variant="outline" className="text-xs gap-1">
                     <Lock className="h-3 w-3" />
                     Pro & Scholar
                   </Badge>
                 )}
               </div>
-              <CardDescription>
-                Upload documents to edit, generate or analyze
-              </CardDescription>
+              <CardDescription>Upload documents to edit, generate or analyze</CardDescription>
             </CardHeader>
           </Card>
 
           {/* Questionnaire Builder - Pro & Scholar access */}
-          <Card 
-            variant={canAccessFeature('pro') ? "glass" : "default"} 
+          <Card
+            variant={canAccessFeature("pro") ? "glass" : "default"}
             className={`hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in ${
-              !canAccessFeature('pro') ? 'opacity-80' : ''
+              !canAccessFeature("pro") ? "opacity-80" : ""
             }`}
-            onClick={() => handleFeatureClick(
-              'Questionnaire Builder',
-              '/questionnaire-builder',
-              'pro',
-              'Design and export professional questionnaires with multiple question types. Available for Pro and Scholar plan users.'
-            )}
+            onClick={() =>
+              handleFeatureClick(
+                "Questionnaire Builder",
+                "/questionnaire-builder",
+                "pro",
+                "Design and export professional questionnaires with multiple question types. Available for Pro and Scholar plan users.",
+              )
+            }
           >
             <CardHeader>
               <ClipboardList className="h-12 w-12 mb-4 text-primary" />
               <div className="flex items-center gap-2">
                 <CardTitle>Questionnaire Builder</CardTitle>
-                {!canAccessFeature('pro') && (
+                {!canAccessFeature("pro") && (
                   <Badge variant="outline" className="text-xs gap-1">
                     <Lock className="h-3 w-3" />
                     Pro & Scholar
@@ -731,51 +746,53 @@ const Dashboard = () => {
           </Card>
 
           {/* AI Humanizer - Available to all */}
-          <Card 
-            className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in" 
+          <Card
+            className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in"
             onClick={() => navigate("/humanizer")}
           >
             <CardHeader>
               <Sparkles className="h-12 w-12 mb-4 text-secondary" />
               <div className="flex items-center gap-2">
                 <CardTitle>AI Humanizer</CardTitle>
-                <Badge variant="secondary" className="text-xs">5 Credits</Badge>
+                <Badge variant="secondary" className="text-xs">
+                  5 Credits
+                </Badge>
               </div>
-              <CardDescription>
-                Make AI-generated text sound more natural and human-written
-              </CardDescription>
+              <CardDescription>Make AI-generated text sound more natural and human-written</CardDescription>
             </CardHeader>
           </Card>
 
           {/* Data Analysis - Scholar Only */}
-          <Card 
-            variant={canAccessFeature('scholar') ? "glass" : "default"} 
+          <Card
+            variant={canAccessFeature("scholar") ? "glass" : "default"}
             className={`hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in ${
-              !canAccessFeature('scholar') ? 'opacity-80' : ''
+              !canAccessFeature("scholar") ? "opacity-80" : ""
             }`}
-            onClick={() => handleFeatureClick(
-              'Data Analysis',
-              '/data-analysis',
-              'scholar',
-              'Analyze survey data with statistical methods for Chapter 4. This premium feature is exclusively available for Scholar plan users.'
-            )}
+            onClick={() =>
+              handleFeatureClick(
+                "Data Analysis",
+                "/data-analysis",
+                "scholar",
+                "Analyze survey data with statistical methods for Chapter 4. This premium feature is exclusively available for Scholar plan users.",
+              )
+            }
           >
             <CardHeader>
               <BarChart3 className="h-12 w-12 mb-4 text-primary" />
               <div className="flex items-center gap-2">
                 <CardTitle>Data Analysis</CardTitle>
-                {!canAccessFeature('scholar') ? (
+                {!canAccessFeature("scholar") ? (
                   <Badge variant="outline" className="text-xs gap-1">
                     <Lock className="h-3 w-3" />
                     Scholar Only
                   </Badge>
                 ) : (
-                  <Badge variant="secondary" className="text-xs">Scholar</Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    Scholar
+                  </Badge>
                 )}
               </div>
-              <CardDescription>
-                Analyze survey data with statistical methods for Chapter 4
-              </CardDescription>
+              <CardDescription>Analyze survey data with statistical methods for Chapter 4</CardDescription>
             </CardHeader>
           </Card>
         </div>
@@ -788,7 +805,7 @@ const Dashboard = () => {
             featureName={upgradeDialog.feature}
             featureDescription={upgradeDialog.description}
             requiredPlan={upgradeDialog.requiredPlan}
-            currentPlan={profile?.plan_type || 'free'}
+            currentPlan={profile?.plan_type || "free"}
           />
         )}
 
@@ -801,7 +818,8 @@ const Dashboard = () => {
                 <div>
                   <h3 className="font-semibold mb-1">Unlock Premium Features</h3>
                   <p className="text-sm text-muted-foreground mb-3">
-                    Upgrade to Pro or Scholar plan to get more credits and access features like document upload, PPT generation, and paraphraser tool.
+                    Upgrade to Pro or Scholar plan to get more credits and access features like document upload, PPT
+                    generation, and paraphraser tool.
                   </p>
                   <Button onClick={() => navigate("/pricing")} size="sm" variant="gradient">
                     View Plans
