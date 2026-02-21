@@ -223,9 +223,9 @@ serve(async (req) => {
       );
     }
 
-    if (text.length > 15000) {
+    if (text.length > 25000) {
       return new Response(
-        JSON.stringify({ error: 'Text is too long. Maximum 15,000 characters (~2,500 words). Try pasting one section at a time for best results.' }),
+        JSON.stringify({ error: 'Text is too long. Maximum 25,000 characters (~4,000 words). Try pasting one section at a time for best results.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
