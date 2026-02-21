@@ -518,7 +518,7 @@ const Chat = () => {
         className={`
           ${isMobile ? "fixed inset-y-0 left-0 z-50" : "sticky top-0 h-screen"}
           ${showSidebar ? "translate-x-0" : "-translate-x-full"}
-          w-64 bg-background border-r border-border flex flex-col transition-transform duration-300 ease-in-out shrink-0
+          w-72 bg-background border-r border-border flex flex-col transition-transform duration-300 ease-in-out shrink-0
         `}
       >
         <div className="p-4 border-b border-border flex items-center justify-between">
@@ -616,9 +616,9 @@ const Chat = () => {
               <CollapsibleContent>
                 <div className="space-y-0.5 mt-1 max-h-60 overflow-y-auto">
                   {CREDIT_OPERATIONS.map((op) => (
-                    <div key={op.key} className="flex items-center justify-between px-2 py-1 text-xs rounded-md hover:bg-accent/30">
-                      <span className="text-muted-foreground truncate mr-2">{op.label}</span>
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 shrink-0">
+                    <div key={op.key} className="flex items-center justify-between gap-2 px-2 py-1 text-xs rounded-md hover:bg-accent/30">
+                      <span className="text-muted-foreground truncate">{op.label}</span>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 shrink-0 min-w-[28px] text-center">
                         {creditCosts[op.key] || op.defaultCost}
                       </Badge>
                     </div>
