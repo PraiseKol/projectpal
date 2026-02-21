@@ -123,13 +123,13 @@ const Chat = () => {
     // Fetch live credit costs
     const fetchCreditCosts = async () => {
       try {
-        const { data, error } = await supabase
-          .from("app_settings")
-          .select("key, value")
-          .like("key", "credit_cost_%");
+        const { data, error } = await supabase.from("app_settings").select("key, value").like("key", "credit_cost_%");
         if (!error && data) {
           const map: Record<string, number> = {};
-          data.forEach((s) => { const val = parseInt(s.value, 10); if (!isNaN(val)) map[s.key] = val; });
+          data.forEach((s) => {
+            const val = parseInt(s.value, 10);
+            if (!isNaN(val)) map[s.key] = val;
+          });
           setCreditCosts(map);
         }
       } catch (e) {
@@ -616,9 +616,15 @@ const Chat = () => {
               <CollapsibleContent>
                 <div className="space-y-0.5 mt-1 max-h-60 overflow-y-auto">
                   {CREDIT_OPERATIONS.map((op) => (
-                    <div key={op.key} className="flex items-center justify-between gap-2 px-2 py-1 text-xs rounded-md hover:bg-accent/30">
+                    <div
+                      key={op.key}
+                      className="flex items-center justify-between gap-2 px-2 py-1 text-xs rounded-md hover:bg-accent/30"
+                    >
                       <span className="text-muted-foreground truncate">{op.label}</span>
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 shrink-0 min-w-[28px] text-center">
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] px-1.5 py-0 h-5 shrink-0 min-w-[28px] text-center"
+                      >
                         {creditCosts[op.key] || op.defaultCost}
                       </Badge>
                     </div>
@@ -724,14 +730,20 @@ const Chat = () => {
                           {isDocumentContent(msg.content) && (
                             <div className="mt-3 flex items-center gap-2 bg-primary/5 border border-primary/10 rounded-lg p-2">
                               <Shield className="h-4 w-4 text-primary shrink-0" />
-                              <span className="text-xs text-muted-foreground flex-1">Make this content undetectable by AI checkers</span>
+                              <span className="text-xs text-muted-foreground flex-1">
+                                Make this content undetectable by AI checkers
+                              </span>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 text-xs shrink-0"
                                 onClick={() => handleCopyMessage(msg.content, msg.id)}
                               >
-                                {copiedMessageId === msg.id ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3 mr-1" />}
+                                {copiedMessageId === msg.id ? (
+                                  <Check className="h-3 w-3" />
+                                ) : (
+                                  <Copy className="h-3 w-3 mr-1" />
+                                )}
                                 {copiedMessageId === msg.id ? "" : "Copy"}
                               </Button>
                               <Button
@@ -836,7 +848,7 @@ const Chat = () => {
                     handleSend();
                   }
                 }}
-                placeholder="Ask ScholarAI anything... (Shift+Enter for new line)"
+                placeholder="Ask ProjectPal AI anything... (Shift+Enter for new line)"
                 disabled={isLoading}
                 className="min-h-[40px] max-h-[120px] resize-none rounded-2xl py-2"
                 rows={1}
