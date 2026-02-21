@@ -1,81 +1,78 @@
 
-# Three UI Enhancements: Credit Actions Sidebar, Discount Pricing, Chapter Action Prompt
+
+# Three Fixes: Credit Costs Display, Humanizer Limit, and Humanizer Optimization
 
 ---
 
-## 1. Credit Actions Panel in Chat Sidebar
+## 1. Fix Credit Costs Not Displaying Live Values
 
-Add a collapsible section below the chat sessions list in the left sidebar that shows all AI actions with their **live credit costs** fetched from `app_settings`.
+**Root Cause:** The code at line 622 uses `creditCosts[op.key] ?? op.defaultCost`. The `??` operator only catches `null`/`undefined` but NOT `NaN`. If `parseInt()` returns `NaN` for any reason, `NaN ?? 5` still shows `NaN` on screen. Additionally, only 1 out of 21 keys (`credit_cost_humanizer`) currently exists in the database -- all others correctly fall back to defaults. The real fix is replacing `??` with `||` so that `NaN` and `0` also trigger the fallback.
 
-### How it works
-- On mount, fetch all `credit_cost_%` keys from `app_settings` (same query pattern used in `CreditCostsSettings.tsx`)
-- Display a compact list grouped by category (Basic, Writing, Tools) showing action name and cost badge
-- Costs update live — whenever the admin changes a cost, the next time a user opens the chat page they see the new value
-- Uses the same `CREDIT_OPERATIONS` data structure from `CreditCostsSettings.tsx` for labels and defaults, but fetches live values
+**Fix:**
+- Line 132: Add `NaN` guard: `const val = parseInt(s.value, 10); if (!isNaN(val)) map[s.key] = val;`
+- Line 622: Change `creditCosts[op.key] ?? op.defaultCost` to `creditCosts[op.key] || op.defaultCost`
 
-### UI Design
-- Placed inside the sidebar's `ScrollArea`, below the chat sessions list and the "View All" button
-- Collapsible section with header "Action Costs" and a small coins icon
-- Each row: action label on left, credit cost badge on right
-- Compact text (text-xs/text-sm) to not overwhelm the sidebar
-- Falls back to default costs if no `app_settings` entry exists yet
-
-### File changed
-- `src/pages/Chat.tsx` — add state for credit costs, fetch on mount, render section in sidebar
+**File:** `src/pages/Chat.tsx` (2-line change)
 
 ---
 
-## 2. Discount Banner on Pricing Page
+## 2. Reduce Humanizer Input Limit for Better Accuracy
 
-Show a promotional banner indicating current prices are discounted, with original (higher) prices displayed with strikethrough next to each plan card.
+**Current limit:** 40,000 characters (~7,000 words)
 
-### How it works
-- Define "original" prices as a multiplier or fixed set above the current base prices (e.g., original Pro monthly base: 15000, 30000, 60000, 120000 vs current discounted: 10000, 20000, 40000, 80000)
-- Display the original price with a `line-through` style next to the current price on every plan card
-- Add a promotional banner at the top of the pricing section: "Limited Time Offer — Prices will be restored in 1-2 months!"
-- The banner uses a gradient/highlight style to draw attention
+**New limit:** 15,000 characters (~2,500 words)
 
-### UI Design
-- Top banner: colored alert-style with a tag/sparkles icon, text about limited-time discount
-- Each plan card's `CardTitle` area: show original price with strikethrough in smaller muted text, then the current price in bold
-- Example: ~~₦15,000~~ ₦10,000
+**Why this helps:**
+- Shorter inputs give the AI model more focused context, producing higher-quality rewrites
+- Eliminates the need for chunking (which splits paragraphs and loses cross-section coherence)
+- Faster processing = fewer timeouts = more reliable results
+- Academic chapters are typically 2,000-3,000 words per section -- users should paste one section at a time for best results
+- The UI already tells users "Try pasting one section at a time" on timeout, so this aligns with that guidance
 
-### File changed
-- `src/pages/Pricing.tsx` — add original price arrays, discount banner component, strikethrough prices on cards
+**File:** `supabase/functions/humanize-text/index.ts` (update limit from 40,000 to 15,000 and error message)
 
 ---
 
-## 3. Subtle Chapter Action Prompt on AI Responses
+## 3. Rebuild Humanizer for Better Results with Less AI Credits
 
-After a chapter is generated, show a small inline action bar below the AI message (not a full modal) with "Copy" and "Humanize" buttons.
+**Current approach (expensive):**
+- Pass 1: `gemini-2.5-pro` (deep rewrite) -- expensive, slow
+- Pass 2: `gemini-2.5-flash` (audit) -- cheaper but still a second call
+- Total: 2 AI calls per humanization
 
-### How it works
-- Use the existing `isDocumentContent()` function to detect if an AI response is a chapter/document
-- When the typing effect completes (or for already-rendered messages), if `isDocumentContent` returns true, show a subtle inline prompt bar below the message content
-- The prompt bar contains:
-  - A brief text: "Make this content undetectable by AI checkers"
-  - **Copy** button (reuses existing copy logic)
-  - **Humanize** button that navigates to `/humanizer`
-- The bar is styled as a small, rounded, slightly highlighted strip — not a modal
+**New approach (single-pass, optimized):**
 
-### UI Design
-- Appears inside the AI message card, below the content, above the existing copy/export buttons
-- Subtle background (e.g., `bg-primary/5 border border-primary/10 rounded-lg p-2`)
-- Compact: single row with text + two small buttons
-- Only shows for document-type content (chapters, proposals, etc.)
-- The Humanize button uses `navigate("/humanizer")` on click
+Switch to a **single-pass architecture** using `google/gemini-2.5-flash` with a significantly improved, merged prompt that combines the best of both passes into one instruction set. This works because:
 
-### File changed
-- `src/pages/Chat.tsx` — add inline chapter action bar inside AI message rendering
+1. The reduced input limit (15,000 chars) means the model gets focused, manageable context
+2. `gemini-2.5-flash` is highly capable for text transformation tasks -- the quality gap vs Pro for this specific task (paraphrasing, not reasoning) is minimal
+3. A single well-crafted prompt eliminates the coordination overhead between two passes
+
+**The new single prompt will:**
+- Merge the Pass 1 deep-rewrite rules (non-native register, list merging, grammatical restructuring, banned vocab) with Pass 2 audit rules (check for remaining patterns, fix rhythm) into ONE comprehensive instruction
+- Add a self-audit step at the end of the prompt: "Before returning, scan your output for any remaining numbered lists, banned words, or 3+ consecutive similar-length sentences and fix them"
+- Keep ALL the Stealth Checker-specific techniques that achieved the 97% result:
+  - Non-native academic register with intentional "roundabout" phrasing
+  - List-to-prose conversion
+  - Numbers/percentages written as words
+  - Unpredictable vocabulary mixing
+  - Sentence length variance
+  - Banned AI-vocabulary list
+
+**Cost savings:** From 2 calls (1 Pro + 1 Flash) down to 1 call (Flash only) = approximately **70-75% reduction** in AI credit usage per humanization.
+
+**Files changed:**
+- `supabase/functions/humanize-text/index.ts` -- replace two-pass logic with single-pass, update prompt, update character limit, remove chunking logic
 
 ---
 
 ## Technical Summary
 
-| Feature | File Changed | Complexity |
+| Change | File | Impact |
 |---|---|---|
-| Credit actions in sidebar | `src/pages/Chat.tsx` | Medium — new fetch + UI section |
-| Discount pricing display | `src/pages/Pricing.tsx` | Simple — static markup + styling |
-| Chapter action prompt | `src/pages/Chat.tsx` | Simple — conditional inline UI |
+| Fix NaN display in credit costs | `src/pages/Chat.tsx` | 2-line fix |
+| Reduce char limit to 15,000 | `supabase/functions/humanize-text/index.ts` | Better accuracy, no chunking needed |
+| Single-pass Flash architecture | `supabase/functions/humanize-text/index.ts` | ~75% less AI credit usage |
 
-No database changes, no edge function changes, no new files needed.
+No database changes needed. Edge function will be redeployed automatically.
+
