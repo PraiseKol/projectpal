@@ -129,7 +129,7 @@ const Chat = () => {
           .like("key", "credit_cost_%");
         if (!error && data) {
           const map: Record<string, number> = {};
-          data.forEach((s) => { map[s.key] = parseInt(s.value, 10); });
+          data.forEach((s) => { const val = parseInt(s.value, 10); if (!isNaN(val)) map[s.key] = val; });
           setCreditCosts(map);
         }
       } catch (e) {
@@ -619,7 +619,7 @@ const Chat = () => {
                     <div key={op.key} className="flex items-center justify-between px-2 py-1 text-xs rounded-md hover:bg-accent/30">
                       <span className="text-muted-foreground truncate mr-2">{op.label}</span>
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 shrink-0">
-                        {creditCosts[op.key] ?? op.defaultCost}
+                        {creditCosts[op.key] || op.defaultCost}
                       </Badge>
                     </div>
                   ))}
