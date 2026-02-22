@@ -1,10 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "https://esm.sh/resend@2.0.0";
+import { Resend } from "npm:resend@4.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface EmailRecipient {
@@ -40,7 +40,7 @@ serve(async (req: Request): Promise<Response> => {
 
     // If test email, send only to that address
     if (testEmail) {
-      const result = await sendTestEmail(testEmail, type);
+      const result = await sendTestEmail(supabaseAdmin, testEmail, type, campaignId);
       return new Response(JSON.stringify(result), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -195,7 +195,21 @@ serve(async (req: Request): Promise<Response> => {
   }
 });
 
-async function sendTestEmail(email: string, type: string) {
+async function sendTestEmail(supabaseAdmin: any, email: string, type: string, campaignId?: string) {
+  // Look up campaign content if campaignId provided
+  let campaignContent = null;
+  if (campaignId) {
+    const { data: campaign, error } = await supabaseAdmin
+      .from("email_campaigns")
+      .select("*")
+      .eq("id", campaignId)
+      .single();
+    
+    if (!error && campaign) {
+      campaignContent = campaign;
+    }
+  }
+
   const testRecipient: EmailRecipient = {
     userId: "test",
     email,
@@ -213,7 +227,7 @@ async function sendTestEmail(email: string, type: string) {
     lastLogin: new Date().toISOString(),
   };
 
-  const emailContent = generateEmailContent(testRecipient, type, null);
+  const emailContent = generateEmailContent(testRecipient, type, campaignContent);
   
   const result = await resend.emails.send({
     from: "ProjectPal <noreply@projectpal.site>",

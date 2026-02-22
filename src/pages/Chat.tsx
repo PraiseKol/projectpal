@@ -440,7 +440,12 @@ const Chat = () => {
       const errorBody = error?.context?.body;
       const statusCode = error?.context?.status || error?.status;
       if (statusCode === 402 || errorBody?.credits_required) {
-        const msg = errorBody?.error || "You've run out of credits for this month. Upgrade your plan for more credits!";
+        let msg: string;
+        if (errorBody?.credits_required && errorBody?.credits_available !== undefined) {
+          msg = `You need ${errorBody.credits_required} credits for this action but only have ${errorBody.credits_available}. Upgrade your plan for more credits!`;
+        } else {
+          msg = errorBody?.error || "You've run out of credits for this month. Upgrade your plan for more credits!";
+        }
         toast.error(msg, {
           action: { label: "Upgrade", onClick: () => navigate("/pricing") },
         });
