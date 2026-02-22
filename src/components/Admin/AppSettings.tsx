@@ -178,6 +178,7 @@ export const AppSettings = () => {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">Credits given to users daily</p>
+              <p className="text-xs font-medium text-primary">Currently active: {settings.default_daily_credits || "8"} credits</p>
             </div>
 
             <div className="space-y-2">
@@ -197,6 +198,7 @@ export const AppSettings = () => {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">Monthly credit allocation</p>
+              <p className="text-xs font-medium text-primary">Currently active: {settings.default_monthly_credits || "40"} credits</p>
             </div>
           </div>
         </CardContent>

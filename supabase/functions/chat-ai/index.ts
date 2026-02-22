@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 // Generate an intelligent chat title using AI
@@ -163,18 +163,29 @@ async function classifyRequest(message: string, conversationContext: string, api
 
 CLASSIFICATION RULES (be strict - if the user is asking for content generation of any kind that matches a chapter, classify it as that chapter):
 
-- "chapter_1" (5 credits): Writing Chapter 1, Introduction chapter, Background to the Study, Statement of the Problem, Research Objectives, writing an introduction for a project/thesis/dissertation
-- "chapter_2" (10 credits): Writing Chapter 2, Literature Review, Review of Related Literature, Theoretical Framework, Conceptual Framework, reviewing literature for a topic
-- "chapter_3" (25 credits): Writing Chapter 3, Methodology, Research Design, Research Methods, Data Collection methods, writing methodology for a project
-- "chapter_4" (50 credits): Writing Chapter 4, Results and Discussion, Data Analysis chapter, Data Presentation, presenting findings
-- "chapter_5" (5 credits): Writing Chapter 5, Conclusion, Recommendations, Summary of Findings, writing conclusions for a project
+- "chapter_1" (5 credits): GENERATING/WRITING Chapter 1, Introduction chapter content
+- "chapter_2" (10 credits): GENERATING/WRITING Chapter 2, Literature Review content
+- "chapter_3" (25 credits): GENERATING/WRITING Chapter 3, Methodology content
+- "chapter_4" (50 credits): GENERATING/WRITING Chapter 4, Results and Discussion content
+- "chapter_5" (5 credits): GENERATING/WRITING Chapter 5, Conclusion content
+- "chapter_inquiry" (1 credit): ASKING QUESTIONS ABOUT a chapter WITHOUT requesting generation. E.g., "What should chapter 3 contain?", "How long should chapter 2 be?", "What goes in the methodology?", "Explain what the literature review covers". These are informational questions, NOT generation requests.
+- "chapter_1_outline" (3 credits): Requesting an OUTLINE for Chapter 1 only
+- "chapter_2_outline" (5 credits): Requesting an OUTLINE for Chapter 2 only
+- "chapter_3_outline" (13 credits): Requesting an OUTLINE for Chapter 3 only
+- "chapter_4_outline" (25 credits): Requesting an OUTLINE for Chapter 4 only
+- "chapter_5_outline" (3 credits): Requesting an OUTLINE for Chapter 5 only
+- "project_outline" (10 credits): Requesting an outline of the ENTIRE project, all chapters, or the full project structure
 - "research_proposal" (20 credits): Writing a full research proposal, project proposal
 - "fully_wrap_project" (50 credits): Wrapping an entire project, generating all preliminary/end pages
-- "generation_suggestion" (2 credits): Generating topics, outlines, suggestions, expanding a paragraph, editing a section, continuing writing, improving text
+- "generation_suggestion" (2 credits): Generating topics, outlines for non-chapter items, suggestions, expanding a paragraph, editing a section, continuing writing, improving text
 - "article_search" (1 credit): Searching for articles, finding papers, looking up references
 - "simple_chat" (1 credit): Asking questions, seeking advice, clarification, greetings, or any non-generation request
 
-IMPORTANT: Look at the INTENT, not just keywords. "Write the introduction for my project on climate change" is chapter_1 (5 credits), NOT simple_chat. "Help me with my methodology section" where they want you to WRITE it is chapter_3 (25 credits). "Continue from where you stopped" after a chapter generation is the SAME chapter type.
+IMPORTANT DISTINCTIONS:
+1. "Write chapter 3" or "Help me write the methodology" = chapter_3 (GENERATION). "What should chapter 3 contain?" or "How do I structure my methodology?" = chapter_inquiry (INFORMATIONAL).
+2. "Give me an outline for chapter 2" = chapter_2_outline. "Give me an outline for the whole project" = project_outline.
+3. "Write section 1.1 of chapter 1" or "Just the background to the study" = partial chapter request, still classify as the parent chapter (chapter_1).
+4. "Continue from where you stopped" after a chapter generation is the SAME chapter type.
 
 Return ONLY valid JSON: {"actionType": "category_name", "cost": number}`;
 
@@ -214,6 +225,9 @@ Return ONLY valid JSON: {"actionType": "category_name", "cost": number}`;
     const parsed = JSON.parse(jsonMatch[0]);
     const defaultTypes: Record<string, number> = {
       chapter_1: 5, chapter_2: 10, chapter_3: 25, chapter_4: 50, chapter_5: 5,
+      chapter_inquiry: 1,
+      chapter_1_outline: 3, chapter_2_outline: 5, chapter_3_outline: 13, chapter_4_outline: 25, chapter_5_outline: 3,
+      project_outline: 10,
       research_proposal: 20, fully_wrap_project: 50, generation_suggestion: 2,
       article_search: 1, simple_chat: 1,
     };
@@ -361,10 +375,22 @@ serve(async (req) => {
 
     // Override credit cost from app_settings if set (single-chapter or other action)
     if (actionType !== 'multi_chapter') {
-      const dynamicCost = dynamicCostMap[actionType];
-      if (dynamicCost !== undefined) {
-        creditCost = dynamicCost;
-        console.log(`[CREDIT] Dynamic cost from app_settings: credit_cost_${actionType} = ${creditCost}`);
+      // Handle outline types: cost = half the chapter generation cost
+      const outlineMatch = actionType.match(/^(chapter_\d)_outline$/);
+      if (outlineMatch) {
+        const parentChapter = outlineMatch[1];
+        const parentCost = dynamicCostMap[parentChapter] || CHAPTER_COSTS[parentChapter] || 5;
+        creditCost = Math.ceil(parentCost / 2);
+        console.log(`[CREDIT] Outline cost for ${actionType}: ceil(${parentCost}/2) = ${creditCost}`);
+      } else if (actionType === 'project_outline') {
+        creditCost = dynamicCostMap['project_outline'] || 10;
+        console.log(`[CREDIT] Project outline cost: ${creditCost}`);
+      } else {
+        const dynamicCost = dynamicCostMap[actionType];
+        if (dynamicCost !== undefined) {
+          creditCost = dynamicCost;
+          console.log(`[CREDIT] Dynamic cost from app_settings: credit_cost_${actionType} = ${creditCost}`);
+        }
       }
     }
 
@@ -481,9 +507,9 @@ serve(async (req) => {
         if (isActiveSubscriber) {
           errorMessage = `This action requires ${creditCost} credits. You have ${totalAvailable} credits remaining. Please purchase more credits.`;
         } else if (profile.plan_type !== 'free' && paidCreditsExpired) {
-          errorMessage = `Your subscription has expired. This action requires ${creditCost} credits. Upgrade to continue!`;
+          errorMessage = `Your subscription has expired. This requires ${creditCost} credits but you have ${totalAvailable} available. Upgrade to continue!`;
         } else {
-          errorMessage = `You've run out of credits for this month. Upgrade to Pro or Scholar for more credits!`;
+          errorMessage = `This requires ${creditCost} credits but you only have ${totalAvailable} available. Upgrade to Pro or Scholar for more credits!`;
         }
 
         console.log(`[CREDIT] Insufficient credits for ${actionType} (need ${creditCost}, have ${totalAvailable})`);
@@ -881,7 +907,13 @@ Generate ONLY the specific chapter(s) the user explicitly requests in their curr
 - If the user asks for "Chapter 3", generate ONLY Chapter 3. Do NOT include Chapter 1 or 2 before it.
 - Do NOT generate any chapter the user did not explicitly request in their current message.
 - Partial requests such as "continue" or "add more to chapter 2" apply only to that specific chapter.
-- This rule overrides any other instruction that might cause you to include extra chapters.`,
+- This rule overrides any other instruction that might cause you to include extra chapters.
+
+## PARTIAL CHAPTER REQUESTS — REFUSAL RULE:
+If a user asks for only a PART or SECTION of a chapter (e.g., "Write only section 1.1", "Just the background to the study", "Generate only the statement of the problem", "Write 3.1 to 3.4 only"), you MUST refuse and explain that you can only generate complete chapters, not partial sections. Say something like: "I can only generate complete chapters, not individual sections. Would you like me to generate the full Chapter X instead?" Do NOT generate partial chapter content.
+
+## CHAPTER INQUIRY vs GENERATION:
+If the user is merely ASKING ABOUT a chapter (e.g., "What should chapter 3 contain?", "How long should chapter 2 be?", "What goes in the methodology?"), provide an informational explanation WITHOUT generating the actual chapter content. Keep the response concise and helpful. Do NOT treat informational questions as generation requests.`,
           },
           ...conversationHistory,
           { role: 'user', content: message },

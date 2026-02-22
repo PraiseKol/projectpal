@@ -152,6 +152,7 @@ export const EmailCampaigns = () => {
         body: {
           type: selectedCampaign.email_type,
           testEmail: testEmail,
+          campaignId: selectedCampaign.id,
         },
       });
 
