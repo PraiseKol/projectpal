@@ -29,8 +29,10 @@ const Settings = () => {
 
   const loadUserData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
         navigate("/auth");
         return;
@@ -38,11 +40,7 @@ const Settings = () => {
 
       setUserEmail(user.email || "");
       setUserId(user.id);
-      const { data: profileData, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+      const { data: profileData, error } = await supabase.from("profiles").select("*").eq("id", user.id).single();
 
       if (error) throw error;
       setProfile(profileData);
@@ -72,25 +70,25 @@ const Settings = () => {
 
   // Check if user has active subscription
   const isActiveSubscriber = () => {
-    if (profile?.plan_type === 'free') return false;
+    if (profile?.plan_type === "free") return false;
     if (!profile?.credits_expiry_date) return false;
     return new Date(profile.credits_expiry_date) > new Date();
   };
 
   // Check if subscription is expired
   const isSubscriptionExpired = () => {
-    if (profile?.plan_type === 'free') return false;
+    if (profile?.plan_type === "free") return false;
     if (!profile?.credits_expiry_date) return true;
     return new Date(profile.credits_expiry_date) < new Date();
   };
 
   // Check if daily credits should show as full (new day)
   const getSmartDailyCredits = () => {
-    const defaultDaily = parseInt(getSetting('default_daily_credits', '8')) || 8;
+    const defaultDaily = parseInt(getSetting("default_daily_credits", "8")) || 8;
     if (!profile?.daily_reset_date) return profile?.daily_credits ?? defaultDaily;
-    const today = new Date().toISOString().split('T')[0];
-    const resetDate = new Date(profile.daily_reset_date).toISOString().split('T')[0];
-    
+    const today = new Date().toISOString().split("T")[0];
+    const resetDate = new Date(profile.daily_reset_date).toISOString().split("T")[0];
+
     if (isActiveSubscriber()) {
       return resetDate !== today ? defaultDaily : (profile?.daily_credits ?? defaultDaily);
     } else {
@@ -111,7 +109,12 @@ const Settings = () => {
       <header className="border-b border-border/50 shadow-sm">
         <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-4">
-            <Button onClick={() => navigate("/dashboard")} variant="outline" size="sm" className="h-8 w-8 sm:h-9 sm:w-auto p-0 sm:px-3">
+            <Button
+              onClick={() => navigate("/dashboard")}
+              variant="outline"
+              size="sm"
+              className="h-8 w-8 sm:h-9 sm:w-auto p-0 sm:px-3"
+            >
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="flex items-center gap-2">
@@ -135,7 +138,11 @@ const Settings = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Button onClick={() => navigate("/transactions")} variant="outline" className="w-full justify-start rounded-xl">
+            <Button
+              onClick={() => navigate("/transactions")}
+              variant="outline"
+              className="w-full justify-start rounded-xl"
+            >
               <CreditCard className="h-4 w-4 mr-2" />
               Transaction History
             </Button>
@@ -177,33 +184,31 @@ const Settings = () => {
                 </div>
               </div>
               <Button onClick={() => navigate("/pricing")} className="rounded-xl">
-                {profile?.plan_type === 'free' ? 'Upgrade Plan' : 'Purchase Credits'}
+                {profile?.plan_type === "free" ? "Upgrade Plan" : "Purchase Credits"}
               </Button>
             </div>
 
             <div className="grid gap-3 sm:gap-4 grid-cols-1 xs:grid-cols-2">
               <div className="p-4 bg-accent rounded-xl shadow-sm">
                 <div className="text-sm text-muted-foreground">
-                  Daily Credits {isActiveSubscriber() ? '(Unlimited)' : '(From Monthly Pool)'}
+                  Daily Credits {isActiveSubscriber() ? "(Unlimited)" : "(From Monthly Pool)"}
                 </div>
                 <div className="text-3xl font-bold">
                   <span>{getSmartDailyCredits()}</span>
-                  <span className="text-lg text-muted-foreground font-normal">/8</span>
+                  <span className="text-lg text-muted-foreground font-normal">/10</span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  {isActiveSubscriber() 
-                    ? 'Resets daily (no monthly cap)' 
-                    : 'Counts towards 40/month limit'}
+                  {isActiveSubscriber() ? "Resets daily (no monthly cap)" : "Counts towards 40/month limit"}
                 </div>
               </div>
-              
+
               {/* Show monthly credits for free users OR expired subscribers */}
-              {(profile?.plan_type === 'free' || isSubscriptionExpired()) ? (
+              {profile?.plan_type === "free" || isSubscriptionExpired() ? (
                 <div className="p-4 bg-accent rounded-xl shadow-sm">
                   <div className="text-sm text-muted-foreground">Monthly Credits</div>
                   <div className="text-3xl font-bold">
                     <span>{profile?.monthly_credits}</span>
-                    <span className="text-lg text-muted-foreground font-normal">/40</span>
+                    <span className="text-lg text-muted-foreground font-normal">/50</span>
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">Resets monthly</div>
                 </div>
@@ -215,19 +220,19 @@ const Settings = () => {
                     <span className="text-lg text-muted-foreground font-normal"> remaining</span>
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    {profile?.credits_expiry_date 
+                    {profile?.credits_expiry_date
                       ? `Expires: ${formatExpiryDate(profile.credits_expiry_date)}`
-                      : 'No expiry set'}
+                      : "No expiry set"}
                   </div>
                 </div>
               )}
             </div>
-            {profile?.plan_type !== 'free' && (
+            {profile?.plan_type !== "free" && (
               <p className="text-xs text-muted-foreground mt-2">Daily credits are consumed first, then paid credits</p>
             )}
 
             {/* Credits Expiry Info for Pro/Scholar */}
-            {profile?.plan_type !== 'free' && profile?.credits_expiry_date && (
+            {profile?.plan_type !== "free" && profile?.credits_expiry_date && (
               <div className="p-4 bg-accent rounded-xl shadow-sm">
                 <div className="flex items-center gap-3">
                   <Calendar className="h-5 w-5 text-muted-foreground" />
@@ -236,8 +241,8 @@ const Settings = () => {
                     <div className="font-medium">{formatExpiryDate(profile.credits_expiry_date)}</div>
                     <div className="text-xs text-muted-foreground mt-1">
                       {new Date(profile.credits_expiry_date) > new Date()
-                        ? 'Paid credits are active and will carry over on renewal'
-                        : 'Paid credits have expired - purchase more to continue'}
+                        ? "Paid credits are active and will carry over on renewal"
+                        : "Paid credits have expired - purchase more to continue"}
                     </div>
                   </div>
                 </div>
@@ -249,9 +254,7 @@ const Settings = () => {
                 <Calendar className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <div className="text-sm text-muted-foreground">Last Daily Reset</div>
-                  <div className="font-medium">
-                    {new Date(profile.daily_reset_date).toLocaleDateString()}
-                  </div>
+                  <div className="font-medium">{new Date(profile.daily_reset_date).toLocaleDateString()}</div>
                 </div>
               </div>
             )}
@@ -259,7 +262,12 @@ const Settings = () => {
         </Card>
 
         {/* Ambassador Request */}
-        <AmbassadorRequestCard userId={userId} isAmbassador={isAmbassador} planType={profile?.plan_type || 'free'} creditsExpiry={profile?.credits_expiry_date || null} />
+        <AmbassadorRequestCard
+          userId={userId}
+          isAmbassador={isAmbassador}
+          planType={profile?.plan_type || "free"}
+          creditsExpiry={profile?.credits_expiry_date || null}
+        />
 
         {/* Referral Code */}
         <ReferralCodeCard referredBy={profile?.referred_by} onUpdate={loadUserData} />
