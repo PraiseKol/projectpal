@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Mail, Plus, Send, Eye, Trash2, Loader2, Users, CheckCircle, XCircle, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -36,6 +36,14 @@ interface EmailLog {
   error_message: string | null;
 }
 
+interface UserForSelection {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  planType: string;
+}
+
 export const EmailCampaigns = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
@@ -45,7 +53,14 @@ export const EmailCampaigns = () => {
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
+  const [showSendDialog, setShowSendDialog] = useState(false);
   const [testEmail, setTestEmail] = useState("");
+
+  // User selection state
+  const [allUsers, setAllUsers] = useState<UserForSelection[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [userFilter, setUserFilter] = useState("");
 
   const [newCampaign, setNewCampaign] = useState({
     name: "",
@@ -84,6 +99,74 @@ export const EmailCampaigns = () => {
     }
   };
 
+  const loadUsers = async () => {
+    setIsLoadingUsers(true);
+    try {
+      const [profilesRes, emailsRes] = await Promise.all([
+        supabase.functions.invoke("admin-operations", { body: { action: "getAllProfiles" } }),
+        supabase.functions.invoke("admin-operations", { body: { action: "getUserEmails" } }),
+      ]);
+
+      if (profilesRes.error) throw profilesRes.error;
+      if (emailsRes.error) throw emailsRes.error;
+
+      const emailMap: Record<string, string> = emailsRes.data?.emailMap || {};
+
+      const users: UserForSelection[] = (profilesRes.data.profiles || []).map((p: any) => ({
+        id: p.id,
+        email: emailMap[p.id] || "No email",
+        firstName: p.first_name,
+        lastName: p.last_name,
+        planType: p.plan_type || "free",
+      }));
+
+      setAllUsers(users);
+      // Select all by default
+      setSelectedUserIds(new Set(users.map((u: UserForSelection) => u.id)));
+    } catch (error) {
+      logError("EmailCampaigns:loadUsers", error);
+      toast.error("Failed to load users");
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
+  const filteredUsers = useMemo(() => {
+    if (!userFilter) return allUsers;
+    const lower = userFilter.toLowerCase();
+    return allUsers.filter(
+      (u) =>
+        u.email.toLowerCase().includes(lower) ||
+        (u.firstName || "").toLowerCase().includes(lower) ||
+        (u.lastName || "").toLowerCase().includes(lower)
+    );
+  }, [allUsers, userFilter]);
+
+  const toggleUser = (id: string) => {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectByPlan = (planFilter: "all" | "pro" | "scholar" | "paid") => {
+    if (planFilter === "all") {
+      setSelectedUserIds(new Set(allUsers.map((u) => u.id)));
+    } else if (planFilter === "paid") {
+      setSelectedUserIds(
+        new Set(allUsers.filter((u) => u.planType === "pro" || u.planType === "scholar").map((u) => u.id))
+      );
+    } else {
+      setSelectedUserIds(
+        new Set(allUsers.filter((u) => u.planType === planFilter).map((u) => u.id))
+      );
+    }
+  };
+
+  const deselectAll = () => setSelectedUserIds(new Set());
+
   const createCampaign = async () => {
     if (!newCampaign.name || !newCampaign.subject || !newCampaign.content) {
       toast.error("Please fill in all fields");
@@ -119,19 +202,33 @@ export const EmailCampaigns = () => {
     }
   };
 
-  const sendCampaign = async (campaign: Campaign) => {
+  const openSendDialog = (campaign: Campaign) => {
+    setSelectedCampaign(campaign);
+    setShowSendDialog(true);
+    loadUsers();
+  };
+
+  const sendCampaignToSelected = async () => {
+    if (!selectedCampaign) return;
+    if (selectedUserIds.size === 0) {
+      toast.error("Please select at least one recipient");
+      return;
+    }
+
     setIsSending(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-newsletter", {
         body: {
-          type: campaign.email_type,
-          campaignId: campaign.id,
+          type: selectedCampaign.email_type,
+          campaignId: selectedCampaign.id,
+          userIds: Array.from(selectedUserIds),
         },
       });
 
       if (error) throw error;
 
-      toast.success(`Campaign sent! ${data.sent} emails delivered, ${data.failed} failed`);
+      toast.success(`Campaign sent! ${data.sent} of ${data.total} emails delivered, ${data.failed} failed`);
+      setShowSendDialog(false);
       loadCampaigns();
     } catch (error: any) {
       logError("EmailCampaigns:sendCampaign", error);
@@ -203,6 +300,14 @@ export const EmailCampaigns = () => {
       case "usage": return "Usage Report";
       case "reengagement": return "Re-engagement";
       default: return type;
+    }
+  };
+
+  const getPlanBadge = (plan: string) => {
+    switch (plan) {
+      case "pro": return <Badge variant="default">Pro</Badge>;
+      case "scholar": return <Badge variant="secondary">Scholar</Badge>;
+      default: return <Badge variant="outline">Free</Badge>;
     }
   };
 
@@ -353,10 +458,10 @@ export const EmailCampaigns = () => {
                           <Button
                             variant="default"
                             size="sm"
-                            onClick={() => sendCampaign(campaign)}
+                            onClick={() => openSendDialog(campaign)}
                             disabled={isSending}
                           >
-                            {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                            <Send className="h-4 w-4" />
                           </Button>
                         )}
                         {campaign.status === "draft" && (
@@ -377,6 +482,123 @@ export const EmailCampaigns = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Send Dialog with User Selection */}
+      <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Send Campaign: {selectedCampaign?.name}</DialogTitle>
+            <DialogDescription>Select which users should receive this email</DialogDescription>
+          </DialogHeader>
+
+          {isLoadingUsers ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span className="ml-2 text-muted-foreground">Loading users...</span>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Quick select buttons */}
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => selectByPlan("all")}>
+                  Select All ({allUsers.length})
+                </Button>
+                <Button variant="outline" size="sm" onClick={deselectAll}>
+                  Deselect All
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => selectByPlan("pro")}>
+                  Pro Users ({allUsers.filter((u) => u.planType === "pro").length})
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => selectByPlan("scholar")}>
+                  Scholar Users ({allUsers.filter((u) => u.planType === "scholar").length})
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => selectByPlan("paid")}>
+                  All Paid ({allUsers.filter((u) => u.planType === "pro" || u.planType === "scholar").length})
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  setSelectedUserIds(new Set(allUsers.filter((u) => u.planType === "free").map((u) => u.id)));
+                }}>
+                  Free Users ({allUsers.filter((u) => u.planType === "free").length})
+                </Button>
+              </div>
+
+              {/* Search filter */}
+              <Input
+                placeholder="Search by name or email..."
+                value={userFilter}
+                onChange={(e) => setUserFilter(e.target.value)}
+              />
+
+              {/* Selected count */}
+              <p className="text-sm text-muted-foreground">
+                {selectedUserIds.size} of {allUsers.length} users selected
+              </p>
+
+              {/* User list */}
+              <div className="border rounded-lg max-h-[40vh] overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={filteredUsers.length > 0 && filteredUsers.every((u) => selectedUserIds.has(u.id))}
+                          onCheckedChange={(checked) => {
+                            setSelectedUserIds((prev) => {
+                              const next = new Set(prev);
+                              filteredUsers.forEach((u) => {
+                                if (checked) next.add(u.id);
+                                else next.delete(u.id);
+                              });
+                              return next;
+                            });
+                          }}
+                        />
+                      </TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Plan</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers.map((user) => (
+                      <TableRow key={user.id} className="cursor-pointer" onClick={() => toggleUser(user.id)}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedUserIds.has(user.id)}
+                            onCheckedChange={() => toggleUser(user.id)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium text-sm">
+                              {user.firstName || user.lastName
+                                ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
+                                : "No name"}
+                            </div>
+                            <div className="text-xs text-muted-foreground">{user.email}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{getPlanBadge(user.planType)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSendDialog(false)}>Cancel</Button>
+            <Button onClick={sendCampaignToSelected} disabled={isSending || selectedUserIds.size === 0}>
+              {isSending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4 mr-2" />
+              )}
+              Send to {selectedUserIds.size} user{selectedUserIds.size !== 1 ? "s" : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Preview Dialog */}
       <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>

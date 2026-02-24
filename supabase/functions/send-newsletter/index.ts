@@ -26,6 +26,23 @@ interface EmailRecipient {
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
+async function fetchAllAuthUsers(supabaseAdmin: any) {
+  const allUsers: any[] = [];
+  let page = 1;
+  const perPage = 1000;
+  
+  while (true) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+    if (!data?.users?.length) break;
+    allUsers.push(...data.users);
+    if (data.users.length < perPage) break;
+    page++;
+  }
+  
+  return allUsers;
+}
+
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -36,7 +53,7 @@ serve(async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { type, campaignId, testEmail } = await req.json();
+    const { type, campaignId, testEmail, userIds } = await req.json();
 
     // If test email, send only to that address
     if (testEmail) {
@@ -47,49 +64,34 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    // Get all users with email preferences
-    const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers({
-      perPage: 1000
-    });
-
-    if (authError) throw authError;
+    // Get all auth users
+    const authUsers = await fetchAllAuthUsers(supabaseAdmin);
 
     // Get profiles and preferences
     const { data: profiles, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("*");
-
     if (profileError) throw profileError;
 
-    // Get email preferences
     const { data: preferences, error: prefError } = await supabaseAdmin
       .from("email_preferences")
       .select("*");
-
     if (prefError) throw prefError;
 
-    // Build recipient list with personalized data
+    // Build recipient list
     const recipients: EmailRecipient[] = [];
 
-    for (const user of authUsers.users) {
-      const profile = profiles?.find(p => p.id === user.id);
-      const pref = preferences?.find(p => p.user_id === user.id);
+    // If userIds provided, only include those users
+    const targetUsers = userIds && userIds.length > 0
+      ? authUsers.filter((u: any) => userIds.includes(u.id))
+      : authUsers;
 
-      // Skip if globally unsubscribed
-      if (pref?.unsubscribed_all) continue;
+    for (const user of targetUsers) {
+      const profile = profiles?.find((p: any) => p.id === user.id);
+      const pref = preferences?.find((p: any) => p.user_id === user.id);
 
-      // Get pending documents count
-      const { count: pendingDocs } = await supabaseAdmin
-        .from("documents")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .is("edited_content", null);
-
-      // Get pending analyses count
-      const { count: pendingAnalyses } = await supabaseAdmin
-        .from("analysis_sessions")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id);
+      // Skip if globally unsubscribed (only when NOT using explicit userIds selection)
+      if (!userIds?.length && pref?.unsubscribed_all) continue;
 
       recipients.push({
         userId: user.id,
@@ -101,21 +103,21 @@ serve(async (req: Request): Promise<Response> => {
           usage_reports: pref?.usage_reports ?? true,
           reengagement_emails: pref?.reengagement_emails ?? true,
         },
-        pendingDocuments: pendingDocs || 0,
-        pendingAnalyses: pendingAnalyses || 0,
+        pendingDocuments: 0,
+        pendingAnalyses: 0,
         creditsUsed: 40 - (profile?.monthly_credits || 0),
         creditsRemaining: (profile?.daily_credits || 0) + (profile?.paid_credits || 0),
         lastLogin: user.last_sign_in_at || null,
       });
     }
 
-    // Filter recipients based on email type
-    const filteredRecipients = recipients.filter(r => {
+    // Only filter by preference type when admin hasn't explicitly selected users
+    const filteredRecipients = userIds?.length ? recipients : recipients.filter(r => {
       if (type === "marketing") return r.preferences.marketing_emails;
       if (type === "activity") return r.preferences.activity_reminders;
       if (type === "usage") return r.preferences.usage_reports;
       if (type === "reengagement") return r.preferences.reengagement_emails;
-      return true; // For weekly digest, check all types
+      return true;
     });
 
     // Get campaign content if campaignId provided
@@ -129,48 +131,60 @@ serve(async (req: Request): Promise<Response> => {
       campaignContent = campaign;
     }
 
-    // Send emails
+    // Send emails in batches with delay
     const results = {
       sent: 0,
       failed: 0,
+      total: filteredRecipients.length,
       errors: [] as string[],
     };
 
-    for (const recipient of filteredRecipients) {
-      try {
-        const emailContent = generateEmailContent(recipient, type, campaignContent);
-        
-        await resend.emails.send({
-          from: "ProjectPal <noreply@projectpal.site>",
-          to: [recipient.email],
-          subject: emailContent.subject,
-          html: emailContent.html,
-        });
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < filteredRecipients.length; i += BATCH_SIZE) {
+      const batch = filteredRecipients.slice(i, i + BATCH_SIZE);
+      
+      const batchPromises = batch.map(async (recipient) => {
+        try {
+          const emailContent = generateEmailContent(recipient, type, campaignContent);
+          
+          await resend.emails.send({
+            from: "ProjectPal <noreply@projectpal.site>",
+            to: [recipient.email],
+            subject: emailContent.subject,
+            html: emailContent.html,
+          });
 
-        // Log the email
-        await supabaseAdmin.from("email_logs").insert({
-          campaign_id: campaignId || null,
-          user_id: recipient.userId,
-          email: recipient.email,
-          status: "sent",
-        });
+          await supabaseAdmin.from("email_logs").insert({
+            campaign_id: campaignId || null,
+            user_id: recipient.userId,
+            email: recipient.email,
+            status: "sent",
+          });
 
-        results.sent++;
-      } catch (error: any) {
-        results.failed++;
-        results.errors.push(`${recipient.email}: ${error.message}`);
+          results.sent++;
+        } catch (error: any) {
+          results.failed++;
+          results.errors.push(`${recipient.email}: ${error.message}`);
 
-        await supabaseAdmin.from("email_logs").insert({
-          campaign_id: campaignId || null,
-          user_id: recipient.userId,
-          email: recipient.email,
-          status: "failed",
-          error_message: error.message,
-        });
+          await supabaseAdmin.from("email_logs").insert({
+            campaign_id: campaignId || null,
+            user_id: recipient.userId,
+            email: recipient.email,
+            status: "failed",
+            error_message: error.message,
+          });
+        }
+      });
+
+      await Promise.all(batchPromises);
+      
+      // Small delay between batches to avoid rate limiting
+      if (i + BATCH_SIZE < filteredRecipients.length) {
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
     }
 
-    // Update campaign status if campaignId
+    // Update campaign status
     if (campaignId) {
       await supabaseAdmin
         .from("email_campaigns")
@@ -196,7 +210,6 @@ serve(async (req: Request): Promise<Response> => {
 });
 
 async function sendTestEmail(supabaseAdmin: any, email: string, type: string, campaignId?: string) {
-  // Look up campaign content if campaignId provided
   let campaignContent = null;
   if (campaignId) {
     const { data: campaign, error } = await supabaseAdmin
@@ -254,7 +267,6 @@ function generateEmailContent(
     };
   }
 
-  // Generate content based on type
   switch (type) {
     case "marketing":
       return {
@@ -319,26 +331,22 @@ function generateEmailContent(
         `, firstName, baseUrl),
       };
 
-    default: // weekly_digest
+    default:
       return {
         subject: "📬 Your Weekly ProjectPal Update",
         html: wrapInTemplate(`
           <h2>Weekly Digest</h2>
-          
           <h3>📊 Your Activity</h3>
           <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <p style="margin: 0;">Documents: ${recipient.pendingDocuments} | Analyses: ${recipient.pendingAnalyses}</p>
             <p style="margin: 10px 0 0 0;">Credits: ${recipient.creditsRemaining} remaining</p>
           </div>
-          
           ${recipient.pendingDocuments > 0 ? `
           <h3>📝 Pending Projects</h3>
           <p>You have ${recipient.pendingDocuments} document(s) that need your attention.</p>
           ` : ''}
-          
           <h3>✨ Pro Tip</h3>
           <p>Use the AI Chat feature to get instant answers to your research questions!</p>
-          
           <a href="${baseUrl}/dashboard" style="background-color: #7c3aed; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Open Dashboard</a>
         `, firstName, baseUrl),
       };
