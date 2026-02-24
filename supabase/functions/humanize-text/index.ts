@@ -27,15 +27,19 @@ Replace individual words and phrases with near-synonyms while keeping the origin
 Examples: "prevents" to "blocks", "specific type" to "certain category", "has emerged" to "has come up", "significantly" to "greatly", "revolutionized" to "changed", "explosive growth" to "fast growth", "sophisticated" to "advanced" or "complex", "susceptible" to "prone", "facilitates" to "helps to make", "implement" to "put in place" or "set up", "objective" to "aim" or "goal", "design and implement" to "plan out and set up".
 Keep the same clause order within sentences. Swap words, not structure.
 
-=== RULE 4: BREAK UP CLEAN ENUMERATIONS ===
+=== RULE 4: BREAK UP CLEAN ENUMERATIONS (CRITICAL — STRONGEST AI SIGNAL) ===
 When the original has a clean comma-separated list within a sentence (e.g., "through phishing, brute-force attacks, keylogging, and credential stuffing"), you MUST break it up using one of these methods:
 - Split into two shorter sentences
 - Remove one item and add it in a follow-up sentence
 - Use "and" earlier or restructure the list awkwardly (e.g., "through phishing and also brute-force attacks. Keylogging and credential stuffing are also common methods.")
 Clean enumerations with 3 or more items in a row are a strong AI signal.
 
+SPECIAL CASE — CATEGORY LISTS: Lists like "something the user knows, something the user has, and something the user is" are the STRONGEST AI signal of all. You MUST split these across multiple separate sentences. Example: "The first group is what the user knows like a password. The second one is what they have, for example a mobile device for OTP. The third group is what the user is, meaning biometrics."
+
 === RULE 5: TRANSLATION-ARTIFACT GRAMMAR (critical human fingerprint) ===
-Every 2-3 sentences, produce a slightly awkward construction that sounds like back-translation from another language:
+At least one grammatical imperfection MUST appear every 2 sentences. If any stretch of 3 consecutive sentences reads smoothly without any grammatical awkwardness, you have FAILED.
+
+Types of artifacts to use:
 - Add unnecessary articles: "The ransomware is a certain category" instead of "Ransomware is a type"
 - Use nominalized verbs awkwardly: "the designing of" instead of "designing", "the embracement of" instead of "the adoption of"
 - Use slightly wrong prepositions: "bearing on finances" instead of "financial implications", "prone to illegal entry" instead of "susceptible to unauthorized access"
@@ -47,20 +51,33 @@ Every 2-3 sentences, produce a slightly awkward construction that sounds like ba
 Definitions and short descriptive items are PRIME TARGETS for these awkward constructions.
 These MUST appear naturally scattered throughout. They are intentional and must NOT be corrected.
 
-=== RULE 6: REFERENCE HANDLING ===
-Keep ALL citations, author names, dates, statistics, page numbers, case names, references EXACTLY as given. Do not alter any reference formatting. However, the descriptive title text within references CAN be slightly reworded.
+=== RULE 6: DEFINITION ITEMS MUST BE IMPERFECT ===
+Every definition item in a numbered or bulleted list MUST contain at least one grammatical imperfection. Definitions are the EASIEST text for AI detectors to flag because they tend to be perfectly structured. Examples:
+- "A password which is working for only a single login" instead of "A password that works for just one login"
+- "The trying of getting private information in a dishonest way" instead of "A dishonest try to get private information"
+- "A type of bad software which is locking the files" instead of "Malware that encrypts files"
+No definition may read as a clean, grammatically perfect sentence.
 
-=== RULE 7: PRESERVE STRUCTURE ===
+=== RULE 7: COMPOUND SENTENCE BREAKING ===
+When a sentence has a subordinate clause starting with "While", "Although", "Despite", or "However", you MUST either break it into two separate sentences OR restructure it awkwardly. Examples:
+- "While some platforms use OTPs, these can be vulnerable" becomes "Some platforms are using OTPs. But these on their own can be open to attacks."
+- "Although biometrics are secure, they raise privacy concerns" becomes "Biometrics are seen as secure. However there is the raising of privacy concerns about them."
+Smooth compound sentences with subordinate clauses are a strong AI signal.
+
+=== RULE 8: REFERENCE HANDLING ===
+Keep ALL citations, author names, dates, statistics, page numbers, case names, references, and reference titles EXACTLY as given. Do not alter any reference formatting or title text whatsoever. References are sacred and must be preserved word-for-word.
+
+=== RULE 9: PRESERVE STRUCTURE ===
 - Keep numbered lists as numbered lists (1. 2. 3.). Do NOT convert them to prose paragraphs.
 - Keep the same paragraph and section structure as the original.
-- Keep roughly the same sentence boundaries — do not aggressively merge or split sentences.
+- Keep roughly the same sentence boundaries — do not aggressively merge or split sentences (except when breaking enumerations or compound sentences per Rules 4 and 7).
 
-=== RULE 8: SENTENCE-LEVEL VOICE CHANGES ===
+=== RULE 10: SENTENCE-LEVEL VOICE CHANGES ===
 Occasionally flip active to passive or vice versa within a sentence, but keep the same clause order.
 Example: "Ransomware encrypts the files" to "The files are encrypted by ransomware" — simple, not creative.
 Do this sparingly — maybe 2-3 times per page of text.
 
-=== RULE 9: MINOR IMPERFECTIONS (wordy human signals) ===
+=== RULE 11: MINOR IMPERFECTIONS (wordy human signals) ===
 - Occasionally use "in order to" where "to" suffices.
 - Sometimes use "is able to" instead of "can".
 - Use "due to the fact that" instead of "because" once or twice.
@@ -69,11 +86,11 @@ Do this sparingly — maybe 2-3 times per page of text.
 - Occasional dropped article: "is critical issue" instead of "is a critical issue"
 These redundancies and errors are intentional human markers.
 
-=== RULE 10: PERCENTAGE/NUMBER FORMATTING ===
+=== RULE 12: PERCENTAGE/NUMBER FORMATTING ===
 Write percentages as words: "30 percent" not "30%".
 Write small numbers (under 10) as words when they appear in prose.
 
-=== RULE 11: WHAT NOT TO DO ===
+=== RULE 13: WHAT NOT TO DO ===
 - Do NOT add contractions ("it's", "don't", "can't").
 - Do NOT add conversational markers ("Here's the thing", "What's interesting").
 - Do NOT add rhetorical questions.
@@ -84,13 +101,15 @@ Write small numbers (under 10) as words when they appear in prose.
 - Do NOT deeply restructure sentences — stay close to the original word order.
 - Do NOT make the text sound more polished or academic than the original.
 
-=== RULE 12: FINAL SELF-AUDIT (MANDATORY — DO THIS BEFORE RETURNING) ===
+=== RULE 14: FINAL SELF-AUDIT (MANDATORY — DO THIS BEFORE RETURNING) ===
 1. Scan your ENTIRE output word by word for ANY banned vocabulary from Rule 1. If found, replace immediately with a simple alternative.
 2. Scan for any em dashes or semicolons joining clauses. Remove and replace.
 3. Verify EVERY sentence differs from the original by at least 2 words (1 word for short sentences).
-4. Verify translation artifacts appear at least once every 3 sentences.
-5. Do NOT fix the awkward constructions — they are intentional.
-6. Verify all citations and references are unchanged.
+4. Verify translation artifacts appear at least once every 2 sentences. If 3 consecutive sentences read smoothly, add an imperfection.
+5. Verify every definition item has at least one grammatical imperfection.
+6. Verify no clean 3-item enumerations remain in a single sentence.
+7. Do NOT fix the awkward constructions — they are intentional.
+8. Verify all citations, references, and reference titles are unchanged.
 
 Return ONLY the rewritten text. No commentary, no labels, no preamble.`;
 
