@@ -1,103 +1,106 @@
 
+# Humanizer Prompt V3 -- Deeper Stealth Writer Alignment
 
-# Rebuild Humanizer Prompt to Match Stealth Writer's Strategy
+## Problem Analysis from Screenshots
 
-## Analysis Summary
+The AI checker flagged these specific patterns as AI-generated in our humanizer output:
 
-After comparing three original texts, their Stealth Checker scores, and Stealth Writer's rewrites, the core insight is clear: **Stealth Writer does NOT try to write better or more creative English. It writes slightly worse English in specific ways that mimic a real human paraphrasing from memory.**
-
-Our current prompt over-engineers the output with deep grammatical restructuring, list-to-prose merging, and unpredictable vocabulary mixing. This produces text that is *too clean and creative* — ironically making it more detectable as AI.
-
-### What Stealth Writer Actually Does (the winning patterns)
-
-| Pattern | Example | Why it works |
+| Flagged Pattern | Why It Fails | Fix |
 |---|---|---|
-| Close synonym swaps | "prevents access" becomes "blocks access" | Stays near source like a real paraphraser |
-| Translation-artifact grammar | "The hopefully of creating", "the designing" | Strong human fingerprint — AI never writes this badly |
-| Unnecessary/missing articles | "The ransomware is a certain category" | Non-native English pattern AI models avoid |
-| Keeps numbered lists intact | Research questions stay as 1. 2. 3. 4. | Lists aren't AI signals; over-polished prose is |
-| Sentence-level word swaps, not restructuring | Same clause order, different words | Mirrors how real humans paraphrase |
-| Occasional slight nonsense | "hw/ change kernel loading" | Human error patterns |
-| Passive/active flips at word level | Simple voice changes within same structure | Natural variation without over-engineering |
+| "has emerged as a robust security" | "robust" is on banned list but model ignores it | Move banned list to TOP of prompt with stronger enforcement |
+| "Furthermore, traditional authentication..." | "Furthermore" is banned but used | Same -- priority elevation |
+| "which are unique to the individual--with" | Em dashes banned but used | Add to banned list more visibly |
+| "Passwords can be easily compromised through phishing, brute-force attacks, keylogging, and credential stuffing" | Clean comma-separated list is AI pattern | New rule: break up clean enumerations |
+| "The general objective of this study is to design and implement..." | Too close to original verbatim | Stronger requirement to change EVERY sentence |
+| Definition items kept word-for-word | Definitions are easy AI detection targets | New rule: rephrase definitions awkwardly |
+| Smooth multi-clause sentences with semicolons | Too polished for human paraphrasing | Rule to break or simplify complex sentences |
 
-### What Our Current Prompt Does Wrong
+## Key Insight
 
-1. **Rule 1 (List Merging)** — Forces conversion of all lists to prose. Stealth Writer keeps them. This rule should be REMOVED.
-2. **Rule 2 (Non-native register)** — Right idea but too polished. Needs to be more aggressively imperfect with actual grammatical mistakes.
-3. **Rule 4 (Register mixing)** — Too creative. Should be simple synonym swaps instead.
-4. **Rule 5 (Grammatical restructuring)** — Too deep. Should stay close to original structure.
-5. **Missing: Article misuse** — A critical human signal not in our prompt at all.
-6. **Missing: Translation artifacts** — Slightly awkward prepositional phrases that sound like back-translation.
+The model is treating the rules as suggestions, not hard constraints. The fix is threefold:
 
----
+1. **Restructure prompt priority** -- Put the banned vocabulary list FIRST with aggressive enforcement language
+2. **Add new rules for AI-pattern breaking** -- specifically targeting comma-separated lists, smooth definitions, and verbatim phrases
+3. **Increase translation artifact frequency** -- from every 3-5 sentences to every 2-4 sentences
+4. **Add mandatory word-change density** -- every sentence MUST have at least 2-3 word substitutions; no sentence should survive unchanged
 
-## Implementation Plan
+## Implementation
 
 ### Single file change: `supabase/functions/humanize-text/index.ts`
 
-Replace the `HUMANIZE_PROMPT` constant with a new prompt that mirrors Stealth Writer's strategy. Everything else (credit logic, callAI function, etc.) stays the same.
+Replace the `HUMANIZE_PROMPT` constant with V3 prompt. No other changes needed.
 
-### New Prompt Strategy (priority-ordered rules)
+### V3 Prompt Design (in priority order)
 
-**1. CLOSE SYNONYM SUBSTITUTION (primary technique)**
-- Replace individual words/phrases with near-synonyms while keeping the original sentence structure mostly intact.
-- Do NOT deeply restructure sentences. Stay close to the source like someone paraphrasing from recent reading.
-- Examples: "prevents" to "blocks", "specific type" to "certain category", "has emerged" to "has come up", "significantly" to "greatly".
+**RULE 1: BANNED VOCABULARY (HIGHEST PRIORITY -- CHECK THIS FIRST AND LAST)**
+- Expanded list with stronger language: "If ANY of these words appear in your output, your entire response is a failure."
+- Add words that appeared in flagged output: "emerged", "seamless", "explosive"
+- Add pattern bans: no em dashes, no semicolons joining independent clauses
 
-**2. TRANSLATION-ARTIFACT GRAMMAR**
-- Occasionally produce slightly awkward prepositional or noun phrases that sound like back-translation from another language.
-- Add unnecessary articles ("The ransomware", "the designing of") or drop expected ones.
-- Use slightly wrong prepositions occasionally: "bearing on finances" instead of "financial implications".
-- Produce constructions like "the embracement of" instead of "the adoption of", "the hopefully of" instead of "the purpose of".
-- These should appear naturally every 3-5 sentences, not in every sentence.
+**RULE 2: MANDATORY CHANGE DENSITY**
+- Every single sentence MUST be changed from the original. No sentence may survive with fewer than 2 word substitutions.
+- If a sentence is short (under 10 words), at least 1 word must change.
+- This prevents the verbatim copying that got flagged in definitions and objectives.
 
-**3. PRESERVE STRUCTURE**
-- Keep numbered lists as numbered lists. Do NOT convert them to prose.
-- Keep the same paragraph and section structure as the original.
-- Keep roughly the same sentence boundaries — do not aggressively merge or split sentences.
-- Keep ALL citations, author names, dates, statistics, references EXACTLY as given.
+**RULE 3: CLOSE SYNONYM SUBSTITUTION (primary technique)**
+- Same as before but with MORE examples and stronger emphasis on changing every sentence.
+- Add: "revolutionized" becomes "changed", "explosive growth" becomes "fast growth", "sophisticated" becomes "advanced" or "complex".
 
-**4. SENTENCE-LEVEL VOICE CHANGES**
-- Occasionally flip active to passive or vice versa within a sentence, but keep the same clause order.
-- Example: "Ransomware encrypts the files" becomes "The files are encrypted by ransomware" — simple, not creative.
+**RULE 4: BREAK UP CLEAN ENUMERATIONS**
+- NEW RULE: When the original has a clean comma-separated list within a sentence (e.g., "through phishing, brute-force attacks, keylogging, and credential stuffing"), break it up:
+  - Split into two shorter sentences, OR
+  - Remove one item and add it in a follow-up sentence, OR
+  - Use "and" earlier or restructure the list awkwardly
+- Clean enumerations are a strong AI signal.
 
-**5. BANNED VOCABULARY**
-- Keep the existing banned word list (utilize, leverage, crucial, comprehensive, facilitate, delve, moreover, furthermore, etc.).
+**RULE 5: TRANSLATION-ARTIFACT GRAMMAR (increased frequency)**
+- Changed from every 3-5 sentences to every 2-3 sentences.
+- More specific examples:
+  - "The effectiveness of biometric authentication is dependent on the quality" becomes "How effective the biometric authentication is depends on what quality"
+  - "provides a blueprint for integrating" becomes "gives a kind of guideline for how to integrate"
+  - "A security system that requires more than one method" becomes "A security type of system which is needing more than a single method"
+- Add rule: definitions and short descriptive items are prime targets for awkward constructions.
 
-**6. MINOR IMPERFECTIONS**
-- Occasionally use a slightly redundant phrase: "in order to" where "to" suffices.
-- Sometimes use "is able to" instead of "can", "due to the fact that" instead of "because".
-- These wordy constructions are human signals.
+**RULE 6: REFERENCE HANDLING**
+- Keep all citations, author names, dates, page numbers EXACTLY as given.
+- But the title text within references CAN be slightly reworded (this was flagged green in Stealth Writer output).
 
-**7. PERCENTAGE/NUMBER FORMATTING**
-- Write percentages as words: "30 percent" not "30%".
+**RULE 7: PRESERVE STRUCTURE**
+- Keep numbered lists as numbered lists.
+- Keep paragraph breaks and section headings.
+- Keep sentence boundaries roughly the same.
 
-**8. SELF-AUDIT**
-- Before returning, check for any banned vocabulary and replace.
-- Ensure no more than 2 consecutive sentences start with the same word.
-- Do NOT over-polish — imperfections are intentional and must be preserved.
+**RULE 8: SENTENCE-LEVEL VOICE CHANGES**
+- Same as before: occasional active/passive flips.
 
-**9. WHAT NOT TO DO**
-- Do NOT add contractions, conversational markers, rhetorical questions, or em dashes.
-- Do NOT use markdown formatting.
-- Do NOT add new information or remove existing content.
-- Do NOT deeply restructure — stay close to the original.
+**RULE 9: MINOR IMPERFECTIONS**
+- "in order to" where "to" suffices
+- "is able to" instead of "can"
+- "due to the fact that" instead of "because"
+- Occasional dropped article: "is critical issue" instead of "is a critical issue"
+- Occasional unnecessary "the": "the security of the online transactions"
 
-### Model stays the same
-- `google/gemini-2.5-flash` — single pass, no changes to architecture or credit logic.
+**RULE 10: WHAT NOT TO DO**
+- No contractions, no conversational markers, no rhetorical questions
+- No em dashes (use commas or parentheses instead)
+- No semicolons joining independent clauses (split into two sentences)
+- No markdown formatting
+- No new information added or existing content removed
 
-### No other files change
-- Frontend (`Humanizer.tsx`) remains unchanged.
-- Credit system remains unchanged.
-- Character limit (25,000) remains unchanged.
+**RULE 11: FINAL SELF-AUDIT**
+- Scan entire output for ANY banned word from Rule 1. Replace if found.
+- Verify every sentence differs from the original by at least 2 words.
+- Verify translation artifacts appear at least once every 3 sentences.
+- Do NOT fix the awkward constructions -- they are intentional.
 
----
+### Model remains `google/gemini-2.5-flash`
+### No frontend or credit logic changes needed
 
-## Expected Impact
+## Expected Improvement
 
-Based on the Stealth Writer results across all three test cases:
-- Text A (88% human original) went to 99% human
-- Text B (63% human original) went to 91% human  
-- Text C (57% human original) went to 93% human
-
-The key is that Stealth Writer's approach works regardless of how AI-heavy the original is, because it introduces genuine human-like imperfections rather than trying to write "better" text.
+The key improvements target exactly the pink-flagged areas:
+- Banned words will be caught by top-priority placement and double-audit
+- Definitions and objectives will be reworded with imperfections instead of kept verbatim
+- Clean comma lists will be broken up
+- More frequent translation artifacts will push human score higher
+- Em dashes and semicolons (AI patterns) will be eliminated
