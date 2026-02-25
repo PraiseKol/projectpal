@@ -55,6 +55,8 @@ const Dashboard = () => {
   const [showAllChats, setShowAllChats] = useState(false);
   const [defaultDailyCredits, setDefaultDailyCredits] = useState(8);
   const [defaultMonthlyCredits, setDefaultMonthlyCredits] = useState(40);
+  const [pptCreditCost, setPptCreditCost] = useState(10);
+  const [humanizerCreditCost, setHumanizerCreditCost] = useState(5);
   const [upgradeDialog, setUpgradeDialog] = useState<{
     open: boolean;
     feature: string;
@@ -109,15 +111,17 @@ const Dashboard = () => {
 
       setRecentParaphrases(paraphrasesData || []);
 
-      // Fetch admin-configured credit defaults
+      // Fetch admin-configured credit defaults and dynamic costs
       const { data: settingsData } = await supabase
         .from("app_settings")
         .select("key, value")
-        .in("key", ["default_daily_credits", "default_monthly_credits"]);
+        .in("key", ["default_daily_credits", "default_monthly_credits", "credit_cost_ppt_base", "credit_cost_humanizer"]);
 
       settingsData?.forEach((s: { key: string; value: string }) => {
         if (s.key === "default_daily_credits") setDefaultDailyCredits(parseInt(s.value) || 8);
         if (s.key === "default_monthly_credits") setDefaultMonthlyCredits(parseInt(s.value) || 40);
+        if (s.key === "credit_cost_ppt_base") setPptCreditCost(parseInt(s.value) || 10);
+        if (s.key === "credit_cost_humanizer") setHumanizerCreditCost(parseInt(s.value) || 5);
       });
     } catch (error) {
       logError("Dashboard:checkAuth", error);
@@ -670,7 +674,7 @@ const Dashboard = () => {
                 <CardTitle>PPT Generator</CardTitle>
                 {canAccessFeature("scholar") ? (
                   <Badge variant="secondary" className="text-xs">
-                    6 Credits
+                    {pptCreditCost} Credits
                   </Badge>
                 ) : (
                   <Badge variant="outline" className="text-xs gap-1">
@@ -755,7 +759,7 @@ const Dashboard = () => {
               <div className="flex items-center gap-2">
                 <CardTitle>AI Humanizer</CardTitle>
                 <Badge variant="secondary" className="text-xs">
-                  5 Credits
+                  {humanizerCreditCost} Credits
                 </Badge>
               </div>
               <CardDescription>Make AI-generated text sound more natural and human-written</CardDescription>

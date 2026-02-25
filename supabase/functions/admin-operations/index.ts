@@ -874,6 +874,87 @@ serve(async (req) => {
         break;
       }
 
+      case "getAllMessages": {
+        if (!isSuperAdmin) {
+          return new Response(JSON.stringify({ error: "Super admin access required" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { page = 1, perPage = 50, search = "" } = params;
+        const from = (page - 1) * perPage;
+        const to = from + perPage - 1;
+
+        let query = supabaseAdmin
+          .from("messages")
+          .select("*, chat_sessions!inner(user_id, title)", { count: "exact" })
+          .order("created_at", { ascending: false })
+          .range(from, to);
+
+        if (search) {
+          query = query.ilike("content", `%${search}%`);
+        }
+
+        const { data: messages, error, count } = await query;
+        if (error) throw error;
+
+        result = { messages: messages || [], total: count || 0 };
+        break;
+      }
+
+      case "updateMessage": {
+        if (!isSuperAdmin) {
+          return new Response(JSON.stringify({ error: "Super admin access required" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { messageId, content: newContent } = params;
+        const { error } = await supabaseAdmin
+          .from("messages")
+          .update({ content: newContent })
+          .eq("id", messageId);
+
+        if (error) throw error;
+
+        await supabaseAdmin.from("admin_audit_log").insert({
+          admin_user_id: user.id,
+          action_type: "update_message",
+          details: { messageId }
+        });
+
+        result = { success: true };
+        break;
+      }
+
+      case "deleteMessage": {
+        if (!isSuperAdmin) {
+          return new Response(JSON.stringify({ error: "Super admin access required" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { messageId: delMsgId } = params;
+        const { error } = await supabaseAdmin
+          .from("messages")
+          .delete()
+          .eq("id", delMsgId);
+
+        if (error) throw error;
+
+        await supabaseAdmin.from("admin_audit_log").insert({
+          admin_user_id: user.id,
+          action_type: "delete_message",
+          details: { messageId: delMsgId }
+        });
+
+        result = { success: true };
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown action" }), {
           status: 400,

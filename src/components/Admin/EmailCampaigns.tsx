@@ -9,7 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Mail, Plus, Send, Eye, Trash2, Loader2, Users, CheckCircle, XCircle, Clock } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Mail, Plus, Send, Eye, Trash2, Loader2, Users, CheckCircle, XCircle, Clock, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { translateError, logError } from "@/utils/errorMessages";
@@ -55,6 +56,7 @@ export const EmailCampaigns = () => {
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [showSendDialog, setShowSendDialog] = useState(false);
   const [testEmail, setTestEmail] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // User selection state
   const [allUsers, setAllUsers] = useState<UserForSelection[]>([]);
@@ -273,11 +275,45 @@ export const EmailCampaigns = () => {
       if (error) throw error;
 
       toast.success("Campaign deleted");
+      setDeleteConfirmId(null);
       loadCampaigns();
     } catch (error: any) {
       console.error("Error deleting campaign:", error);
       toast.error(error.message || "Failed to delete campaign");
     }
+  };
+
+  const handleCopyAndResend = async (campaign: Campaign) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from("email_campaigns")
+        .insert({
+          name: `${campaign.name} (Copy)`,
+          subject: campaign.subject,
+          content: campaign.content,
+          email_type: campaign.email_type,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success("Campaign duplicated as draft");
+      await loadCampaigns();
+
+      // Open the send dialog for the new campaign
+      if (data) {
+        openSendDialog(data as Campaign);
+      }
+    } catch (error: any) {
+      logError("EmailCampaigns:copyAndResend", error);
+      toast.error(translateError(error));
+    }
+  };
   };
 
   const getStatusBadge = (status: string) => {
@@ -464,15 +500,23 @@ export const EmailCampaigns = () => {
                             <Send className="h-4 w-4" />
                           </Button>
                         )}
-                        {campaign.status === "draft" && (
+                        {campaign.status === "sent" && (
                           <Button
-                            variant="destructive"
+                            variant="outline"
                             size="sm"
-                            onClick={() => deleteCampaign(campaign.id)}
+                            onClick={() => handleCopyAndResend(campaign)}
+                            title="Copy & Resend"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Copy className="h-4 w-4" />
                           </Button>
                         )}
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setDeleteConfirmId(campaign.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -677,6 +721,22 @@ export const EmailCampaigns = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete campaign?</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently delete this campaign. This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteConfirmId && deleteCampaign(deleteConfirmId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
