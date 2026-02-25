@@ -1,106 +1,78 @@
 
-# Humanizer Prompt V3 -- Deeper Stealth Writer Alignment
 
-## Problem Analysis from Screenshots
+# Implementation Plan: Admin Messages Tab, Dynamic Credit Labels, Email Campaign Improvements
 
-The AI checker flagged these specific patterns as AI-generated in our humanizer output:
+## Task 1: Admin Messages Tab (Super Admin Only)
 
-| Flagged Pattern | Why It Fails | Fix |
-|---|---|---|
-| "has emerged as a robust security" | "robust" is on banned list but model ignores it | Move banned list to TOP of prompt with stronger enforcement |
-| "Furthermore, traditional authentication..." | "Furthermore" is banned but used | Same -- priority elevation |
-| "which are unique to the individual--with" | Em dashes banned but used | Add to banned list more visibly |
-| "Passwords can be easily compromised through phishing, brute-force attacks, keylogging, and credential stuffing" | Clean comma-separated list is AI pattern | New rule: break up clean enumerations |
-| "The general objective of this study is to design and implement..." | Too close to original verbatim | Stronger requirement to change EVERY sentence |
-| Definition items kept word-for-word | Definitions are easy AI detection targets | New rule: rephrase definitions awkwardly |
-| Smooth multi-clause sentences with semicolons | Too polished for human paraphrasing | Rule to break or simplify complex sentences |
+### What it does
+Adds a new "Messages" tab to the Admin page that lets super admins view, edit, and delete chat messages stored in the `messages` table.
 
-## Key Insight
+### Technical approach
+1. **New component: `src/components/Admin/MessagesManagement.tsx`**
+   - Fetches messages via the `admin-operations` edge function (new action `getAllMessages`) since RLS restricts messages to session owners
+   - Displays messages in a searchable, paginated table with columns: Date, User (email from emailMap), Session ID, Sender (user/ai), Content (truncated), Actions
+   - Edit: Dialog to modify message content, calls `admin-operations` with `updateMessage` action
+   - Delete: Confirmation dialog, calls `admin-operations` with `deleteMessage` action
+   - Pagination (50 per page) since messages table can be large
 
-The model is treating the rules as suggestions, not hard constraints. The fix is threefold:
+2. **Update `supabase/functions/admin-operations/index.ts`**
+   - Add three new actions: `getAllMessages`, `updateMessage`, `deleteMessage`
+   - Uses service role key to bypass RLS
+   - `getAllMessages`: paginated fetch with optional search, returns messages with session info
+   - `updateMessage`: updates message content by ID
+   - `deleteMessage`: deletes message by ID
 
-1. **Restructure prompt priority** -- Put the banned vocabulary list FIRST with aggressive enforcement language
-2. **Add new rules for AI-pattern breaking** -- specifically targeting comma-separated lists, smooth definitions, and verbatim phrases
-3. **Increase translation artifact frequency** -- from every 3-5 sentences to every 2-4 sentences
-4. **Add mandatory word-change density** -- every sentence MUST have at least 2-3 word substitutions; no sentence should survive unchanged
+3. **Update `src/pages/Admin.tsx`**
+   - Add `MessageSquare` icon import and new tab trigger (super admin only)
+   - Add `TabsContent` for messages tab rendering `MessagesManagement`
 
-## Implementation
+## Task 2: Dynamic Credit Labels on Dashboard
 
-### Single file change: `supabase/functions/humanize-text/index.ts`
+### What it does
+The PPT Generator card currently shows a hardcoded "6 Credits" badge and the AI Humanizer shows a hardcoded "5 Credits" badge. These should reflect the live values from `app_settings`.
 
-Replace the `HUMANIZE_PROMPT` constant with V3 prompt. No other changes needed.
+### Technical approach
+1. **Update `src/pages/Dashboard.tsx`**
+   - Expand the existing `app_settings` query (lines 113-121) to also fetch `credit_cost_ppt_base` and `credit_cost_humanizer` keys
+   - Add two new state variables: `pptCreditCost` (default 10) and `humanizerCreditCost` (default 5)
+   - Replace the hardcoded "6 Credits" badge on the PPT Generator card (line 673) with the dynamic `pptCreditCost` value
+   - Replace the hardcoded "5 Credits" badge on the AI Humanizer card (line 758) with the dynamic `humanizerCreditCost` value
 
-### V3 Prompt Design (in priority order)
+## Task 3: Email Campaign Delete & Resend
 
-**RULE 1: BANNED VOCABULARY (HIGHEST PRIORITY -- CHECK THIS FIRST AND LAST)**
-- Expanded list with stronger language: "If ANY of these words appear in your output, your entire response is a failure."
-- Add words that appeared in flagged output: "emerged", "seamless", "explosive"
-- Add pattern bans: no em dashes, no semicolons joining independent clauses
+### What it does
+Currently, delete and send buttons only appear for "draft" campaigns. This adds:
+- Delete button for ALL campaigns (draft, sent, etc.)
+- A "Copy & Resend" button for already-sent campaigns that duplicates the campaign as a new draft and opens the send dialog
 
-**RULE 2: MANDATORY CHANGE DENSITY**
-- Every single sentence MUST be changed from the original. No sentence may survive with fewer than 2 word substitutions.
-- If a sentence is short (under 10 words), at least 1 word must change.
-- This prevents the verbatim copying that got flagged in definitions and objectives.
+### Technical approach
+1. **Update `src/components/Admin/EmailCampaigns.tsx`**
+   - Move the delete button outside the `campaign.status === "draft"` conditional so it appears for all campaigns
+   - Add a confirmation dialog before deleting (especially for sent campaigns)
+   - Add a "Copy & Resend" button (Copy icon) for sent campaigns that:
+     - Creates a new campaign with the same subject, content, and type but with " (Copy)" appended to the name
+     - Sets status to "draft"
+     - Opens the send dialog for the new campaign
+   - Add `AlertDialog` for delete confirmation
 
-**RULE 3: CLOSE SYNONYM SUBSTITUTION (primary technique)**
-- Same as before but with MORE examples and stronger emphasis on changing every sentence.
-- Add: "revolutionized" becomes "changed", "explosive growth" becomes "fast growth", "sophisticated" becomes "advanced" or "complex".
+### Email sending assessment
+The `send-newsletter` edge function already correctly:
+- Accepts `userIds` array to send to specific selected users
+- Fetches all auth users with pagination (handles >1000 users)
+- Sends in batches of 10 with 300ms delay to avoid Resend rate limits
+- Logs success/failure per recipient
+- When `userIds` is provided, it bypasses email preference filtering (intentional for admin-selected sends)
 
-**RULE 4: BREAK UP CLEAN ENUMERATIONS**
-- NEW RULE: When the original has a clean comma-separated list within a sentence (e.g., "through phishing, brute-force attacks, keylogging, and credential stuffing"), break it up:
-  - Split into two shorter sentences, OR
-  - Remove one item and add it in a follow-up sentence, OR
-  - Use "and" earlier or restructure the list awkwardly
-- Clean enumerations are a strong AI signal.
+There are no issues with the sending function. It properly delivers to all selected users. The only potential limitation is Resend's own rate limits (varies by plan), but the batching with delays mitigates this.
 
-**RULE 5: TRANSLATION-ARTIFACT GRAMMAR (increased frequency)**
-- Changed from every 3-5 sentences to every 2-3 sentences.
-- More specific examples:
-  - "The effectiveness of biometric authentication is dependent on the quality" becomes "How effective the biometric authentication is depends on what quality"
-  - "provides a blueprint for integrating" becomes "gives a kind of guideline for how to integrate"
-  - "A security system that requires more than one method" becomes "A security type of system which is needing more than a single method"
-- Add rule: definitions and short descriptive items are prime targets for awkward constructions.
+---
 
-**RULE 6: REFERENCE HANDLING**
-- Keep all citations, author names, dates, page numbers EXACTLY as given.
-- But the title text within references CAN be slightly reworded (this was flagged green in Stealth Writer output).
+## Files to create
+- `src/components/Admin/MessagesManagement.tsx`
 
-**RULE 7: PRESERVE STRUCTURE**
-- Keep numbered lists as numbered lists.
-- Keep paragraph breaks and section headings.
-- Keep sentence boundaries roughly the same.
+## Files to modify
+- `src/pages/Admin.tsx` (add Messages tab, super admin only)
+- `src/pages/Dashboard.tsx` (fetch dynamic credit costs, update badges)
+- `src/components/Admin/EmailCampaigns.tsx` (delete all campaigns, copy & resend)
+- `supabase/functions/admin-operations/index.ts` (add message CRUD actions)
 
-**RULE 8: SENTENCE-LEVEL VOICE CHANGES**
-- Same as before: occasional active/passive flips.
-
-**RULE 9: MINOR IMPERFECTIONS**
-- "in order to" where "to" suffices
-- "is able to" instead of "can"
-- "due to the fact that" instead of "because"
-- Occasional dropped article: "is critical issue" instead of "is a critical issue"
-- Occasional unnecessary "the": "the security of the online transactions"
-
-**RULE 10: WHAT NOT TO DO**
-- No contractions, no conversational markers, no rhetorical questions
-- No em dashes (use commas or parentheses instead)
-- No semicolons joining independent clauses (split into two sentences)
-- No markdown formatting
-- No new information added or existing content removed
-
-**RULE 11: FINAL SELF-AUDIT**
-- Scan entire output for ANY banned word from Rule 1. Replace if found.
-- Verify every sentence differs from the original by at least 2 words.
-- Verify translation artifacts appear at least once every 3 sentences.
-- Do NOT fix the awkward constructions -- they are intentional.
-
-### Model remains `google/gemini-2.5-flash`
-### No frontend or credit logic changes needed
-
-## Expected Improvement
-
-The key improvements target exactly the pink-flagged areas:
-- Banned words will be caught by top-priority placement and double-audit
-- Definitions and objectives will be reworded with imperfections instead of kept verbatim
-- Clean comma lists will be broken up
-- More frequent translation artifacts will push human score higher
-- Em dashes and semicolons (AI patterns) will be eliminated
