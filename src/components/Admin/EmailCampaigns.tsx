@@ -314,7 +314,6 @@ export const EmailCampaigns = () => {
       toast.error(translateError(error));
     }
   };
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
