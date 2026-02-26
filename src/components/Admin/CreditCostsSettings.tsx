@@ -31,6 +31,7 @@ const CREDIT_OPERATIONS: CreditOperation[] = [
   { key: "credit_cost_ppt_base", label: "PowerPoint Generator", defaultCost: 10, category: "Tools" },
   { key: "credit_cost_ppt_images", label: "PowerPoint + Images", defaultCost: 15, category: "Tools" },
   { key: "credit_cost_humanizer", label: "AI Humanizer", defaultCost: 5, category: "Tools" },
+  { key: "credit_cost_references", label: "References / Bibliography", defaultCost: 15, category: "Writing" },
   { key: "credit_cost_chapter_5_alt", label: "Chapter 5 (Advanced)", defaultCost: 15, category: "Writing" },
   { key: "credit_cost_research_proposal", label: "Research Proposal", defaultCost: 20, category: "Writing" },
   { key: "credit_cost_journal_paper", label: "Journal Paper", defaultCost: 20, category: "Writing" },

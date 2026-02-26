@@ -76,6 +76,7 @@ const CREDIT_OPERATIONS = [
   { key: "credit_cost_humanizer", label: "AI Humanizer", defaultCost: 5, category: "Tools" },
   { key: "credit_cost_research_proposal", label: "Research Proposal", defaultCost: 20, category: "Writing" },
   { key: "credit_cost_journal_paper", label: "Journal Paper", defaultCost: 20, category: "Writing" },
+  { key: "credit_cost_references", label: "References", defaultCost: 15, category: "Writing" },
   { key: "credit_cost_chapter_3", label: "Chapter 3", defaultCost: 25, category: "Writing" },
   { key: "credit_cost_data_analysis", label: "Data Analysis", defaultCost: 30, category: "Analysis" },
   { key: "credit_cost_chapter_4", label: "Chapter 4", defaultCost: 50, category: "Writing" },
