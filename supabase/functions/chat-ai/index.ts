@@ -81,6 +81,7 @@ const CHAPTER_COSTS: Record<string, number> = {
   chapter_3: 25,
   chapter_4: 50,
   chapter_5: 5,
+  references: 15,
 };
 
 // Detect all chapters explicitly requested in a single message
@@ -142,6 +143,9 @@ function determineCreditCostFallback(message: string): { cost: number; actionTyp
   if (/\b(chapter\s*(5|five)|conclusion|recommendations)\b/i.test(msgLower)) {
     return { cost: 5, actionType: 'chapter_5' };
   }
+  if (/\b(references?|bibliography|works?\s+cited|reference\s+list|apa\s+references?|citation\s+list)\b/i.test(msgLower)) {
+    return { cost: 15, actionType: 'references' };
+  }
   if (/\b(suggest|generate|topic|proposal|outline|section|continue|expand|elaborate|extend|add\s+more)\b/i.test(msgLower)) {
     return { cost: 2, actionType: 'generation_suggestion' };
   }
@@ -178,7 +182,8 @@ CLASSIFICATION RULES (be strict - if the user is asking for content generation o
 - "research_proposal" (20 credits): Writing a full research proposal, project proposal
 - "fully_wrap_project" (50 credits): Wrapping an entire project, generating all preliminary/end pages
 - "generation_suggestion" (2 credits): Generating topics, outlines for non-chapter items, suggestions, expanding a paragraph, editing a section, continuing writing, improving text
-- "article_search" (1 credit): Searching for articles, finding papers, looking up references
+- "references" (15 credits): Generating references, bibliography, reference list, works cited, APA references, citation list, footnotes list for the project
+- "article_search" (1 credit): Searching for articles, finding papers, looking up references on a search engine
 - "simple_chat" (1 credit): Asking questions, seeking advice, clarification, greetings, or any non-generation request
 
 IMPORTANT DISTINCTIONS:
@@ -228,6 +233,7 @@ Return ONLY valid JSON: {"actionType": "category_name", "cost": number}`;
       chapter_inquiry: 1,
       chapter_1_outline: 3, chapter_2_outline: 5, chapter_3_outline: 13, chapter_4_outline: 25, chapter_5_outline: 3,
       project_outline: 10,
+      references: 15,
       research_proposal: 20, fully_wrap_project: 50, generation_suggestion: 2,
       article_search: 1, simple_chat: 1,
     };
@@ -355,7 +361,20 @@ serve(async (req) => {
       actionType = fallback.actionType;
       requestedChapters = fallback.chapters;
     }
-    console.log(`[CREDIT] Action detected: ${actionType}, Cost: ${creditCost} credits`);
+    console.log(`[CREDIT] AI classified action: ${actionType}, Cost: ${creditCost} credits`);
+
+    // SAFETY NET: Regex override to prevent AI misclassification of expensive operations
+    // If the regex detects a chapter generation request but the AI classified it as something cheaper, force the correct type
+    const regexCheck = determineCreditCostFallback(message);
+    const EXPENSIVE_ACTIONS = ['chapter_1', 'chapter_2', 'chapter_3', 'chapter_4', 'chapter_5', 'references'];
+    
+    if (EXPENSIVE_ACTIONS.includes(regexCheck.actionType) && !EXPENSIVE_ACTIONS.includes(actionType) && actionType !== 'multi_chapter') {
+      console.log(`[CREDIT] SAFETY NET: Regex detected "${regexCheck.actionType}" (cost ${regexCheck.cost}) but AI classified as "${actionType}" (cost ${creditCost}). Overriding to regex result.`);
+      actionType = regexCheck.actionType;
+      creditCost = regexCheck.cost;
+    }
+
+    console.log(`[CREDIT] Final action: ${actionType}, Cost: ${creditCost} credits`);
 
     // Fetch dynamic credit costs from app_settings (all chapter costs + defaults)
     const { data: settingsData } = await supabaseClient
