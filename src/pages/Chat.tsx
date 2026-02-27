@@ -441,13 +441,36 @@ const Chat = () => {
       const errorBody = error?.context?.body;
       const statusCode = error?.context?.status || error?.status;
       if (statusCode === 402 || errorBody?.credits_required) {
+        // Map action_type to human-readable labels
+        const ACTION_LABELS: Record<string, string> = {
+          chapter_1: "Chapter 1 (Introduction)",
+          chapter_2: "Chapter 2 (Literature Review)",
+          chapter_3: "Chapter 3 (Methodology)",
+          chapter_4: "Chapter 4 (Results & Discussion)",
+          chapter_5: "Chapter 5 (Conclusion)",
+          references: "References / Bibliography",
+          project_outline: "Project Outline",
+          proposal: "Research Proposal",
+          article_search: "Article Search",
+          data_analysis: "Data Analysis",
+          questionnaire: "Questionnaire",
+          ppt_generation: "PPT Generation",
+          chapter_1_outline: "Chapter 1 Outline",
+          chapter_2_outline: "Chapter 2 Outline",
+          chapter_3_outline: "Chapter 3 Outline",
+          chapter_4_outline: "Chapter 4 Outline",
+          chapter_5_outline: "Chapter 5 Outline",
+        };
+        const actionType = errorBody?.action_type;
+        const actionLabel = actionType ? ACTION_LABELS[actionType] || actionType.replace(/_/g, ' ') : "this operation";
         let msg: string;
         if (errorBody?.credits_required && errorBody?.credits_available !== undefined) {
-          msg = `You need ${errorBody.credits_required} credits for this action but only have ${errorBody.credits_available}. Upgrade your plan for more credits!`;
+          msg = `Generating ${actionLabel} requires ${errorBody.credits_required} credits, but you only have ${errorBody.credits_available}. Subscribe to a plan with more credits to unlock this feature!`;
         } else {
-          msg = errorBody?.error || "You've run out of credits for this month. Upgrade your plan for more credits!";
+          msg = errorBody?.error || "You've run out of credits. Subscribe to a plan with more credits to continue!";
         }
         toast.error(msg, {
+          duration: 8000,
           action: { label: "Upgrade", onClick: () => navigate("/pricing") },
         });
         navigate("/pricing");

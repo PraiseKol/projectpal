@@ -502,6 +502,7 @@ serve(async (req) => {
             error: `You don't have enough credits for ${chapterListStr}. This requires ${totalNeeded} credits but you only have ${totalAvailable}. Upgrade to Pro or Scholar for more credits!`,
             credits_required: totalNeeded,
             credits_available: totalAvailable,
+            action_type: 'multi_chapter',
           }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -533,7 +534,7 @@ serve(async (req) => {
 
         console.log(`[CREDIT] Insufficient credits for ${actionType} (need ${creditCost}, have ${totalAvailable})`);
         return new Response(
-          JSON.stringify({ error: errorMessage, credits_required: creditCost, credits_available: totalAvailable }),
+          JSON.stringify({ error: errorMessage, credits_required: creditCost, credits_available: totalAvailable, action_type: actionType }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -682,6 +683,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'google/gemini-3-flash-preview',
+        max_tokens: 16000,
         messages: [
           {
             role: 'system',
@@ -704,7 +706,8 @@ If ANY of these indicators are present, use the LAW DEPARTMENT structure below. 
 
 ---
 
-## DEFAULT DOCUMENT STRUCTURE (Science / Social Science / Other Departments)
+## DEFAULT DOCUMENT STRUCTURE (All Departments)
+NOTE: This default structure works for ALL departments including Computer Science, Engineering, Business, Education, Social Sciences, Natural Sciences, Health Sciences, Arts, Humanities, and any other field. Only Law uses a different structure below.
 
 ### PRELIMINARY PAGES (when requested):
 - Title Page: Project title, student name, matriculation number, department, faculty, institution, degree type, submission date
@@ -771,7 +774,7 @@ If ANY of these indicators are present, use the LAW DEPARTMENT structure below. 
 
 ## LAW DEPARTMENT LONG ESSAY STRUCTURE (LL.B Hons)
 
-IMPORTANT: This structure applies ONLY when the student is from a Law department/faculty. Law projects are called "Long Essays" (NOT "project" or "thesis"). They follow doctrinal/qualitative methodology (NEVER quantitative, surveys, or questionnaires). They use footnotes for citations (NOT in-text APA). The writing style uses legal reasoning, case law analysis, and statutory interpretation.
+IMPORTANT: This structure applies ONLY when the student is from a Law department/faculty. Law projects may be called "Long Essays", "Projects", or "Dissertations" depending on the institution — use whatever term the student uses. They follow doctrinal/qualitative methodology (NEVER quantitative, surveys, or questionnaires). They use footnotes for citations (NOT in-text APA). The writing style uses legal reasoning, case law analysis, and statutory interpretation.
 
 ### PRELIMINARY PAGES (Law-Specific):
 - **Title Page**: Long Essay title, student name, matriculation number, "College of Law" / "Faculty of Law", institution name, "In Partial Fulfilment of the Requirements for the Award of Bachelor of Laws (LL.B Hons)", Month and Year
@@ -930,6 +933,18 @@ Generate ONLY the specific chapter(s) the user explicitly requests in their curr
 
 ## PARTIAL CHAPTER REQUESTS — REFUSAL RULE:
 If a user asks for only a PART or SECTION of a chapter (e.g., "Write only section 1.1", "Just the background to the study", "Generate only the statement of the problem", "Write 3.1 to 3.4 only"), you MUST refuse and explain that you can only generate complete chapters, not partial sections. Say something like: "I can only generate complete chapters, not individual sections. Would you like me to generate the full Chapter X instead?" Do NOT generate partial chapter content.
+
+## CHAPTER LENGTH REQUIREMENTS:
+When generating full chapter content, produce substantive, comprehensive academic prose:
+- Chapter 1 (Introduction): Minimum 8-10 pages (~2400-3000 words)
+- Chapter 2 (Literature Review): Minimum 12-15 pages (~3600-4500 words)
+- Chapter 3 (Methodology): Minimum 8-10 pages (~2400-3000 words)
+- Chapter 4 (Results & Discussion): Minimum 12-15 pages (~3600-4500 words)
+- Chapter 5 (Conclusion): Minimum 5-7 pages (~1500-2100 words)
+- Each "page" is approximately 300 words of academic prose.
+- Be thorough and detailed in every section. Students need substantive, comprehensive content.
+- Do NOT be brief or scanty when generating chapters. Fill out every subsection with real academic depth and analysis.
+- Include detailed explanations, examples, and scholarly discussion throughout.
 
 ## CHAPTER INQUIRY vs GENERATION:
 If the user is merely ASKING ABOUT a chapter (e.g., "What should chapter 3 contain?", "How long should chapter 2 be?", "What goes in the methodology?"), provide an informational explanation WITHOUT generating the actual chapter content. Keep the response concise and helpful. Do NOT treat informational questions as generation requests.`,
