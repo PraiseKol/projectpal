@@ -1,78 +1,63 @@
 
 
-# Implementation Plan: Admin Messages Tab, Dynamic Credit Labels, Email Campaign Improvements
+# Plan: Improve Credit Error Messages, Increase Chapter Length, Fix Department/Naming Issues
 
-## Task 1: Admin Messages Tab (Super Admin Only)
+## 1. Improve 402 Error Toast Messages (Frontend)
 
-### What it does
-Adds a new "Messages" tab to the Admin page that lets super admins view, edit, and delete chat messages stored in the `messages` table.
+**File: `src/pages/Chat.tsx` (lines 438-456)**
 
-### Technical approach
-1. **New component: `src/components/Admin/MessagesManagement.tsx`**
-   - Fetches messages via the `admin-operations` edge function (new action `getAllMessages`) since RLS restricts messages to session owners
-   - Displays messages in a searchable, paginated table with columns: Date, User (email from emailMap), Session ID, Sender (user/ai), Content (truncated), Actions
-   - Edit: Dialog to modify message content, calls `admin-operations` with `updateMessage` action
-   - Delete: Confirmation dialog, calls `admin-operations` with `deleteMessage` action
-   - Pagination (50 per page) since messages table can be large
+The backend already returns `credits_required`, `credits_available`, and `error` in the 402 response. Update the frontend error handler to show a more specific, actionable toast:
 
-2. **Update `supabase/functions/admin-operations/index.ts`**
-   - Add three new actions: `getAllMessages`, `updateMessage`, `deleteMessage`
-   - Uses service role key to bypass RLS
-   - `getAllMessages`: paginated fetch with optional search, returns messages with session info
-   - `updateMessage`: updates message content by ID
-   - `deleteMessage`: deletes message by ID
+- Replace the generic message with: **"This operation requires {X} credits, but you only have {Y}. Subscribe to a plan with more credits to unlock this feature!"**
+- Include the operation name when possible (map `actionType` from error body to a human-readable label like "Chapter 3 (Methodology)")
+- Add the `action_type` field to the 402 error responses in the edge function so the frontend can display it
 
-3. **Update `src/pages/Admin.tsx`**
-   - Add `MessageSquare` icon import and new tab trigger (super admin only)
-   - Add `TabsContent` for messages tab rendering `MessagesManagement`
+**File: `supabase/functions/chat-ai/index.ts` (lines 497-538)**
 
-## Task 2: Dynamic Credit Labels on Dashboard
+- Add `action_type` to all 402 JSON responses so the frontend can show "Chapter 3 requires 25 credits" instead of just "This action requires 25 credits"
+- Update error messages to be clearer: "Generating **{action label}** requires **{cost}** credits, but you only have **{available}**. Subscribe to unlock this!"
 
-### What it does
-The PPT Generator card currently shows a hardcoded "6 Credits" badge and the AI Humanizer shows a hardcoded "5 Credits" badge. These should reflect the live values from `app_settings`.
+## 2. Increase Chapter Content Length
 
-### Technical approach
-1. **Update `src/pages/Dashboard.tsx`**
-   - Expand the existing `app_settings` query (lines 113-121) to also fetch `credit_cost_ppt_base` and `credit_cost_humanizer` keys
-   - Add two new state variables: `pptCreditCost` (default 10) and `humanizerCreditCost` (default 5)
-   - Replace the hardcoded "6 Credits" badge on the PPT Generator card (line 673) with the dynamic `pptCreditCost` value
-   - Replace the hardcoded "5 Credits" badge on the AI Humanizer card (line 758) with the dynamic `humanizerCreditCost` value
+**File: `supabase/functions/chat-ai/index.ts` (lines 677-941, system prompt)**
 
-## Task 3: Email Campaign Delete & Resend
+Add explicit page-length guidance to the system prompt after the `## CONTENT QUALITY` section:
 
-### What it does
-Currently, delete and send buttons only appear for "draft" campaigns. This adds:
-- Delete button for ALL campaigns (draft, sent, etc.)
-- A "Copy & Resend" button for already-sent campaigns that duplicates the campaign as a new draft and opens the send dialog
+```
+## CHAPTER LENGTH REQUIREMENTS:
+- Chapter 1 (Introduction): Minimum 8-10 pages of content
+- Chapter 2 (Literature Review): Minimum 12-15 pages of content  
+- Chapter 3 (Methodology): Minimum 8-10 pages of content
+- Chapter 4 (Results & Discussion): Minimum 12-15 pages of content
+- Chapter 5 (Conclusion): Minimum 5-7 pages of content
+- Each "page" is approximately 300 words of academic prose
+- Be thorough and detailed in every section. Students need substantive, comprehensive content.
+- Do NOT be brief or scan when generating chapters. Fill out every subsection with real academic depth.
+```
 
-### Technical approach
-1. **Update `src/components/Admin/EmailCampaigns.tsx`**
-   - Move the delete button outside the `campaign.status === "draft"` conditional so it appears for all campaigns
-   - Add a confirmation dialog before deleting (especially for sent campaigns)
-   - Add a "Copy & Resend" button (Copy icon) for sent campaigns that:
-     - Creates a new campaign with the same subject, content, and type but with " (Copy)" appended to the name
-     - Sets status to "draft"
-     - Opens the send dialog for the new campaign
-   - Add `AlertDialog` for delete confirmation
+Also add `max_tokens: 16000` to the AI call (line 677) to allow longer outputs.
 
-### Email sending assessment
-The `send-newsletter` edge function already correctly:
-- Accepts `userIds` array to send to specific selected users
-- Fetches all auth users with pagination (handles >1000 users)
-- Sends in batches of 10 with 300ms delay to avoid Resend rate limits
-- Logs success/failure per recipient
-- When `userIds` is provided, it bypasses email preference filtering (intentional for admin-selected sends)
+## 3. Remove "Long Essay" Label Restriction for Law
 
-There are no issues with the sending function. It properly delivers to all selected users. The only potential limitation is Resend's own rate limits (varies by plan), but the batching with delays mitigates this.
+**File: `supabase/functions/chat-ai/index.ts` (line 774)**
 
----
+Change: `Law projects are called "Long Essays" (NOT "project" or "thesis")`  
+To: `Law projects may be called "Long Essays", "Projects", or "Dissertations" depending on the institution.`
 
-## Files to create
-- `src/components/Admin/MessagesManagement.tsx`
+Remove the forced "Long Essay" terminology throughout. The AI should use whatever term the student uses.
 
-## Files to modify
-- `src/pages/Admin.tsx` (add Messages tab, super admin only)
-- `src/pages/Dashboard.tsx` (fetch dynamic credit costs, update badges)
-- `src/components/Admin/EmailCampaigns.tsx` (delete all campaigns, copy & resend)
-- `supabase/functions/admin-operations/index.ts` (add message CRUD actions)
+## 4. Make Department Structure Generic (Not Just Social Science / Law)
+
+**File: `supabase/functions/chat-ai/index.ts` (lines 691-707)**
+
+- Change `## DEFAULT DOCUMENT STRUCTURE (Science / Social Science / Other Departments)` to `## DEFAULT DOCUMENT STRUCTURE (All Departments)`
+- Update the department detection intro to clarify: "The DEFAULT structure works for ALL departments (Computer Science, Engineering, Business, Education, Social Sciences, Natural Sciences, etc.). Only Law uses a different structure."
+- Remove any implication that the tool is limited to Social Science or Law
+
+## Summary of Files to Modify
+
+| File | Changes |
+|---|---|
+| `supabase/functions/chat-ai/index.ts` | Add `action_type` to 402 responses, add chapter length requirements to system prompt, increase `max_tokens`, fix Law/department naming |
+| `src/pages/Chat.tsx` | Improve 402 error toast to show specific credit cost and operation name |
 
