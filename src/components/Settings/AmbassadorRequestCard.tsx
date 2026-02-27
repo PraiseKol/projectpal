@@ -7,6 +7,7 @@ import { Users, Clock, CheckCircle2, XCircle, Star, Link, BarChart3, Coins } fro
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { translateError, logError } from "@/utils/errorMessages";
+import { AmbassadorRequestModal } from "./AmbassadorRequestModal";
 
 interface AmbassadorRequestCardProps {
   userId: string;
@@ -19,7 +20,7 @@ export const AmbassadorRequestCard = ({ userId, isAmbassador, planType, creditsE
   const navigate = useNavigate();
   const [requestStatus, setRequestStatus] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   const isActivePaidUser = () => {
     if (planType === 'free') return false;
@@ -46,26 +47,6 @@ export const AmbassadorRequestCard = ({ userId, isAmbassador, planType, creditsE
     }
   };
 
-  const handleRequest = async () => {
-    setIsSubmitting(true);
-    try {
-      const response = await supabase.functions.invoke("ambassador-operations", {
-        body: { action: "requestAmbassadorRole" },
-      });
-      if (response.data?.error) {
-        toast.error(response.data.error);
-      } else {
-        toast.success("Ambassador request submitted!");
-        setRequestStatus("pending");
-      }
-    } catch (error) {
-      logError("AmbassadorRequestCard:request", error);
-      toast.error(translateError(error));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   if (isAmbassador || isLoading) return null;
 
   const canRequest = !requestStatus || requestStatus === "declined" || (requestStatus === "approved" && !isAmbassador);
@@ -79,79 +60,87 @@ export const AmbassadorRequestCard = ({ userId, isAmbassador, planType, creditsE
   ];
 
   return (
-    <Card className="mb-6 shadow-lg rounded-2xl">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          Become an Ambassador
-        </CardTitle>
-        <CardDescription>
-          Earn 5% commission on all subscriptions made by users who sign up with your referral code.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {!paidUser && canRequest ? (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              {ambassadorPerks.map((perk, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <perk.icon className="h-4 w-4 text-primary flex-shrink-0" />
-                  <span>{perk.text}</span>
-                </div>
-              ))}
-            </div>
-            <Button onClick={() => navigate("/pricing")} className="w-full rounded-xl">
-              Upgrade to a Paid Plan to Request
-            </Button>
-          </div>
-        ) : (
-          <>
-            {requestStatus === "pending" && (
-              <div className="flex items-center gap-2 p-4 bg-accent rounded-xl">
-                <Clock className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="font-medium">Request Pending</p>
-                  <p className="text-sm text-muted-foreground">Your ambassador request is being reviewed by an admin.</p>
-                </div>
-                <Badge variant="secondary" className="ml-auto">Pending</Badge>
-              </div>
-            )}
-            {requestStatus === "approved" && !isAmbassador && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 p-4 bg-accent rounded-xl">
-                  <XCircle className="h-5 w-5 text-destructive" />
-                  <div>
-                    <p className="font-medium">Ambassador Status Revoked</p>
-                    <p className="text-sm text-muted-foreground">Your ambassador role was removed. You can request again below.</p>
+    <>
+      <Card className="mb-6 shadow-lg rounded-2xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Become an Ambassador
+          </CardTitle>
+          <CardDescription>
+            Earn 5% commission on all subscriptions made by users who sign up with your referral code.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!paidUser && canRequest ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                {ambassadorPerks.map((perk, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <perk.icon className="h-4 w-4 text-primary flex-shrink-0" />
+                    <span>{perk.text}</span>
                   </div>
-                </div>
-                <Button onClick={handleRequest} disabled={isSubmitting} className="w-full rounded-xl">
-                  {isSubmitting ? "Submitting..." : "Request Ambassador Role Again"}
-                </Button>
+                ))}
               </div>
-            )}
-            {requestStatus === "declined" && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 p-4 bg-accent rounded-xl">
-                  <XCircle className="h-5 w-5 text-destructive" />
-                  <div>
-                    <p className="font-medium">Request Declined</p>
-                    <p className="text-sm text-muted-foreground">Your previous request was not approved. You can try again.</p>
-                  </div>
-                </div>
-                <Button onClick={handleRequest} disabled={isSubmitting} className="w-full rounded-xl">
-                  {isSubmitting ? "Submitting..." : "Request Ambassador Role Again"}
-                </Button>
-              </div>
-            )}
-            {!requestStatus && (
-              <Button onClick={handleRequest} disabled={isSubmitting} className="w-full rounded-xl">
-                {isSubmitting ? "Submitting..." : "Request Ambassador Role"}
+              <Button onClick={() => navigate("/pricing")} className="w-full rounded-xl">
+                Upgrade to a Paid Plan to Request
               </Button>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
+            </div>
+          ) : (
+            <>
+              {requestStatus === "pending" && (
+                <div className="flex items-center gap-2 p-4 bg-accent rounded-xl">
+                  <Clock className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Request Pending</p>
+                    <p className="text-sm text-muted-foreground">Your ambassador request is being reviewed by an admin.</p>
+                  </div>
+                  <Badge variant="secondary" className="ml-auto">Pending</Badge>
+                </div>
+              )}
+              {requestStatus === "approved" && !isAmbassador && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 p-4 bg-accent rounded-xl">
+                    <XCircle className="h-5 w-5 text-destructive" />
+                    <div>
+                      <p className="font-medium">Ambassador Status Revoked</p>
+                      <p className="text-sm text-muted-foreground">Your ambassador role was removed. You can request again below.</p>
+                    </div>
+                  </div>
+                  <Button onClick={() => setShowModal(true)} className="w-full rounded-xl">
+                    Request Ambassador Role Again
+                  </Button>
+                </div>
+              )}
+              {requestStatus === "declined" && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 p-4 bg-accent rounded-xl">
+                    <XCircle className="h-5 w-5 text-destructive" />
+                    <div>
+                      <p className="font-medium">Request Declined</p>
+                      <p className="text-sm text-muted-foreground">Your previous request was not approved. You can try again.</p>
+                    </div>
+                  </div>
+                  <Button onClick={() => setShowModal(true)} className="w-full rounded-xl">
+                    Request Ambassador Role Again
+                  </Button>
+                </div>
+              )}
+              {!requestStatus && (
+                <Button onClick={() => setShowModal(true)} className="w-full rounded-xl">
+                  Request Ambassador Role
+                </Button>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <AmbassadorRequestModal
+        open={showModal}
+        onOpenChange={setShowModal}
+        onSuccess={() => setRequestStatus("pending")}
+      />
+    </>
   );
 };

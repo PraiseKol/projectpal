@@ -476,6 +476,8 @@ serve(async (req) => {
       }
 
       case "requestAmbassadorRole": {
+        const { phoneNumber, university } = params;
+
         // Check if already an ambassador
         const { data: existingRole } = await supabaseAdmin
           .from("user_roles")
@@ -508,7 +510,12 @@ serve(async (req) => {
 
         const { error: insertErr } = await supabaseAdmin
           .from("ambassador_requests")
-          .insert({ user_id: user.id, status: "pending" });
+          .insert({
+            user_id: user.id,
+            status: "pending",
+            phone_number: phoneNumber || null,
+            university: university || null,
+          });
 
         if (insertErr) throw insertErr;
 

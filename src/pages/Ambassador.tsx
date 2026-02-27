@@ -18,6 +18,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { AmbassadorSkeleton } from "@/components/skeletons/AmbassadorSkeleton";
 import { translateError, logError } from "@/utils/errorMessages";
+import { BankDetailsModal } from "@/components/Ambassador/BankDetailsModal";
 
 interface ReferralCode {
   id: string;
@@ -90,6 +91,7 @@ const Ambassador = () => {
   const [claimStatus, setClaimStatus] = useState<string>("open");
   const [userPlanType, setUserPlanType] = useState<string>("free");
   const [userCreditsExpiry, setUserCreditsExpiry] = useState<string | null>(null);
+  const [showBankModal, setShowBankModal] = useState(false);
 
   const isActivePaidUser = () => {
     if (userPlanType === 'free') return false;
@@ -134,15 +136,19 @@ const Ambassador = () => {
 
       setIsAmbassador(true);
 
-      // Fetch user profile for plan gating
+      // Fetch user profile for plan gating and bank details check
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("plan_type, credits_expiry_date")
+        .select("plan_type, credits_expiry_date, bank_name, bank_account_number, bank_account_holder_name")
         .eq("id", user.id)
         .single();
       if (profileData) {
         setUserPlanType(profileData.plan_type);
         setUserCreditsExpiry(profileData.credits_expiry_date);
+        // Show bank details modal if not filled
+        if (!profileData.bank_name || !profileData.bank_account_number || !profileData.bank_account_holder_name) {
+          setShowBankModal(true);
+        }
       }
 
       await Promise.all([loadAmbassadorData(), loadClaimStatus()]);
@@ -679,6 +685,12 @@ const Ambassador = () => {
           </CardContent>
         </Card>
       </main>
+
+      <BankDetailsModal
+        open={showBankModal}
+        onOpenChange={setShowBankModal}
+        onSuccess={() => setShowBankModal(false)}
+      />
     </div>
   );
 };
