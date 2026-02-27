@@ -96,30 +96,36 @@ export type Database = {
           admin_notes: string | null
           created_at: string | null
           id: string
+          phone_number: string | null
           reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           status: string
+          university: string | null
           user_id: string
         }
         Insert: {
           admin_notes?: string | null
           created_at?: string | null
           id?: string
+          phone_number?: string | null
           reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
+          university?: string | null
           user_id: string
         }
         Update: {
           admin_notes?: string | null
           created_at?: string | null
           id?: string
+          phone_number?: string | null
           reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
+          university?: string | null
           user_id?: string
         }
         Relationships: []
@@ -472,6 +478,9 @@ export type Database = {
       }
       profiles: {
         Row: {
+          bank_account_holder_name: string | null
+          bank_account_number: string | null
+          bank_name: string | null
           created_at: string
           credits_expiry_date: string | null
           daily_credits: number
@@ -490,6 +499,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bank_account_holder_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
           created_at?: string
           credits_expiry_date?: string | null
           daily_credits?: number
@@ -508,6 +520,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bank_account_holder_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
           created_at?: string
           credits_expiry_date?: string | null
           daily_credits?: number

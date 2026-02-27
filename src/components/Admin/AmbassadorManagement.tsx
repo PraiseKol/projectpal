@@ -32,6 +32,11 @@ interface Ambassador {
   claimedCommission: number;
   paidCommission: number;
   totalEarnings: number;
+  phoneNumber: string;
+  university: string;
+  bankName: string;
+  bankAccountNumber: string;
+  bankAccountHolderName: string;
 }
 
 interface Payout {
@@ -63,6 +68,8 @@ interface AmbassadorRequest {
   status: string;
   admin_notes: string | null;
   created_at: string;
+  phone_number: string;
+  university: string;
 }
 
 interface AmbassadorManagementProps {
@@ -354,21 +361,22 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <Table>
+               <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>University</TableHead>
                       <TableHead>Code</TableHead>
                       <TableHead>Referrals</TableHead>
-                      <TableHead>Pending</TableHead>
-                      <TableHead>Paid</TableHead>
                       <TableHead>Total Earned</TableHead>
+                      <TableHead>Bank Details</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
-                      <TableRowSkeleton columns={7} rows={5} />
+                      <TableRowSkeleton columns={8} rows={5} />
                     ) : ambassadors.length > 0 ? (
                       ambassadors.map((ambassador) => (
                         <TableRow key={ambassador.id}>
@@ -378,11 +386,22 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
                               <p className="text-xs text-muted-foreground">{ambassador.email}</p>
                             </div>
                           </TableCell>
+                          <TableCell className="text-sm">{ambassador.phoneNumber || "—"}</TableCell>
+                          <TableCell className="text-sm">{ambassador.university || "—"}</TableCell>
                           <TableCell className="font-mono">{ambassador.referralCode}</TableCell>
                           <TableCell>{ambassador.totalReferrals}</TableCell>
-                          <TableCell>₦{ambassador.pendingCommission.toLocaleString()}</TableCell>
-                          <TableCell>₦{ambassador.paidCommission.toLocaleString()}</TableCell>
                           <TableCell className="font-semibold">₦{ambassador.totalEarnings.toLocaleString()}</TableCell>
+                          <TableCell>
+                            {ambassador.bankName ? (
+                              <div className="text-xs">
+                                <p className="font-medium">{ambassador.bankName}</p>
+                                <p className="text-muted-foreground">{ambassador.bankAccountNumber}</p>
+                                <p className="text-muted-foreground">{ambassador.bankAccountHolderName}</p>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Not set</span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             {ambassador.isActive ? (
                               <Badge className="bg-green-600">Active</Badge>
@@ -394,7 +413,7 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                           No ambassadors yet
                         </TableCell>
                       </TableRow>
@@ -433,6 +452,8 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
                   <TableHeader>
                     <TableRow>
                       <TableHead>User</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>University</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Requested</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -440,7 +461,7 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
-                      <TableRowSkeleton columns={4} rows={5} />
+                      <TableRowSkeleton columns={6} rows={5} />
                     ) : requests.length > 0 ? (
                       requests.map((request) => (
                         <TableRow key={request.id}>
@@ -450,6 +471,8 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
                               <p className="text-xs text-muted-foreground">{request.user_email}</p>
                             </div>
                           </TableCell>
+                          <TableCell className="text-sm">{request.phone_number || "—"}</TableCell>
+                          <TableCell className="text-sm">{request.university || "—"}</TableCell>
                           <TableCell>
                             {request.status === "pending" && <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Pending</Badge>}
                             {request.status === "approved" && <Badge className="bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" />Approved</Badge>}
@@ -503,7 +526,7 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                           No requests found
                         </TableCell>
                       </TableRow>

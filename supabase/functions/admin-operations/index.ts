@@ -521,7 +521,7 @@ serve(async (req) => {
         // Get ambassador profiles
         const { data: profiles } = await supabaseAdmin
           .from("profiles")
-          .select("id, first_name, last_name")
+          .select("id, first_name, last_name, bank_name, bank_account_number, bank_account_holder_name")
           .in("id", ambassadorIds);
 
         // Get referral codes
@@ -553,11 +553,24 @@ serve(async (req) => {
           commissionStats[c.ambassador_user_id][c.status as "pending" | "claimed" | "paid"] += c.commission_amount;
         });
 
+        // Get ambassador request info (phone, university)
+        const { data: allRequests } = await supabaseAdmin
+          .from("ambassador_requests")
+          .select("user_id, phone_number, university")
+          .in("user_id", ambassadorIds)
+          .eq("status", "approved");
+
+        const requestInfoMap: Record<string, { phone_number: string | null; university: string | null }> = {};
+        allRequests?.forEach(r => {
+          requestInfoMap[r.user_id] = { phone_number: r.phone_number, university: r.university };
+        });
+
         // Build ambassador list
         const ambassadors = ambassadorIds.map(id => {
           const profile = profiles?.find(p => p.id === id);
           const code = codes?.find(c => c.user_id === id);
           const stats = commissionStats[id] || { pending: 0, claimed: 0, paid: 0 };
+          const reqInfo = requestInfoMap[id] || { phone_number: null, university: null };
           
           return {
             id,
@@ -569,7 +582,12 @@ serve(async (req) => {
             pendingCommission: stats.pending,
             claimedCommission: stats.claimed,
             paidCommission: stats.paid,
-            totalEarnings: stats.pending + stats.claimed + stats.paid
+            totalEarnings: stats.pending + stats.claimed + stats.paid,
+            phoneNumber: reqInfo.phone_number || "",
+            university: reqInfo.university || "",
+            bankName: profile?.bank_name || "",
+            bankAccountNumber: profile?.bank_account_number || "",
+            bankAccountHolderName: profile?.bank_account_holder_name || "",
           };
         });
 
@@ -715,6 +733,8 @@ serve(async (req) => {
             ...r,
             user_name: profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "Unknown",
             user_email: emailMap[r.user_id] || "",
+            phone_number: r.phone_number || "",
+            university: r.university || "",
           };
         });
 
