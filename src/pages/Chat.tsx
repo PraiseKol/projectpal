@@ -473,7 +473,6 @@ const Chat = () => {
           duration: 8000,
           action: { label: "Upgrade", onClick: () => navigate("/pricing") },
         });
-        navigate("/pricing");
       } else {
         toast.error(translateError(error));
       }

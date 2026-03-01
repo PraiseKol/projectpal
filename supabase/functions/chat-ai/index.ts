@@ -523,6 +523,76 @@ serve(async (req) => {
     } else if (actionType !== 'multi_chapter') {
       // Single chapter / other action — standard credit check
       if (totalAvailable < creditCost) {
+        // SMART CREDIT: If user has at least 1 credit, deduct 1 and explain inline
+        if (totalAvailable >= 1) {
+          console.log(`[CREDIT] Smart credit explanation: user has ${totalAvailable} but needs ${creditCost} for ${actionType}. Deducting 1 credit for explanation.`);
+          
+          // Deduct 1 credit
+          const smartDeduct = deductCredits(1, dailyCredits, monthlyCredits, paidCredits, isActiveSubscriber);
+          if (smartDeduct.success) {
+            // Save the deducted credits
+            const adminClient = createClient(
+              Deno.env.get('SUPABASE_URL') ?? '',
+              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+            );
+
+            await adminClient
+              .from('profiles')
+              .update({
+                daily_credits: smartDeduct.dailyCredits,
+                monthly_credits: smartDeduct.monthlyCredits,
+                paid_credits: smartDeduct.paidCredits,
+                daily_reset_date: today,
+              })
+              .eq('id', user.id);
+
+            // Build human-readable action label
+            const ACTION_LABELS: Record<string, string> = {
+              chapter_1: "Chapter 1 (Introduction)", chapter_2: "Chapter 2 (Literature Review)",
+              chapter_3: "Chapter 3 (Methodology)", chapter_4: "Chapter 4 (Results & Discussion)",
+              chapter_5: "Chapter 5 (Conclusion)", references: "References / Bibliography",
+              project_outline: "Project Outline", research_proposal: "Research Proposal",
+              fully_wrap_project: "Full Project Wrap", generation_suggestion: "Content Generation",
+            };
+            const actionLabel = ACTION_LABELS[actionType] || actionType.replace(/_/g, ' ');
+
+            const explanationMessage = `I'd love to help you with **${actionLabel}**, but you don't have enough credits to complete this request.\n\n` +
+              `📊 **Credit Details:**\n` +
+              `- **Required:** ${creditCost} credits\n` +
+              `- **Available:** ${totalAvailable} credits\n` +
+              `- **Shortfall:** ${creditCost - totalAvailable} credits\n\n` +
+              `To get this done, upgrade to a **Pro** or **Scholar** plan to receive more credits. Once you upgrade, come back and we'll pick up right where we left off! 🚀\n\n` +
+              `*1 credit was used to provide this explanation.*`;
+
+            // Save user message
+            await supabaseClient.from('messages').insert({
+              session_id: session_id,
+              sender: 'user',
+              content: message,
+            });
+
+            // Save AI explanation
+            await supabaseClient.from('messages').insert({
+              session_id: session_id,
+              sender: 'ai',
+              content: explanationMessage,
+            });
+
+            return new Response(
+              JSON.stringify({
+                response: explanationMessage,
+                profile: {
+                  daily_credits: smartDeduct.dailyCredits,
+                  monthly_credits: smartDeduct.monthlyCredits,
+                  paid_credits: smartDeduct.paidCredits,
+                },
+              }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
+
+        // Truly zero credits - hard 402
         let errorMessage: string;
         if (isActiveSubscriber) {
           errorMessage = `This action requires ${creditCost} credits. You have ${totalAvailable} credits remaining. Please purchase more credits.`;

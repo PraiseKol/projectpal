@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Users, Coins, Wallet, TrendingUp, CheckCircle2, Clock, XCircle, UserPlus, ShieldAlert, Settings } from "lucide-react";
+import { Users, Coins, Wallet, TrendingUp, CheckCircle2, Clock, XCircle, UserPlus, ShieldAlert, Settings, Upload, Image } from "lucide-react";
 import { TableRowSkeleton } from "@/components/skeletons/TableRowSkeleton";
 import { translateError, logError } from "@/utils/errorMessages";
 
@@ -50,6 +50,7 @@ interface Payout {
   admin_notes: string | null;
   payment_method: string | null;
   payment_reference: string | null;
+  payment_screenshot_url: string | null;
 }
 
 interface Summary {
@@ -95,6 +96,10 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
   const [claimStatus, setClaimStatus] = useState<string>("open");
   const [isUpdatingClaimStatus, setIsUpdatingClaimStatus] = useState(false);
   const [isCheckingPerformance, setIsCheckingPerformance] = useState(false);
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [isUploadingScreenshot, setIsUploadingScreenshot] = useState(false);
+  const [viewScreenshotUrl, setViewScreenshotUrl] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -121,7 +126,6 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
         callAdminOperation("getAmbassadorRequests", { status: requestFilter }),
       ]);
 
-      // Add emails to ambassadors
       const ambassadorsWithEmails = overviewData?.ambassadors?.map((a: Ambassador) => ({
         ...a,
         email: emailMap[a.id] || ""
@@ -186,17 +190,71 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
     }
   };
 
+  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+    setScreenshotFile(file);
+    setScreenshotPreview(URL.createObjectURL(file));
+  };
+
+  const uploadScreenshot = async (payoutId: string): Promise<string | null> => {
+    if (!screenshotFile) return null;
+    setIsUploadingScreenshot(true);
+    try {
+      const ext = screenshotFile.name.split('.').pop() || 'png';
+      const filePath = `${payoutId}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage
+        .from("payment-screenshots")
+        .upload(filePath, screenshotFile);
+      if (error) throw error;
+      const { data: urlData } = supabase.storage
+        .from("payment-screenshots")
+        .getPublicUrl(filePath);
+      return urlData.publicUrl;
+    } catch (error) {
+      logError("AmbassadorManagement:uploadScreenshot", error);
+      toast.error("Failed to upload screenshot");
+      return null;
+    } finally {
+      setIsUploadingScreenshot(false);
+    }
+  };
+
   const handleProcessPayout = async () => {
     if (!selectedPayout) return;
 
+    // Require screenshot when marking as paid
+    if (payoutStatus === "paid" && !screenshotFile) {
+      toast.error("Please upload a payment screenshot before marking as paid");
+      return;
+    }
+
     setIsProcessing(true);
     try {
+      let screenshotUrl: string | null = null;
+      if (payoutStatus === "paid" && screenshotFile) {
+        screenshotUrl = await uploadScreenshot(selectedPayout.id);
+        if (!screenshotUrl) {
+          setIsProcessing(false);
+          return;
+        }
+      }
+
       await callAdminOperation("processPayoutRequest", {
         payoutId: selectedPayout.id,
         newStatus: payoutStatus,
         notes: payoutNotes,
         paymentMethod,
-        paymentReference
+        paymentReference,
+        paymentScreenshotUrl: screenshotUrl,
       });
 
       toast.success(`Payout ${payoutStatus === "paid" ? "marked as paid" : payoutStatus}`);
@@ -216,11 +274,14 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
     setPayoutNotes("");
     setPaymentMethod("");
     setPaymentReference("");
+    setScreenshotFile(null);
+    setScreenshotPreview(null);
   };
 
   const openPayoutDialog = (payout: Payout) => {
     setSelectedPayout(payout);
     setPayoutDialogOpen(true);
+    resetPayoutForm();
   };
 
   const getStatusBadge = (status: string) => {
@@ -570,12 +631,13 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
                       <TableHead>Status</TableHead>
                       <TableHead>Requested</TableHead>
                       <TableHead>Processed</TableHead>
+                      <TableHead>Proof</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
-                      <TableRowSkeleton columns={6} rows={5} />
+                      <TableRowSkeleton columns={7} rows={5} />
                     ) : payouts.length > 0 ? (
                       payouts.map((payout) => (
                         <TableRow key={payout.id}>
@@ -585,6 +647,21 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
                           <TableCell>{new Date(payout.created_at).toLocaleDateString()}</TableCell>
                           <TableCell>
                             {payout.processed_at ? new Date(payout.processed_at).toLocaleDateString() : "-"}
+                          </TableCell>
+                          <TableCell>
+                            {payout.payment_screenshot_url ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="gap-1 text-xs"
+                                onClick={() => setViewScreenshotUrl(payout.payment_screenshot_url)}
+                              >
+                                <Image className="h-3 w-3" />
+                                View
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
                             {payout.status === "pending" && (
@@ -602,7 +679,7 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                           No payout requests found
                         </TableCell>
                       </TableRow>
@@ -669,6 +746,30 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
                     onChange={(e) => setPaymentReference(e.target.value)}
                   />
                 </div>
+                <div>
+                  <Label className="flex items-center gap-1">
+                    <Upload className="h-4 w-4" />
+                    Payment Screenshot <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleScreenshotChange}
+                    className="mt-1"
+                  />
+                  {screenshotPreview && (
+                    <img
+                      src={screenshotPreview}
+                      alt="Payment screenshot preview"
+                      className="mt-2 rounded-lg border border-border max-h-48 object-contain"
+                    />
+                  )}
+                  {!screenshotFile && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Upload a screenshot of the payment as proof
+                    </p>
+                  )}
+                </div>
               </>
             )}
 
@@ -685,13 +786,34 @@ export const AmbassadorManagement = ({ emailMap }: AmbassadorManagementProps) =>
               <Button variant="outline" onClick={() => setPayoutDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleProcessPayout} disabled={isProcessing}>
-                {isProcessing ? "Processing..." : "Confirm"}
+              <Button
+                onClick={handleProcessPayout}
+                disabled={isProcessing || isUploadingScreenshot || (payoutStatus === "paid" && !screenshotFile)}
+              >
+                {isProcessing || isUploadingScreenshot ? "Processing..." : "Confirm"}
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* View Screenshot Dialog */}
+      <Dialog open={!!viewScreenshotUrl} onOpenChange={() => setViewScreenshotUrl(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Payment Proof</DialogTitle>
+          </DialogHeader>
+          {viewScreenshotUrl && (
+            <img
+              src={viewScreenshotUrl}
+              alt="Payment proof screenshot"
+              className="w-full rounded-lg border border-border"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
+
+export default AmbassadorManagement;

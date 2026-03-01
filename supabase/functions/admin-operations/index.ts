@@ -644,7 +644,7 @@ serve(async (req) => {
       }
 
       case "processPayoutRequest": {
-        const { payoutId, newStatus, notes, paymentMethod, paymentReference } = params;
+        const { payoutId, newStatus, notes, paymentMethod, paymentReference, paymentScreenshotUrl } = params;
 
         if (!isSuperAdmin && newStatus === "paid") {
           result = { success: false, error: "Only super admins can mark payouts as paid" };
@@ -660,6 +660,7 @@ serve(async (req) => {
         if (notes) updateData.admin_notes = notes;
         if (paymentMethod) updateData.payment_method = paymentMethod;
         if (paymentReference) updateData.payment_reference = paymentReference;
+        if (paymentScreenshotUrl) updateData.payment_screenshot_url = paymentScreenshotUrl;
 
         const { data: payout, error } = await supabaseAdmin
           .from("commission_payouts")
