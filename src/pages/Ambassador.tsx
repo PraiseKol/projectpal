@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowLeft, Copy, Users, Coins, Wallet, TrendingUp, CheckCircle2, Clock, ExternalLink, Percent, CalendarDays, DollarSign } from "lucide-react";
+import { ArrowLeft, Copy, Users, Coins, Wallet, TrendingUp, CheckCircle2, Clock, ExternalLink, Percent, CalendarDays, DollarSign, Image } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +52,7 @@ interface Payout {
   created_at: string;
   processed_at: string | null;
   admin_notes: string | null;
+  payment_screenshot_url: string | null;
 }
 
 interface MonthlyEarning {
@@ -92,6 +93,7 @@ const Ambassador = () => {
   const [userPlanType, setUserPlanType] = useState<string>("free");
   const [userCreditsExpiry, setUserCreditsExpiry] = useState<string | null>(null);
   const [showBankModal, setShowBankModal] = useState(false);
+  const [viewScreenshotUrl, setViewScreenshotUrl] = useState<string | null>(null);
 
   const isActivePaidUser = () => {
     if (userPlanType === 'free') return false;
@@ -653,46 +655,81 @@ const Ambassador = () => {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Requested</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Processed</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payouts.length > 0 ? (
-                    payouts.map((payout) => (
-                      <TableRow key={payout.id}>
-                        <TableCell>{new Date(payout.created_at).toLocaleDateString()}</TableCell>
-                        <TableCell className="font-semibold">₦{payout.amount.toLocaleString()}</TableCell>
-                        <TableCell>{getStatusBadge(payout.status)}</TableCell>
-                        <TableCell>
-                          {payout.processed_at ? new Date(payout.processed_at).toLocaleDateString() : "-"}
+                    <TableRow>
+                      <TableHead>Requested</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Processed</TableHead>
+                      <TableHead>Proof</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {payouts.length > 0 ? (
+                      payouts.map((payout) => (
+                        <TableRow key={payout.id}>
+                          <TableCell>{new Date(payout.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell className="font-semibold">₦{payout.amount.toLocaleString()}</TableCell>
+                          <TableCell>{getStatusBadge(payout.status)}</TableCell>
+                          <TableCell>
+                            {payout.processed_at ? new Date(payout.processed_at).toLocaleDateString() : "-"}
+                          </TableCell>
+                          <TableCell>
+                            {payout.payment_screenshot_url ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="gap-1 text-xs"
+                                onClick={() => setViewScreenshotUrl(payout.payment_screenshot_url)}
+                              >
+                                <Image className="h-3 w-3" />
+                                View Proof
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          No payout requests yet
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                        No payout requests yet
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      </main>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
 
-      <BankDetailsModal
-        open={showBankModal}
-        onOpenChange={setShowBankModal}
-        onSuccess={() => setShowBankModal(false)}
-      />
-    </div>
-  );
-};
+        {/* View Payment Proof Dialog */}
+        <Dialog open={!!viewScreenshotUrl} onOpenChange={() => setViewScreenshotUrl(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Payment Proof</DialogTitle>
+              <DialogDescription>
+                Screenshot uploaded by admin as proof of payment
+              </DialogDescription>
+            </DialogHeader>
+            {viewScreenshotUrl && (
+              <img
+                src={viewScreenshotUrl}
+                alt="Payment proof screenshot"
+                className="w-full rounded-lg border border-border"
+              />
+            )}
+          </DialogContent>
+        </Dialog>
 
-export default Ambassador;
+        <BankDetailsModal
+          open={showBankModal}
+          onOpenChange={setShowBankModal}
+          onSuccess={() => setShowBankModal(false)}
+        />
+      </div>
+    );
+  };
+
+  export default Ambassador;

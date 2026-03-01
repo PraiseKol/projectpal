@@ -146,6 +146,66 @@ serve(async (req) => {
       }
     }
 
+    // 4. Delete payment screenshots older than 90 days (3 months)
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    const { data: screenshotFolders } = await supabaseClient.storage
+      .from('payment-screenshots')
+      .list('', { limit: 1000 });
+
+    let screenshotsDeleted = 0;
+    if (screenshotFolders) {
+      for (const folder of screenshotFolders) {
+        try {
+          // Each folder is a payout ID
+          const isFolder = folder.id === null;
+          if (isFolder) {
+            const { data: files } = await supabaseClient.storage
+              .from('payment-screenshots')
+              .list(folder.name, { limit: 1000 });
+
+            if (files) {
+              const oldFiles = files.filter(f => {
+                if (!f.updated_at) return false;
+                return new Date(f.updated_at) < ninetyDaysAgo;
+              }).map(f => `${folder.name}/${f.name}`);
+
+              if (oldFiles.length > 0) {
+                const { error } = await supabaseClient.storage
+                  .from('payment-screenshots')
+                  .remove(oldFiles);
+                if (!error) {
+                  screenshotsDeleted += oldFiles.length;
+                  // Also clear the URL from commission_payouts
+                  // We can't easily match file to payout, so we clear all payouts with screenshots older than 90 days
+                }
+              }
+            }
+          } else if (folder.updated_at && new Date(folder.updated_at) < ninetyDaysAgo) {
+            // Root-level file
+            const { error } = await supabaseClient.storage
+              .from('payment-screenshots')
+              .remove([folder.name]);
+            if (!error) screenshotsDeleted++;
+          }
+        } catch (e) {
+          results.errors.push(`Screenshot cleanup error: ${e}`);
+        }
+      }
+    }
+
+    // Clear payment_screenshot_url for payouts older than 90 days
+    await supabaseClient
+      .from('commission_payouts')
+      .update({ payment_screenshot_url: null })
+      .lt('created_at', ninetyDaysAgo.toISOString())
+      .not('payment_screenshot_url', 'is', null);
+
+    if (screenshotsDeleted > 0) {
+      console.log(`[CLEANUP] Deleted ${screenshotsDeleted} payment screenshots older than 90 days`);
+    }
+
     console.log('[CLEANUP] Completed:', results);
 
     return new Response(

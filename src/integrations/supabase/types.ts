@@ -230,6 +230,7 @@ export type Database = {
           id: string
           payment_method: string | null
           payment_reference: string | null
+          payment_screenshot_url: string | null
           processed_at: string | null
           status: string | null
         }
@@ -242,6 +243,7 @@ export type Database = {
           id?: string
           payment_method?: string | null
           payment_reference?: string | null
+          payment_screenshot_url?: string | null
           processed_at?: string | null
           status?: string | null
         }
@@ -254,6 +256,7 @@ export type Database = {
           id?: string
           payment_method?: string | null
           payment_reference?: string | null
+          payment_screenshot_url?: string | null
           processed_at?: string | null
           status?: string | null
         }
