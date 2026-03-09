@@ -48,6 +48,7 @@ const Pricing = () => {
     import.meta.env.VITE_PAYSTACK_PUBLIC_KEY as string | undefined,
   );
   const [hasReferralDiscount, setHasReferralDiscount] = useState(false);
+  const [referralPurchasesRemaining, setReferralPurchasesRemaining] = useState(0);
   const [freeDaily, setFreeDaily] = useState("8");
   const [freeMonthly, setFreeMonthly] = useState("40");
 
@@ -113,7 +114,9 @@ const Pricing = () => {
         .eq("user_id", user.id)
         .eq("status", "success");
 
-      setHasReferralDiscount((count ?? 0) === 0);
+      const transactionCount = count ?? 0;
+      setHasReferralDiscount(transactionCount < 3);
+      setReferralPurchasesRemaining(3 - transactionCount);
     } catch (error) {
       logError("Pricing:checkReferralDiscount", error);
     }
@@ -149,7 +152,7 @@ const Pricing = () => {
   const confirmPurchase = () => {
     if (!selectedPurchase) return;
     setShowConfirmModal(false);
-    const finalPrice = hasReferralDiscount ? Math.round(selectedPurchase.price * 0.95) : selectedPurchase.price;
+    const finalPrice = hasReferralDiscount ? Math.round(selectedPurchase.price * 0.90) : selectedPurchase.price;
     handlePurchase(selectedPurchase.planType, finalPrice, selectedPurchase.credits, selectedPurchase.durationDays);
   };
 
@@ -336,7 +339,7 @@ const Pricing = () => {
           {hasReferralDiscount && (
             <div className="inline-flex items-center gap-2 px-4 py-2 mb-4 bg-primary/10 border border-primary/20 rounded-full text-sm font-medium">
               <Tag className="h-4 w-4 text-primary" />
-              <span>5% referral discount applied to your first purchase!</span>
+              <span>10% referral discount applied! You have {referralPurchasesRemaining} of 3 discounted purchase{referralPurchasesRemaining !== 1 ? 's' : ''} remaining.</span>
             </div>
           )}
 
@@ -1014,9 +1017,9 @@ const Pricing = () => {
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-lg">
-                    <span className="font-semibold">Total (5% off)</span>
+                    <span className="font-semibold">Total (10% off)</span>
                     <span className="font-bold text-primary">
-                      ₦{Math.round(selectedPurchase.price * 0.95).toLocaleString()}
+                      ₦{Math.round(selectedPurchase.price * 0.90).toLocaleString()}
                     </span>
                   </div>
                 </div>
