@@ -350,10 +350,10 @@ const Dashboard = () => {
                 <div className="flex-1">
                   <p className="font-semibold text-foreground flex items-center gap-2">
                     <Sparkles className="h-5 w-5 text-primary" />
-                    🎉 Prices slashed by 50%!
+                    ✨ Check out the plans and choose an affordable one to experience a smooth project work time experience
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Upgrade now before prices go back up in <strong className="text-foreground">{daysRemaining} day{daysRemaining !== 1 ? 's' : ''}</strong>.
+                    Prices go back up in <strong className="text-foreground">{daysRemaining} day{daysRemaining !== 1 ? 's' : ''}</strong>.
                   </p>
                 </div>
                 <Button onClick={() => navigate("/pricing")} variant="gradient" size="sm" className="gap-2 shrink-0">
