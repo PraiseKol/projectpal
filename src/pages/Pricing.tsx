@@ -114,7 +114,9 @@ const Pricing = () => {
         .eq("user_id", user.id)
         .eq("status", "success");
 
-      setHasReferralDiscount((count ?? 0) === 0);
+      const transactionCount = count ?? 0;
+      setHasReferralDiscount(transactionCount < 3);
+      setReferralPurchasesRemaining(3 - transactionCount);
     } catch (error) {
       logError("Pricing:checkReferralDiscount", error);
     }
