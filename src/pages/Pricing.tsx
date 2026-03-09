@@ -318,11 +318,19 @@ const Pricing = () => {
               : "Select the perfect plan for your academic journey"}
           </p>
 
-          {/* Limited Time Discount Banner */}
-          <div className="inline-flex items-center gap-2 px-5 py-3 mb-4 bg-gradient-to-r from-primary/15 to-secondary/15 border border-primary/20 rounded-xl text-sm font-semibold animate-pulse">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <span>🎉 Limited Time Offer — Current prices are discounted! Prices will be restored in 1-2 months.</span>
-          </div>
+          {/* Limited Time Discount Banner with Countdown */}
+          {(() => {
+            const PROMO_END_DATE = new Date('2026-04-08');
+            const now = new Date();
+            const daysRemaining = Math.max(0, Math.ceil((PROMO_END_DATE.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+            if (daysRemaining <= 0) return null;
+            return (
+              <div className="inline-flex items-center gap-2 px-5 py-3 mb-4 bg-gradient-to-r from-primary/15 to-secondary/15 border border-primary/20 rounded-xl text-sm font-semibold animate-pulse">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <span>🎉 Limited Time Offer — Current prices are discounted! Prices will be restored in <strong>{daysRemaining} day{daysRemaining !== 1 ? 's' : ''}</strong>.</span>
+              </div>
+            );
+          })()}
 
           {/* Referral Discount Banner */}
           {hasReferralDiscount && (

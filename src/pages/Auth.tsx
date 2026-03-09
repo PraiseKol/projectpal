@@ -436,6 +436,9 @@ const Auth = () => {
             <ProjectPalLogo size="lg" />
           </div>
           <CardDescription>Your academic project assistant</CardDescription>
+          <p className="text-xs text-muted-foreground mt-2">
+            ✨ Check out the plans and choose an affordable one to experience a smooth project work time experience
+          </p>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full" onValueChange={() => setErrors({})}>
