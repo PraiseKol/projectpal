@@ -191,20 +191,50 @@ const Pricing = () => {
     }
   };
 
-  // Base monthly prices and credits
-  const baseProPlans = [
+  // Dynamic pricing from app_settings (with hardcoded fallbacks)
+  const [dynamicProPlans, setDynamicProPlans] = useState([
     { price: 5000, credits: 120, originalPrice: 7500 },
     { price: 10000, credits: 240, originalPrice: 15000 },
     { price: 20000, credits: 480, originalPrice: 30000 },
     { price: 40000, credits: 960, originalPrice: 60000 },
-  ];
+  ]);
 
-  const baseScholarPlans = [
+  const [dynamicScholarPlans, setDynamicScholarPlans] = useState([
     { price: 7500, credits: 120, originalPrice: 11250 },
     { price: 15000, credits: 240, originalPrice: 22500 },
     { price: 30000, credits: 480, originalPrice: 45000 },
     { price: 60000, credits: 960, originalPrice: 90000 },
-  ];
+  ]);
+
+  useEffect(() => {
+    const loadDynamicPricing = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("app_settings")
+          .select("key, value")
+          .like("key", "pricing_%");
+        if (error || !data || data.length === 0) return;
+        const map: Record<string, string> = {};
+        data.forEach((s) => (map[s.key] = s.value));
+
+        const loadTiers = (prefix: string, defaults: typeof dynamicProPlans) =>
+          defaults.map((d, i) => ({
+            price: parseInt(map[`${prefix}_${i + 1}_price`]) || d.price,
+            originalPrice: parseInt(map[`${prefix}_${i + 1}_original`]) || d.originalPrice,
+            credits: d.credits,
+          }));
+
+        setDynamicProPlans(loadTiers("pricing_pro", dynamicProPlans));
+        setDynamicScholarPlans(loadTiers("pricing_scholar", dynamicScholarPlans));
+      } catch (e) {
+        // fallback to defaults
+      }
+    };
+    loadDynamicPricing();
+  }, []);
+
+  const baseProPlans = dynamicProPlans;
+  const baseScholarPlans = dynamicScholarPlans;
 
   // Calculate plans based on billing period
   const getPlans = (basePlans: { price: number; credits: number; originalPrice: number }[]): PlanOption[] => {

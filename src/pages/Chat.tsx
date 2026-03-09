@@ -44,6 +44,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { ExportOptions } from "@/components/ExportOptions";
 import { translateError, logError } from "@/utils/errorMessages";
 import { cn } from "@/lib/utils";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
 interface Message {
   id: string;
@@ -534,21 +535,9 @@ const Chat = () => {
     return docPatterns.some((pattern) => pattern.test(content)) || content.length > 500;
   };
 
-  return (
-    <div className="min-h-screen bg-background flex relative">
-      {/* Mobile Sidebar Overlay */}
-      {isMobile && showSidebar && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40" onClick={() => setShowSidebar(false)} />
-      )}
+  const sidebarContent = (
+    <div className="h-full bg-background border-r border-border flex flex-col">
 
-      {/* Sidebar */}
-      <div
-        className={`
-          ${isMobile ? "fixed inset-y-0 left-0 z-50" : "sticky top-0 h-screen"}
-          ${showSidebar ? "translate-x-0" : "-translate-x-full"}
-          w-72 bg-background border-r border-border flex flex-col transition-transform duration-300 ease-in-out shrink-0
-        `}
-      >
         <div className="p-4 border-b border-border flex items-center justify-between">
           <Button onClick={createNewChat} className="flex-1" size="sm">
             <Plus className="h-4 w-4 mr-2" />
@@ -662,10 +651,10 @@ const Chat = () => {
             </Collapsible>
           </div>
         </ScrollArea>
-      </div>
+    </div>
+  );
 
-      {/* Main Chat Area */}
-      {/* Added h-screen and overflow-hidden to lock the page height */}
+  const mainChatContent = (
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Header */}
         <header className="border-b border-border sticky top-0 z-30 bg-background">
@@ -900,6 +889,37 @@ const Chat = () => {
           </div>
         </div>
       </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-background flex relative">
+      {/* Mobile Sidebar Overlay */}
+      {isMobile && showSidebar && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40" onClick={() => setShowSidebar(false)} />
+      )}
+
+      {isMobile ? (
+        <>
+          {/* Mobile: keep existing overlay sidebar */}
+          <div
+            className={`fixed inset-y-0 left-0 z-50 w-72 transition-transform duration-300 ease-in-out ${showSidebar ? "translate-x-0" : "-translate-x-full"}`}
+          >
+            {sidebarContent}
+          </div>
+          {mainChatContent}
+        </>
+      ) : (
+        /* Desktop: resizable panels */
+        <ResizablePanelGroup direction="horizontal" className="h-screen">
+          <ResizablePanel defaultSize={20} minSize={15} maxSize={35}>
+            {sidebarContent}
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={80}>
+            {mainChatContent}
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog

@@ -1,42 +1,63 @@
 
 
-# Plan: Resizable Chat Sidebar + Admin Pricing Management Tab
+# Plan: Improve Credit Error Messages, Increase Chapter Length, Fix Department/Naming Issues
 
-## 1. Resizable Chat Sidebar
+## 1. Improve 402 Error Toast Messages (Frontend)
 
-**File: `src/pages/Chat.tsx`**
+**File: `src/pages/Chat.tsx` (lines 438-456)**
 
-Replace the fixed-width sidebar and main chat area with `ResizablePanelGroup` from the existing `react-resizable-panels` library (already used in `src/components/ui/resizable.tsx`).
+The backend already returns `credits_required`, `credits_available`, and `error` in the 402 response. Update the frontend error handler to show a more specific, actionable toast:
 
-- Import `ResizablePanelGroup`, `ResizablePanel`, `ResizableHandle` from `@/components/ui/resizable`
-- On desktop: wrap the sidebar and main chat area in a `ResizablePanelGroup` with `direction="horizontal"`
-  - Sidebar becomes a `ResizablePanel` with `defaultSize={20}`, `minSize={15}`, `maxSize={35}`
-  - Add a `ResizableHandle` with `withHandle` between them
-  - Main chat area becomes the second `ResizablePanel` with `defaultSize={80}`
-- On mobile: keep the existing overlay sidebar behavior unchanged
-- Remove the fixed `w-72` width from the sidebar div (the panel controls width now)
+- Replace the generic message with: **"This operation requires {X} credits, but you only have {Y}. Subscribe to a plan with more credits to unlock this feature!"**
+- Include the operation name when possible (map `actionType` from error body to a human-readable label like "Chapter 3 (Methodology)")
+- Add the `action_type` field to the 402 error responses in the edge function so the frontend can display it
 
-## 2. Admin Pricing Management Tab
+**File: `supabase/functions/chat-ai/index.ts` (lines 497-538)**
 
-**New file: `src/components/Admin/PricingManagement.tsx`**
+- Add `action_type` to all 402 JSON responses so the frontend can show "Chapter 3 requires 25 credits" instead of just "This action requires 25 credits"
+- Update error messages to be clearer: "Generating **{action label}** requires **{cost}** credits, but you only have **{available}**. Subscribe to unlock this!"
 
-A super_admin-only tab that allows editing all plan prices. The component will:
-- Load pricing config from `app_settings` table (keys like `pricing_pro_1_price`, `pricing_pro_1_original`, `pricing_scholar_1_price`, etc.)
-- Display an editable table/form for all 4 Pro tiers and 4 Scholar tiers (price + originalPrice per tier)
-- Show calculated quarterly (×3 ×0.9) and yearly (×12 ×0.8) prices as read-only previews
-- Save changes via the `admin-operations` edge function using `updateAppSetting` action
-- All amounts in Naira (displayed with ₦ prefix)
+## 2. Increase Chapter Content Length
 
-**File: `src/pages/Admin.tsx`**
+**File: `supabase/functions/chat-ai/index.ts` (lines 677-941, system prompt)**
 
-- Import `PricingManagement` and add a new `TabsTrigger` (value="pricing") with a `CreditCard` or `Tag` icon, restricted to `isSuperAdmin`
-- Add corresponding `TabsContent`
+Add explicit page-length guidance to the system prompt after the `## CONTENT QUALITY` section:
 
-**File: `src/pages/Pricing.tsx`**
+```
+## CHAPTER LENGTH REQUIREMENTS:
+- Chapter 1 (Introduction): Minimum 8-10 pages of content
+- Chapter 2 (Literature Review): Minimum 12-15 pages of content  
+- Chapter 3 (Methodology): Minimum 8-10 pages of content
+- Chapter 4 (Results & Discussion): Minimum 12-15 pages of content
+- Chapter 5 (Conclusion): Minimum 5-7 pages of content
+- Each "page" is approximately 300 words of academic prose
+- Be thorough and detailed in every section. Students need substantive, comprehensive content.
+- Do NOT be brief or scan when generating chapters. Fill out every subsection with real academic depth.
+```
 
-- On mount, fetch pricing values from `app_settings` table
-- If admin-configured values exist, use them instead of the hardcoded `baseProPlans` / `baseScholarPlans`
-- Fallback to current hardcoded values if no DB values found
+Also add `max_tokens: 16000` to the AI call (line 677) to allow longer outputs.
 
-**Database:** No schema changes needed — reuses existing `app_settings` table with new key-value pairs.
+## 3. Remove "Long Essay" Label Restriction for Law
+
+**File: `supabase/functions/chat-ai/index.ts` (line 774)**
+
+Change: `Law projects are called "Long Essays" (NOT "project" or "thesis")`  
+To: `Law projects may be called "Long Essays", "Projects", or "Dissertations" depending on the institution.`
+
+Remove the forced "Long Essay" terminology throughout. The AI should use whatever term the student uses.
+
+## 4. Make Department Structure Generic (Not Just Social Science / Law)
+
+**File: `supabase/functions/chat-ai/index.ts` (lines 691-707)**
+
+- Change `## DEFAULT DOCUMENT STRUCTURE (Science / Social Science / Other Departments)` to `## DEFAULT DOCUMENT STRUCTURE (All Departments)`
+- Update the department detection intro to clarify: "The DEFAULT structure works for ALL departments (Computer Science, Engineering, Business, Education, Social Sciences, Natural Sciences, etc.). Only Law uses a different structure."
+- Remove any implication that the tool is limited to Social Science or Law
+
+## Summary of Files to Modify
+
+| File | Changes |
+|---|---|
+| `supabase/functions/chat-ai/index.ts` | Add `action_type` to 402 responses, add chapter length requirements to system prompt, increase `max_tokens`, fix Law/department naming |
+| `src/pages/Chat.tsx` | Improve 402 error toast to show specific credit cost and operation name |
 
