@@ -326,6 +326,43 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        {/* Promotional Banner */}
+        {(() => {
+          const PROMO_END_DATE = new Date('2026-04-08');
+          const now = new Date();
+          const daysRemaining = Math.max(0, Math.ceil((PROMO_END_DATE.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+          const dismissed = localStorage.getItem('promo_banner_dismissed') === 'true';
+          if (daysRemaining <= 0 || dismissed) return null;
+          return (
+            <div className="mb-6 relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary/15 via-secondary/10 to-primary/15 border border-primary/20 p-4 sm:p-5 animate-fade-in">
+              <button
+                onClick={() => {
+                  localStorage.setItem('promo_banner_dismissed', 'true');
+                  window.location.reload();
+                }}
+                className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                <div className="flex-1">
+                  <p className="font-semibold text-foreground flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    🎉 Prices slashed by 50%!
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Upgrade now before prices go back up in <strong className="text-foreground">{daysRemaining} day{daysRemaining !== 1 ? 's' : ''}</strong>.
+                  </p>
+                </div>
+                <Button onClick={() => navigate("/pricing")} variant="gradient" size="sm" className="gap-2 shrink-0">
+                  <CreditCard className="h-4 w-4" />
+                  View Plans
+                </Button>
+              </div>
+            </div>
+          );
+        })()}
         {/* Credit Info Card */}
         <Card className="mb-8 animate-fade-in">
           <CardHeader>
