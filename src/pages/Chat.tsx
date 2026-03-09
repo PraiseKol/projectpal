@@ -889,6 +889,37 @@ const Chat = () => {
           </div>
         </div>
       </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-background flex relative">
+      {/* Mobile Sidebar Overlay */}
+      {isMobile && showSidebar && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40" onClick={() => setShowSidebar(false)} />
+      )}
+
+      {isMobile ? (
+        <>
+          {/* Mobile: keep existing overlay sidebar */}
+          <div
+            className={`fixed inset-y-0 left-0 z-50 w-72 transition-transform duration-300 ease-in-out ${showSidebar ? "translate-x-0" : "-translate-x-full"}`}
+          >
+            {sidebarContent}
+          </div>
+          {mainChatContent}
+        </>
+      ) : (
+        /* Desktop: resizable panels */
+        <ResizablePanelGroup direction="horizontal" className="h-screen">
+          <ResizablePanel defaultSize={20} minSize={15} maxSize={35}>
+            {sidebarContent}
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={80}>
+            {mainChatContent}
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog

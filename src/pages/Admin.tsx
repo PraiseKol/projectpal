@@ -279,6 +279,12 @@ const Admin = () => {
           )}
 
           {isSuperAdmin && (
+            <TabsContent value="pricing">
+              <PricingManagement />
+            </TabsContent>
+          )}
+
+          {isSuperAdmin && (
             <TabsContent value="messages">
               <MessagesManagement emailMap={emailMap} />
             </TabsContent>
