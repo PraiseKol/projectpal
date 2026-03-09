@@ -184,6 +184,7 @@ const Admin = () => {
             <TabsTrigger value="emails"><Mail className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Emails</span></TabsTrigger>
             <TabsTrigger value="settings"><Settings className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Settings</span></TabsTrigger>
             {isSuperAdmin && <TabsTrigger value="credits"><Coins className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Credit Costs</span></TabsTrigger>}
+            {isSuperAdmin && <TabsTrigger value="pricing"><Tag className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Pricing</span></TabsTrigger>}
             {isSuperAdmin && <TabsTrigger value="messages"><MessageSquare className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Messages</span></TabsTrigger>}
             {isSuperAdmin && <TabsTrigger value="audit"><History className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Audit</span></TabsTrigger>}
           </TabsList>
