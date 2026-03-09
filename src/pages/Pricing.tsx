@@ -48,6 +48,7 @@ const Pricing = () => {
     import.meta.env.VITE_PAYSTACK_PUBLIC_KEY as string | undefined,
   );
   const [hasReferralDiscount, setHasReferralDiscount] = useState(false);
+  const [referralPurchasesRemaining, setReferralPurchasesRemaining] = useState(0);
   const [freeDaily, setFreeDaily] = useState("8");
   const [freeMonthly, setFreeMonthly] = useState("40");
 
