@@ -193,17 +193,17 @@ const Pricing = () => {
 
   // Base monthly prices and credits
   const baseProPlans = [
-    { price: 10000, credits: 120, originalPrice: 15000 },
-    { price: 20000, credits: 240, originalPrice: 30000 },
-    { price: 40000, credits: 480, originalPrice: 60000 },
-    { price: 80000, credits: 960, originalPrice: 120000 },
+    { price: 5000, credits: 120, originalPrice: 7500 },
+    { price: 10000, credits: 240, originalPrice: 15000 },
+    { price: 20000, credits: 480, originalPrice: 30000 },
+    { price: 40000, credits: 960, originalPrice: 60000 },
   ];
 
   const baseScholarPlans = [
-    { price: 15000, credits: 120, originalPrice: 22500 },
-    { price: 30000, credits: 240, originalPrice: 45000 },
-    { price: 60000, credits: 480, originalPrice: 90000 },
-    { price: 120000, credits: 960, originalPrice: 180000 },
+    { price: 7500, credits: 120, originalPrice: 11250 },
+    { price: 15000, credits: 240, originalPrice: 22500 },
+    { price: 30000, credits: 480, originalPrice: 45000 },
+    { price: 60000, credits: 960, originalPrice: 90000 },
   ];
 
   // Calculate plans based on billing period
