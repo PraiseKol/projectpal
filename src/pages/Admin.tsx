@@ -19,6 +19,7 @@ import { AmbassadorManagement } from "@/components/Admin/AmbassadorManagement";
 import { MessagesManagement } from "@/components/Admin/MessagesManagement";
 import { EmailCampaigns } from "@/components/Admin/EmailCampaigns";
 import { CreditCostsSettings } from "@/components/Admin/CreditCostsSettings";
+import { PricingManagement } from "@/components/Admin/PricingManagement";
 import { AdminSkeleton } from "@/components/skeletons/AdminSkeleton";
 import { translateError, logError } from "@/utils/errorMessages";
 
