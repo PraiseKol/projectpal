@@ -44,6 +44,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { ExportOptions } from "@/components/ExportOptions";
 import { translateError, logError } from "@/utils/errorMessages";
 import { cn } from "@/lib/utils";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
 interface Message {
   id: string;
