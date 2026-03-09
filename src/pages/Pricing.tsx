@@ -339,7 +339,7 @@ const Pricing = () => {
           {hasReferralDiscount && (
             <div className="inline-flex items-center gap-2 px-4 py-2 mb-4 bg-primary/10 border border-primary/20 rounded-full text-sm font-medium">
               <Tag className="h-4 w-4 text-primary" />
-              <span>5% referral discount applied to your first purchase!</span>
+              <span>10% referral discount applied! You have {referralPurchasesRemaining} of 3 discounted purchase{referralPurchasesRemaining !== 1 ? 's' : ''} remaining.</span>
             </div>
           )}
 
