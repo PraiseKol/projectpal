@@ -651,10 +651,10 @@ const Chat = () => {
             </Collapsible>
           </div>
         </ScrollArea>
-      </div>
+    </div>
+  );
 
-      {/* Main Chat Area */}
-      {/* Added h-screen and overflow-hidden to lock the page height */}
+  const mainChatContent = (
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Header */}
         <header className="border-b border-border sticky top-0 z-30 bg-background">
