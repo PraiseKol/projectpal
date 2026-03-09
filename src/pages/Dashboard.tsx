@@ -30,6 +30,7 @@ import {
   Users,
   Trash2,
   ClipboardList,
+  X,
 } from "lucide-react";
 import { ProjectPalLogo } from "@/components/ProjectPalLogo";
 import { Progress } from "@/components/ui/progress";
