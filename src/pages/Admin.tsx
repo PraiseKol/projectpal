@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, LayoutDashboard, Users, CreditCard, Activity, Shield, Settings, History, UserCheck, Mail, Coins, MessageSquare } from "lucide-react";
+import { ArrowLeft, LayoutDashboard, Users, CreditCard, Activity, Shield, Settings, History, UserCheck, Mail, Coins, MessageSquare, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { StatsOverview } from "@/components/Admin/StatsOverview";
 import { AdminCharts } from "@/components/Admin/AdminCharts";
