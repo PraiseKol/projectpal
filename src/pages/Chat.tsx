@@ -535,21 +535,9 @@ const Chat = () => {
     return docPatterns.some((pattern) => pattern.test(content)) || content.length > 500;
   };
 
-  return (
-    <div className="min-h-screen bg-background flex relative">
-      {/* Mobile Sidebar Overlay */}
-      {isMobile && showSidebar && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40" onClick={() => setShowSidebar(false)} />
-      )}
+  const sidebarContent = (
+    <div className="h-full bg-background border-r border-border flex flex-col">
 
-      {/* Sidebar */}
-      <div
-        className={`
-          ${isMobile ? "fixed inset-y-0 left-0 z-50" : "sticky top-0 h-screen"}
-          ${showSidebar ? "translate-x-0" : "-translate-x-full"}
-          w-72 bg-background border-r border-border flex flex-col transition-transform duration-300 ease-in-out shrink-0
-        `}
-      >
         <div className="p-4 border-b border-border flex items-center justify-between">
           <Button onClick={createNewChat} className="flex-1" size="sm">
             <Plus className="h-4 w-4 mr-2" />
