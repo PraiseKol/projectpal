@@ -1017,9 +1017,9 @@ const Pricing = () => {
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-lg">
-                    <span className="font-semibold">Total (5% off)</span>
+                    <span className="font-semibold">Total (10% off)</span>
                     <span className="font-bold text-primary">
-                      ₦{Math.round(selectedPurchase.price * 0.95).toLocaleString()}
+                      ₦{Math.round(selectedPurchase.price * 0.90).toLocaleString()}
                     </span>
                   </div>
                 </div>
