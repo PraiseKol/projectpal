@@ -152,7 +152,7 @@ const Pricing = () => {
   const confirmPurchase = () => {
     if (!selectedPurchase) return;
     setShowConfirmModal(false);
-    const finalPrice = hasReferralDiscount ? Math.round(selectedPurchase.price * 0.95) : selectedPurchase.price;
+    const finalPrice = hasReferralDiscount ? Math.round(selectedPurchase.price * 0.90) : selectedPurchase.price;
     handlePurchase(selectedPurchase.planType, finalPrice, selectedPurchase.credits, selectedPurchase.durationDays);
   };
 
