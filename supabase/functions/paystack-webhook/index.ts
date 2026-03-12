@@ -267,7 +267,7 @@ async function handleChargeSuccess(supabase: any, data: any) {
       .maybeSingle();
 
     if (referral && transactionData) {
-      // Calculate 5% commission
+      // Calculate 10% commission
       const commissionAmount = Math.floor(amount * 0.10);
       
       console.log(`User ${userId} was referred by ambassador ${referral.ambassador_user_id}. Adding commission of ${commissionAmount}`);

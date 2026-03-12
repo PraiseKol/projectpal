@@ -184,7 +184,7 @@ serve(async (req) => {
         .maybeSingle();
 
       if (referral) {
-        // Calculate 5% commission
+        // Calculate 10% commission
         const commissionAmount = Math.floor(amount * 0.10);
         
         console.log(`User was referred by ambassador ${referral.ambassador_user_id}. Adding commission of ${commissionAmount}`);
