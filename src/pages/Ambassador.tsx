@@ -286,7 +286,7 @@ const Ambassador = () => {
               Your Referral Code
             </CardTitle>
             <CardDescription>
-              Share this link with new users to earn 5% commission on their subscriptions
+              Share this link with new users to earn 10% commission on their subscriptions
             </CardDescription>
           </CardHeader>
           <CardContent>
