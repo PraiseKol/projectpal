@@ -698,7 +698,7 @@ const Auth = () => {
                           <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Get 5% off your first subscription upgrade when you sign up with a valid referral code!</p>
+                          <p>Get 10% off your first 3 subscription upgrades when you sign up with a valid referral code!</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>

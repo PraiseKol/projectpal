@@ -286,7 +286,7 @@ const Ambassador = () => {
               Your Referral Code
             </CardTitle>
             <CardDescription>
-              Share this link with new users to earn 5% commission on their subscriptions
+              Share this link with new users to earn 10% commission on their subscriptions
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -471,7 +471,7 @@ const Ambassador = () => {
                 <span className="font-bold">₦{(stats?.averageCommission || 0).toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center py-2 pt-4 bg-primary/10 -mx-6 px-6 rounded-lg">
-                <span className="font-semibold">Your Earnings (5%)</span>
+                <span className="font-semibold">Your Earnings (10%)</span>
                 <span className="font-bold text-lg text-primary">₦{(stats?.totalEarnings || 0).toLocaleString()}</span>
               </div>
             </CardContent>

@@ -1,27 +1,63 @@
 
 
-# Plan: Update All "5%" References to "10%"
+# Plan: Improve Credit Error Messages, Increase Chapter Length, Fix Department/Naming Issues
 
-Six locations across 5 files still display the old 5% rate. All changes are text/comment updates only — the backend logic already uses `0.10`.
+## 1. Improve 402 Error Toast Messages (Frontend)
 
-## Changes
+**File: `src/pages/Chat.tsx` (lines 438-456)**
 
-### 1. `src/components/Settings/AmbassadorRequestCard.tsx`
-- Line 56: `"Earn 5% commission..."` → `"Earn 10% commission..."`
-- Line 71: `"Earn 5% commission on all subscriptions..."` → `"Earn 10% commission on all subscriptions..."`
+The backend already returns `credits_required`, `credits_available`, and `error` in the 402 response. Update the frontend error handler to show a more specific, actionable toast:
 
-### 2. `src/pages/Ambassador.tsx`
-- Line 289: `"...earn 5% commission..."` → `"...earn 10% commission..."`
-- Line 474: `"Your Earnings (5%)"` → `"Your Earnings (10%)"`
+- Replace the generic message with: **"This operation requires {X} credits, but you only have {Y}. Subscribe to a plan with more credits to unlock this feature!"**
+- Include the operation name when possible (map `actionType` from error body to a human-readable label like "Chapter 3 (Methodology)")
+- Add the `action_type` field to the 402 error responses in the edge function so the frontend can display it
 
-### 3. `src/pages/Auth.tsx`
-- Line 701: `"Get 5% off your first..."` → `"Get 10% off your first 3 subscription upgrades..."`
+**File: `supabase/functions/chat-ai/index.ts` (lines 497-538)**
 
-### 4. `supabase/functions/verify-payment/index.ts`
-- Line 187: Comment `"Calculate 5% commission"` → `"Calculate 10% commission"`
+- Add `action_type` to all 402 JSON responses so the frontend can show "Chapter 3 requires 25 credits" instead of just "This action requires 25 credits"
+- Update error messages to be clearer: "Generating **{action label}** requires **{cost}** credits, but you only have **{available}**. Subscribe to unlock this!"
 
-### 5. `supabase/functions/paystack-webhook/index.ts`
-- Line 270: Comment `"Calculate 5% commission"` → `"Calculate 10% commission"`
+## 2. Increase Chapter Content Length
 
-No logic changes needed — all backend calculations already use `0.10`.
+**File: `supabase/functions/chat-ai/index.ts` (lines 677-941, system prompt)**
+
+Add explicit page-length guidance to the system prompt after the `## CONTENT QUALITY` section:
+
+```
+## CHAPTER LENGTH REQUIREMENTS:
+- Chapter 1 (Introduction): Minimum 8-10 pages of content
+- Chapter 2 (Literature Review): Minimum 12-15 pages of content  
+- Chapter 3 (Methodology): Minimum 8-10 pages of content
+- Chapter 4 (Results & Discussion): Minimum 12-15 pages of content
+- Chapter 5 (Conclusion): Minimum 5-7 pages of content
+- Each "page" is approximately 300 words of academic prose
+- Be thorough and detailed in every section. Students need substantive, comprehensive content.
+- Do NOT be brief or scan when generating chapters. Fill out every subsection with real academic depth.
+```
+
+Also add `max_tokens: 16000` to the AI call (line 677) to allow longer outputs.
+
+## 3. Remove "Long Essay" Label Restriction for Law
+
+**File: `supabase/functions/chat-ai/index.ts` (line 774)**
+
+Change: `Law projects are called "Long Essays" (NOT "project" or "thesis")`  
+To: `Law projects may be called "Long Essays", "Projects", or "Dissertations" depending on the institution.`
+
+Remove the forced "Long Essay" terminology throughout. The AI should use whatever term the student uses.
+
+## 4. Make Department Structure Generic (Not Just Social Science / Law)
+
+**File: `supabase/functions/chat-ai/index.ts` (lines 691-707)**
+
+- Change `## DEFAULT DOCUMENT STRUCTURE (Science / Social Science / Other Departments)` to `## DEFAULT DOCUMENT STRUCTURE (All Departments)`
+- Update the department detection intro to clarify: "The DEFAULT structure works for ALL departments (Computer Science, Engineering, Business, Education, Social Sciences, Natural Sciences, etc.). Only Law uses a different structure."
+- Remove any implication that the tool is limited to Social Science or Law
+
+## Summary of Files to Modify
+
+| File | Changes |
+|---|---|
+| `supabase/functions/chat-ai/index.ts` | Add `action_type` to 402 responses, add chapter length requirements to system prompt, increase `max_tokens`, fix Law/department naming |
+| `src/pages/Chat.tsx` | Improve 402 error toast to show specific credit cost and operation name |
 

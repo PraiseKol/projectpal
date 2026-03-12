@@ -53,7 +53,7 @@ export const AmbassadorRequestCard = ({ userId, isAmbassador, planType, creditsE
   const paidUser = isActivePaidUser();
 
   const ambassadorPerks = [
-    { icon: Coins, text: "Earn 5% commission on referral subscriptions" },
+    { icon: Coins, text: "Earn 10% commission on referral subscriptions" },
     { icon: Link, text: "Get a unique shareable referral code" },
     { icon: BarChart3, text: "Access to the Ambassador Portal with analytics" },
     { icon: Star, text: "Track referrals and earnings in real-time" },
@@ -68,7 +68,7 @@ export const AmbassadorRequestCard = ({ userId, isAmbassador, planType, creditsE
             Become an Ambassador
           </CardTitle>
           <CardDescription>
-            Earn 5% commission on all subscriptions made by users who sign up with your referral code.
+            Earn 10% commission on all subscriptions made by users who sign up with your referral code.
           </CardDescription>
         </CardHeader>
         <CardContent>
