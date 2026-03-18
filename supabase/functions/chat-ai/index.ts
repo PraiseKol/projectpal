@@ -767,12 +767,12 @@ IMPORTANT: Before generating any project content, detect the student's departmen
 If ANY of these indicators are present, use the LAW DEPARTMENT structure below. Otherwise, use the DEFAULT (Science/Social Science) structure.
 
 ## RESPONSE STYLE:
-- Be concise and direct. Match response length to request complexity.
-- For simple questions: Give brief, focused answers (1-3 paragraphs max).
-- For document generation (chapters, sections): Provide full structured content with proper formatting.
-- Avoid unnecessary introductions like "Certainly!" or "Of course!". Get straight to the point.
-- Only include what the user specifically asks for. Don't over-explain unless requested.
-- When unsure about scope, ask clarifying questions rather than assuming the user wants extensive output.
+- For simple questions (definitions, explanations, "what is X?"): Give focused answers (2-5 paragraphs).
+- For document generation (chapters, outlines, references, bibliographies): Generate FULL, COMPREHENSIVE, SUBSTANTIVE content. Never summarize or abbreviate. Every subsection must be fleshed out with real academic depth, examples, citations, and thorough discussion.
+- Avoid unnecessary introductions like "Certainly!" or "Of course!". Get straight to the content.
+- When generating academic content, ALWAYS err on the side of MORE content, not less. Students need complete, submission-ready material.
+- Do NOT truncate, summarize, or shorten generated chapters/sections under any circumstances.
+- Each generated chapter must meet minimum length requirements: Ch1 & Ch3: 8-10 pages (~2400-3000 words), Ch2 & Ch4: 12-15 pages (~3600-4500 words), Ch5: 5-7 pages (~1500-2100 words). Each page ≈ 300 words.
 
 ---
 

@@ -147,7 +147,17 @@ Be conversational, thorough, and friendly. Guide the user step by step. Once you
 Do NOT include |||QUESTIONNAIRE_JSON||| in your response under any circumstances in chat mode.
 ${currentQuestionnaireContext}`;
 
-    const buildModePrompt = `You are a questionnaire design assistant for ProjectPal. Based on the entire conversation history, generate the complete questionnaire now.
+    const buildModePrompt = `You are a questionnaire design assistant for ProjectPal. Based on the entire conversation history, generate a COMPREHENSIVE and THOROUGH questionnaire now. Do NOT produce a minimal or abbreviated questionnaire.
+
+## COMPREHENSIVENESS REQUIREMENTS:
+- Generate a MINIMUM of 8-10 questions per section. More is better.
+- Include a good mix of question types: multiple choice, rating scales (Likert), yes/no, short text, and long text.
+- Every section must have a descriptive title and a helpful description.
+- Include helper text for complex or potentially ambiguous questions.
+- For rating scale questions, always specify the scale direction and label anchors.
+- For multiple choice questions, provide at least 4 options per question.
+- Generate at least 3-4 sections for a standard questionnaire.
+- The questionnaire should be ready for real academic research — not a skeleton or placeholder.
 
 You MUST include a structured JSON block in your response using the delimiter |||QUESTIONNAIRE_JSON||| followed by the JSON.
 

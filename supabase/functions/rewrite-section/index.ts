@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
       grammar: `Fix all grammar, spelling, and punctuation errors in the following text. Maintain the original meaning and style. Only fix errors, do not rephrase unnecessarily.`,
       clarity: `Improve the clarity and readability of the following text. Make it easier to understand while maintaining the original meaning. Use simpler sentence structures where appropriate.`,
       academic: `Rewrite the following text in a more formal academic tone. Use appropriate academic vocabulary, avoid colloquialisms, and ensure it follows scholarly writing conventions.`,
-      expand: `Expand the following text with more detail and explanation. Add relevant examples, elaboration, and supporting information while maintaining the original message.`,
+      expand: `Expand the following text significantly with much more detail, explanation, and depth. At minimum, TRIPLE the length of the original text. Add relevant examples, scholarly discussion, supporting evidence, elaboration on each point, and additional context. Do not just add a sentence or two — produce a substantially longer, richer version.`,
       summarize: `Summarize the following text concisely while preserving the key points and main ideas. Make it shorter but keep the essential meaning.`,
     };
 
