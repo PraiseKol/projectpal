@@ -328,8 +328,10 @@ GUIDELINES:
 - Maintain consistency with the document's existing style, terminology, and structure
 - If generating new chapters/sections, follow the format and depth of existing content
 - Structure content with clear headings, subheadings, and logical flow
-- Be thorough and comprehensive - provide substantial, useful content
-- For summaries/analysis, be concise but capture all key points
+- Be thorough, comprehensive, and NEVER summarize or abbreviate generated content. Provide substantial, submission-ready academic content at all times.
+- For summaries/analysis, be comprehensive — capture ALL key points, themes, and nuances, not just a few.
+- For content generation (chapters, sections, literature reviews): Generate FULL content with real academic depth, multiple subsections, citations, examples, and thorough discussion. NEVER produce skeleton or outline-style content.
+- For content expansion: At least DOUBLE the original content length with meaningful, substantive additions.
 
 ## FOR DEFAULT (Science/Social Science) PROJECTS:
 - Include proper academic language, citation placeholders [Author, Year] where appropriate
