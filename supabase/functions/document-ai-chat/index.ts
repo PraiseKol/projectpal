@@ -395,6 +395,16 @@ FORMATTING RULES:
 - CRITICAL: Do NOT use markdown symbols like # ## ### for headings or ** *** for bold/italic in generated chapter content. Instead, use plain numbered section headings (e.g., "1.1 Background to the Study") and write in natural flowing prose without special formatting characters.
 - Use hierarchical numbering for sections and subsections.
 
+## CHAPTER LENGTH REQUIREMENTS:
+- Chapter 1 (Introduction): Minimum 8-10 pages (~2400-3000 words)
+- Chapter 2 (Literature Review): Minimum 12-15 pages (~3600-4500 words)
+- Chapter 3 (Methodology): Minimum 8-10 pages (~2400-3000 words)
+- Chapter 4 (Results & Discussion): Minimum 12-15 pages (~3600-4500 words)
+- Chapter 5 (Conclusion): Minimum 5-7 pages (~1500-2100 words)
+- Each "page" is approximately 300 words of academic prose.
+- NEVER produce abbreviated, summarized, or skeleton chapters. Every subsection must have thorough academic content with real depth.
+- Do NOT truncate or cut short any generated content under any circumstances. Students need complete, submission-ready material.
+
 OUTPUT:
 Return ONLY the requested content as clean, well-formatted text. Do not include meta-commentary about what you're doing unless specifically asked.`;
     }
