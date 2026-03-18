@@ -411,6 +411,7 @@ Return ONLY the requested content as clean, well-formatted text. Do not include 
 
     const requestBody: any = {
       model: "google/gemini-3-flash-preview",
+      max_tokens: 16000,
       messages: [
         { role: "system", content: systemPrompt },
         { 
