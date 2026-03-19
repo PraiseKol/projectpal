@@ -1378,11 +1378,13 @@ function buildReferencesSlide(pptx: PptxGenJS, data: SlideData, theme: Theme) {
   
   const refs = data.bullets || [];
   refs.forEach((ref, i) => {
-    if (i < 10) {
-      slide.addText(`[${i + 1}] ${ref}`, {
-        x: 0.5, y: contentStartY + (i * 0.55), w: 9, h: 0.5,
-        fontSize: 12, color: theme.text,
-        fontFace: design.fontSecondary
+    if (i < 8) {
+      const truncatedRef = ref.length > 120 ? ref.substring(0, 117) + "..." : ref;
+      slide.addText(`[${i + 1}] ${truncatedRef}`, {
+        x: 0.5, y: contentStartY + (i * 0.6), w: 9, h: 0.55,
+        fontSize: 11, color: theme.text,
+        fontFace: design.fontSecondary,
+        valign: 'top'
       });
     }
   });
