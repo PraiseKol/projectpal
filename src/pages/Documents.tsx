@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Upload, Loader2, FileText, Download, Eye, ImageIcon, RefreshCw, AlertCircle } from "lucide-react";
+import { ArrowLeft, Upload, Loader2, FileText, Download, Eye, ImageIcon, RefreshCw, AlertCircle, LayoutGrid } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
