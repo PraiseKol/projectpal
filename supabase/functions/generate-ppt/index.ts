@@ -1725,7 +1725,7 @@ SLIDE TYPES:
 - "thankyou" - Final slide
 
 REQUIRED STRUCTURE (include ALL that apply based on document):
-1. Title Slide (type: "title") - Extract title, author, institution from document
+1. Title Slide (type: "title") - Extract title, author, institution from document. Extract the author's full name EXACTLY as written in the document. Do not split, rearrange, or abbreviate name parts. Look for the name on the title page or cover page.
 2. Introduction/Overview (type: "content") - Context and background
 3. Problem Statement & Objectives (type: "content") - Research problem and goals
 4. Literature Review (type: "content") - Key theories, previous research
