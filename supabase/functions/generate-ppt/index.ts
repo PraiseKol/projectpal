@@ -1886,13 +1886,13 @@ GUIDELINES:
           buildThankYouSlide(pptx, selectedTheme, presentationData.author, presentationData.institution);
           break;
         default: {
-          // Auto-split content slides with more than 5 bullets
+          // Auto-split content slides with more than 4 bullets
           const bullets = slideData.bullets || [];
-          if (bullets.length > 5) {
-            for (let j = 0; j < bullets.length; j += 5) {
-              const chunk = bullets.slice(j, j + 5);
-              const partNum = Math.floor(j / 5) + 1;
-              const totalParts = Math.ceil(bullets.length / 5);
+          if (bullets.length > 4) {
+            for (let j = 0; j < bullets.length; j += 4) {
+              const chunk = bullets.slice(j, j + 4);
+              const partNum = Math.floor(j / 4) + 1;
+              const totalParts = Math.ceil(bullets.length / 4);
               const splitTitle = totalParts > 1 ? `${slideData.title} (${partNum}/${totalParts})` : slideData.title;
               buildContentSlide(pptx, { ...slideData, title: splitTitle, bullets: chunk }, selectedTheme, j === 0 ? imageUrl : undefined);
             }
