@@ -909,20 +909,22 @@ function buildTitleSlide(pptx: PptxGenJS, data: SlideData, theme: Theme, present
   const titleY = design.style === "bold" ? 1.8 : 2.2;
   
   slide.addText(data.title || presentationData.title, {
-    x: titleX, y: titleY, w: titleW, h: 1.2,
+    x: titleX, y: titleY, w: titleW, h: 1.8,
     fontSize: design.style === "bold" ? 44 : 40, 
     bold: true, 
     color: theme.text, 
     align: design.titleAlign,
-    fontFace: design.fontPrimary
+    fontFace: design.fontPrimary,
+    shrinkText: true,
+    valign: 'top'
   });
   
   // Subtitle/Author
   const subtitle = data.subtitle || presentationData.author || '';
   if (subtitle) {
     slide.addText(subtitle, {
-      x: titleX, y: titleY + 1.3, w: titleW, h: 0.6,
-      fontSize: 20, color: theme.accent, align: design.titleAlign,
+      x: titleX, y: titleY + 2.0, w: titleW, h: 0.6,
+      fontSize: 20, color: theme.secondary, align: design.titleAlign,
       fontFace: design.fontSecondary
     });
   }
@@ -930,7 +932,7 @@ function buildTitleSlide(pptx: PptxGenJS, data: SlideData, theme: Theme, present
   // Institution
   if (presentationData.institution) {
     slide.addText(presentationData.institution, {
-      x: titleX, y: titleY + 2.0, w: titleW, h: 0.5,
+      x: titleX, y: titleY + 2.6, w: titleW, h: 0.5,
       fontSize: 16, color: theme.secondary, align: design.titleAlign,
       fontFace: design.fontSecondary
     });
