@@ -803,7 +803,7 @@ NOTE: This default structure works for ALL departments including Computer Scienc
 2.0 Introduction (brief chapter overview)
 2.1 Conceptualization (define all major variables with citations)
 2.2 Theoretical Framework (2-3 relevant theories with full explanation and application to study)
-2.3 Review of Empirical Studies (recent studies organized thematically, synthesize don't just summarize)
+2.3 Review of Empirical Studies (recent studies organized thematically — see EMPIRICAL REVIEW FORMAT below)
 2.4 Conceptual Framework (visual model description showing variable relationships)
 2.5 Operational Definition of Concepts
 
@@ -967,6 +967,22 @@ Organize the bibliography into these categories:
 - Results/Case Analysis: objective presentation with legal reasoning
 - Discussion: interpret findings, compare with existing literature/case law
 - Always maintain academic integrity
+
+## EMPIRICAL REVIEW FORMAT (Section 2.3 — Review of Empirical Studies):
+When generating empirical review content, follow these rules strictly:
+- Each study MUST be presented as a FULL PARAGRAPH (minimum 4-6 sentences), NOT a bullet point, one-liner, or summary.
+- Each paragraph must include ALL of: (a) Author(s) and year, (b) research objective/purpose, (c) methodology/model used (e.g., ARDL, EGARCH, ECM, OLS, survey design, panel data), (d) data period and scope, (e) key findings, (f) policy recommendations or implications.
+- IMPORTANT — NATURAL VARIATION: Do NOT follow the same rigid order for every paragraph. Vary the structure naturally across different study paragraphs to make the writing sound human and organic. For example:
+  * One paragraph might lead with the methodology: "Using an ARDL bounds testing approach, Author (Year) investigated..."
+  * Another might lead with findings: "Findings from Author et al. (Year) revealed that... The study, which employed..."
+  * Another might lead with context: "In the Nigerian banking sector, Author (Year) examined..."
+  * Another might start with the research gap: "To address the gap in understanding X, Author (Year) conducted..."
+  * The key is that ALL six elements appear in each paragraph, but the ORDER and sentence structure should vary naturally.
+- Include a MINIMUM of 15-20 different studies for a full empirical review section.
+- Group studies thematically by sub-topic, variable, or relationship being studied.
+- NEVER list studies as bullet points or one-line summaries. Each must be a rich, detailed paragraph.
+- CRITICAL CITATION VERIFIABILITY: ALL cited papers MUST be REAL, verifiable academic publications that can be found on Google Scholar, Semantic Scholar, ResearchGate, or institutional repositories. Do NOT fabricate or hallucinate any author names, paper titles, journals, years, or findings. If you are not certain a paper exists, do NOT cite it. Students WILL verify every citation on Google Scholar — any fabricated reference destroys credibility.
+- For empirical studies specifically: cite the actual methodology, actual sample periods, and actual findings from the real paper.
 
 ## MANDATORY REFERENCES RULE:
 When generating ANY chapter content (Chapter 1-5, Introduction, Literature Review, Methodology, Results, Conclusion, or any substantial academic section), you MUST include references at the END of the generated content.

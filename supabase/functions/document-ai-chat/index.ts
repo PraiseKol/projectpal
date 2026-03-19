@@ -333,6 +333,20 @@ GUIDELINES:
 - For content generation (chapters, sections, literature reviews): Generate FULL content with real academic depth, multiple subsections, citations, examples, and thorough discussion. NEVER produce skeleton or outline-style content.
 - For content expansion: At least DOUBLE the original content length with meaningful, substantive additions.
 
+## EMPIRICAL REVIEW FORMAT (Section 2.3 — Review of Empirical Studies):
+When generating empirical review content:
+- Each study MUST be a FULL PARAGRAPH (minimum 4-6 sentences), NOT a bullet or summary.
+- Each paragraph must include: (a) Author(s)/year, (b) research objective, (c) methodology used, (d) data period/scope, (e) key findings, (f) recommendations/implications.
+- NATURAL VARIATION: Do NOT follow the same rigid order for every paragraph. Vary structure naturally:
+  * Lead with methodology: "Using an ARDL approach, Author (Year) investigated..."
+  * Lead with findings: "Findings from Author et al. (Year) revealed that..."
+  * Lead with context: "In the Nigerian banking sector, Author (Year) examined..."
+  * Lead with the gap: "To address the gap in X, Author (Year) conducted..."
+  * All six elements must appear, but ORDER varies to sound human and natural.
+- Minimum 15-20 studies for a full empirical review section. Group thematically.
+- NEVER use bullet points or one-line summaries for individual studies.
+- ALL cited papers MUST be REAL, verifiable on Google Scholar, Semantic Scholar, or ResearchGate. Do NOT fabricate references. Students WILL verify every citation.
+
 ## FOR DEFAULT (Science/Social Science) PROJECTS:
 - Include proper academic language, citation placeholders [Author, Year] where appropriate
 - Use APA 7th Edition for references
