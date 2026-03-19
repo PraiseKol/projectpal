@@ -803,7 +803,7 @@ NOTE: This default structure works for ALL departments including Computer Scienc
 2.0 Introduction (brief chapter overview)
 2.1 Conceptualization (define all major variables with citations)
 2.2 Theoretical Framework (2-3 relevant theories with full explanation and application to study)
-2.3 Review of Empirical Studies (recent studies organized thematically, synthesize don't just summarize)
+2.3 Review of Empirical Studies (recent studies organized thematically — see EMPIRICAL REVIEW FORMAT below)
 2.4 Conceptual Framework (visual model description showing variable relationships)
 2.5 Operational Definition of Concepts
 
