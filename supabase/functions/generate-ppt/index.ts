@@ -1804,8 +1804,23 @@ GUIDELINES:
         // Remove any slide that ended up empty after sanitization.
         .filter((s) => s.type === "title" || s.type === "thankyou" || (s.title && (s.bullets?.length || s.tableData)));
 
+      // Enforce slide count range: trim content slides if over max
+      if (presentationData.slides.length > effectiveMax) {
+        const structuralTypes = new Set(["title", "conclusion", "references", "thankyou"]);
+        const structuralSlides = presentationData.slides.filter(s => structuralTypes.has(s.type));
+        const contentSlides = presentationData.slides.filter(s => !structuralTypes.has(s.type));
+        const contentSlotsAvailable = effectiveMax - structuralSlides.length;
+        const trimmedContent = contentSlides.slice(0, Math.max(contentSlotsAvailable, 1));
+        
+        // Rebuild in order: title first, then content, then conclusion/references/thankyou
+        const titleSlides = structuralSlides.filter(s => s.type === "title");
+        const endSlides = structuralSlides.filter(s => s.type !== "title");
+        presentationData.slides = [...titleSlides, ...trimmedContent, ...endSlides];
+        console.log(`[PPT] Trimmed slides from ${structuralSlides.length + contentSlides.length} to ${presentationData.slides.length} (max: ${effectiveMax})`);
+      }
+
       // Guardrail: if model output degenerates after sanitization, fall back to doc-driven slides.
-      if (presentationData.slides.length < 6) {
+      if (presentationData.slides.length < 4) {
         throw new Error("AI output too small after sanitization");
       }
     } catch (e) {
