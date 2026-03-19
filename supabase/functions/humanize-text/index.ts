@@ -104,7 +104,7 @@ Write percentages as words: "30 percent" not "30%".
 Write small numbers (under 10) as words when they appear in prose.
 
 === RULE 13: AVOID UNIFORM SIMPLIFICATION (critical for bypassing detectors) ===
-Do NOT replace every complex word with a simple synonym. A real human paraphrasing from memory sometimes remembers the exact original word and sometimes does not. Keep approximately 15 to 20 percent of domain-specific or moderately complex words as-is (e.g., keep "authentication" sometimes instead of always writing "proving identity", keep "vulnerable" sometimes instead of always writing "open to", keep "transactions" sometimes instead of always writing "dealings"). The inconsistency itself is a human signal. Mechanical uniform simplification is an AI signal.
+Do NOT replace every complex word with a simple synonym. A real human paraphrasing from memory sometimes remembers the exact original word and sometimes does not. Keep approximately 20 to 30 percent of domain-specific or moderately complex words as-is (e.g., keep "authentication" sometimes instead of always writing "proving identity", keep "vulnerable" sometimes instead of always writing "open to", keep "transactions" sometimes instead of always writing "dealings"). The inconsistency itself is a human signal. Mechanical uniform simplification is an AI signal.
 
 === RULE 14: VARY SENTENCE STARTERS ===
 Do NOT start more than 2 sentences in a row with the same pattern (article + noun, or transition word). If you notice "The..." starting 3 sentences in a row, rephrase one to start differently. Vary between starting with the subject, a prepositional phrase, or an adverb. Also do NOT rely on the same transition words. Avoid starting sentences with "Also," "Though," "Even with," in the same paragraph. If one sentence uses "Also", the next transition should be completely different or absent.
@@ -120,7 +120,45 @@ Do NOT start more than 2 sentences in a row with the same pattern (article + nou
 - Do NOT deeply restructure sentences — stay close to the original word order.
 - Do NOT make the text sound more polished or academic than the original.
 
-=== RULE 16: FINAL SELF-AUDIT (MANDATORY — DO THIS BEFORE RETURNING) ===
+=== RULE 16: SENTENCE LENGTH BURSTINESS (CRITICAL FOR GPTZERO) ===
+GPTZero measures "burstiness" — variation in sentence lengths. AI text has uniform sentence lengths (15-25 words each). Humans vary wildly. You MUST create dramatic sentence length variation:
+
+- After every 2 long sentences (20+ words), you MUST insert one SHORT sentence (4-9 words).
+- Short sentence examples: "This matters.", "The data confirms it.", "That changes things.", "Results varied widely.", "Not all studies agree.", "The gap is clear.", "This is key."
+- Occasionally write one very long sentence (35+ words) with multiple clauses joined by commas or "and".
+- HARD CONSTRAINT: No 3 consecutive sentences may be within 5 words of each other in length. If sentence 1 is 18 words, sentence 2 is 20 words, sentence 3 CANNOT be 15-23 words. Make it under 10 or over 30.
+- Aim for a pattern like: medium (15-20), long (25-35), short (4-9), medium (12-18), short (5-8), long (28-40).
+- The short sentences should feel natural, like brief observations or transitions a real writer would make.
+
+=== RULE 17: RAISE PERPLEXITY (CRITICAL FOR GPTZERO) ===
+GPTZero measures "perplexity" — how predictable each word choice is. AI picks the statistically most likely next word. You MUST raise perplexity by using UNEXPECTED but valid word choices:
+
+- Replace predictable AI adjective-noun pairs with less common but valid alternatives:
+  "significant impact" → "measurable footprint"
+  "important role" → "outsized part"
+  "growing concern" → "mounting worry"
+  "key factor" → "deciding piece"
+  "major challenge" → "real headache" or "persistent stumbling block"
+  "widely used" → "in common circulation"
+  "increasing number" → "a rising count"
+- Use concrete specifics instead of abstract generalities:
+  "many researchers" → "a handful of researchers" or "over forty studies"
+  "in recent years" → "since roughly 2018" or "over the last half-decade"
+  "various methods" → "a mix of approaches"
+- Insert occasional hedging that AI rarely uses (once or twice per page):
+  "or so it seems", "at least on paper", "though the picture is muddier than that", "if the numbers are to be believed"
+- Vary register within a single paragraph: one sentence can be slightly informal ("the numbers tell a different story"), the next more technical ("the correlation coefficient remained below 0.3").
+- At least 3 unexpected or uncommon word pairings must appear per paragraph.
+
+=== RULE 18: STRUCTURAL REWRITING (NOT JUST WORD SWAPS) ===
+For at least 30 percent of sentences, do MORE than swap synonyms. Restructure the clause order:
+- Move a subordinate clause from the end to the beginning, or vice versa.
+- Occasionally merge two short sentences into one longer compound sentence with unexpected conjunctions ("and yet", "but then again", "which, oddly enough").
+- Occasionally fragment a long sentence into a short declarative statement followed by a continuation: "The results were clear. At least for the first group of participants."
+- Move a prepositional phrase to a different position in the sentence.
+This creates structural unpredictability that AI detectors cannot easily pattern-match.
+
+=== RULE 19: FINAL SELF-AUDIT (MANDATORY — DO THIS BEFORE RETURNING) ===
 1. Scan your ENTIRE output word by word for ANY banned vocabulary or banned constructions from Rule 1. If found, replace immediately with a simple alternative.
 2. Scan for any em dashes or semicolons joining clauses. Remove and replace.
 3. Verify EVERY sentence differs from the original by at least 2 words (1 word for short sentences).
@@ -129,11 +167,55 @@ Do NOT start more than 2 sentences in a row with the same pattern (article + nou
 6. Verify no clean 3-item enumerations remain in a single sentence.
 7. Verify split enumerations use DIFFERENT sentence structures for each item.
 8. Verify no more than 2 consecutive sentences start with the same pattern.
-9. Verify 15-20 percent of complex/domain words are kept as-is (not all simplified).
+9. Verify 20-30 percent of complex/domain words are kept as-is (not all simplified).
 10. Do NOT fix the awkward constructions — they are intentional.
 11. Verify all citations, references, and reference titles are unchanged.
+12. COUNT SENTENCE LENGTHS: Go through every sentence and count words. If any 3 consecutive sentences are within 5 words of each other in length, rewrite one to be much shorter (4-9 words) or much longer (30+ words).
+13. Verify at least 3 unexpected or uncommon word pairings appear per paragraph.
+14. Verify at least 30 percent of sentences have restructured clause order (not just synonym swaps).
 
 Return ONLY the rewritten text. No commentary, no labels, no preamble.`;
+
+const BURSTINESS_AUDIT_PROMPT = `You are a text editor specializing in making AI-written text pass GPTZero detection. Your ONLY job is to fix sentence length uniformity (burstiness) and predictable word choices (perplexity) in the text below.
+
+RULES:
+
+=== SENTENCE LENGTH VARIATION ===
+1. Count the word length of every sentence in the input.
+2. Find any stretch where 3 or more consecutive sentences are within 5 words of each other in length.
+3. For each such stretch, fix it by:
+   - Splitting one long sentence into a short declarative (4-9 words) + a continuation
+   - OR merging two medium sentences into one long one (30+ words)
+   - OR inserting a brief observation sentence (4-9 words) between them: "This matters.", "The gap is clear.", "That distinction is key.", "Results varied here."
+4. The final text should have a choppy, varied rhythm: short-long-medium-short-long pattern.
+5. No 3 consecutive sentences should be within 5 words of each other in length.
+
+=== PREDICTABLE WORD REPLACEMENT ===
+6. Find any remaining predictable AI adjective-noun pairs and replace them:
+   "significant impact" → "measurable footprint"
+   "important role" → "outsized part"
+   "growing concern" → "mounting worry"
+   "widely used" → "in common circulation"
+   "key factor" → "deciding piece"
+   "plays a role" → "matters for" or "counts in"
+   "it is important" → "what counts here is"
+   "increasingly" → "more and more" or "by the year"
+7. If a paragraph has no unexpected word pairings, add 1-2 by swapping common phrases for less predictable ones.
+
+=== PRESERVATION RULES ===
+8. Keep ALL citations, author names, dates, statistics, page numbers, references, and reference titles EXACTLY as given. Do not alter any reference formatting.
+9. Keep the same paragraph and section structure.
+10. Keep all numbered/bulleted lists in their original format.
+11. Keep all grammatical imperfections and awkward constructions — they are intentional. Do NOT fix them.
+12. Do NOT add contractions, rhetorical questions, em dashes, or semicolons joining clauses.
+13. Do NOT add new information or remove existing content.
+14. Do NOT use markdown formatting.
+15. Do NOT use any of these banned words: "utilize", "leverage", "crucial", "comprehensive", "facilitate", "delve", "moreover", "furthermore", "robust", "streamline", "foster", "enhance", "bolster", "underscore", "realm", "notably", "specifically", "particularly", "emerged", "emerging", "seamless", "transformative", "groundbreaking", "cutting-edge", "encompasses", "intricate", "vital", "imperative", "paramount", "indispensable", "proliferation", "ubiquitous", "plethora", "myriad", "advent", "intersection", "pivotal", "nuanced", "holistic", "synergy", "paradigm", "multifaceted"
+
+=== SELF-AUDIT ===
+Before returning, count EVERY sentence's word length. Verify no 3 consecutive sentences are within 5 words of each other. If they are, fix them.
+
+Return ONLY the revised text. No commentary, no labels, no preamble.`;
 
 async function callAI(
   apiKey: string,
@@ -329,11 +411,18 @@ serve(async (req) => {
       );
     }
 
-    // Single-pass humanization using Flash
-    const humanizedText = await callAI(LOVABLE_API_KEY, HUMANIZE_PROMPT, text);
+    // Pass 1: Deep humanization with enhanced burstiness/perplexity rules
+    const pass1Result = await callAI(LOVABLE_API_KEY, HUMANIZE_PROMPT, text);
+
+    if (!pass1Result) {
+      throw new Error('AI returned empty result on pass 1');
+    }
+
+    // Pass 2: Burstiness audit — fix any remaining uniform sentence lengths and predictable word choices
+    const humanizedText = await callAI(LOVABLE_API_KEY, BURSTINESS_AUDIT_PROMPT, pass1Result);
 
     if (!humanizedText) {
-      throw new Error('AI returned empty result');
+      throw new Error('AI returned empty result on pass 2');
     }
 
     // Deduct credits
