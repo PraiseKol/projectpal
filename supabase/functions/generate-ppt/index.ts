@@ -1074,22 +1074,25 @@ function buildContentSlide(pptx: PptxGenJS, data: SlideData, theme: Theme, image
       break;
   }
   
-  // Content bullets
+  // Content bullets — prevent overlap with proper spacing
   const bullets = data.bullets || [];
-  const lineHeight = design.style === "bold" ? 0.7 : 0.65;
+  const maxBullets = 4;
+  const lineHeight = 0.85;
   
   bullets.forEach((bullet, i) => {
-    if (i < 5) {
+    if (i < maxBullets) {
       const bulletChar = getBulletChar(design.bulletStyle, i);
-      slide.addText(`${bulletChar} ${bullet}`, {
+      const truncatedBullet = bullet.length > 120 ? bullet.substring(0, 117) + "..." : bullet;
+      slide.addText(`${bulletChar} ${truncatedBullet}`, {
         x: contentStartX, 
         y: contentStartY + (i * lineHeight), 
         w: contentWidth, 
-        h: 0.6,
-        fontSize: design.style === "minimal" ? 14 : 15, 
+        h: 0.8,
+        fontSize: 14, 
         color: theme.text,
         fontFace: design.fontSecondary,
-        valign: 'top'
+        valign: 'top',
+        shrinkText: true
       });
     }
   });
