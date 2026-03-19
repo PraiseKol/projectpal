@@ -82,18 +82,20 @@ function sanitizeSlideText(input: string): string {
     .trim();
 }
 
-function toBullets(text: string, max = 5): string[] {
+function toBullets(text: string, max = 4): string[] {
   const sentences = text
     .replace(/\s+/g, " ")
     .split(/(?<=[.!?])\s+/)
     .map(s => s.trim())
     .filter(Boolean);
 
-  // Prefer slightly longer, informative sentences.
   return sentences
     .filter(s => s.length >= 40)
     .slice(0, max)
-    .map(sanitizeSlideText);
+    .map(s => {
+      const sanitized = sanitizeSlideText(s);
+      return sanitized.length > 120 ? sanitized.substring(0, 117) + "..." : sanitized;
+    });
 }
 
 // Extract text from PDF using Gemini's multimodal capabilities
