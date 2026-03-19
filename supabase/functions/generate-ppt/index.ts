@@ -82,18 +82,20 @@ function sanitizeSlideText(input: string): string {
     .trim();
 }
 
-function toBullets(text: string, max = 5): string[] {
+function toBullets(text: string, max = 4): string[] {
   const sentences = text
     .replace(/\s+/g, " ")
     .split(/(?<=[.!?])\s+/)
     .map(s => s.trim())
     .filter(Boolean);
 
-  // Prefer slightly longer, informative sentences.
   return sentences
     .filter(s => s.length >= 40)
     .slice(0, max)
-    .map(sanitizeSlideText);
+    .map(s => {
+      const sanitized = sanitizeSlideText(s);
+      return sanitized.length > 120 ? sanitized.substring(0, 117) + "..." : sanitized;
+    });
 }
 
 // Extract text from PDF using Gemini's multimodal capabilities
@@ -181,12 +183,11 @@ function buildFallbackFromDocContent(docContent: string, documentTitle: string):
   ];
 
   const pushIf = (title: string, body: string) => {
-    const allBullets = toBullets(body, 20);
+    const allBullets = toBullets(body, 16);
     if (allBullets.length) {
-      // Split into chunks of 5 bullets per slide
-      for (let j = 0; j < allBullets.length; j += 5) {
-        const chunk = allBullets.slice(j, j + 5);
-        const slideTitle = allBullets.length > 5 ? `${title} (${Math.floor(j / 5) + 1}/${Math.ceil(allBullets.length / 5)})` : title;
+      for (let j = 0; j < allBullets.length; j += 4) {
+        const chunk = allBullets.slice(j, j + 4);
+        const slideTitle = allBullets.length > 4 ? `${title} (${Math.floor(j / 4) + 1}/${Math.ceil(allBullets.length / 4)})` : title;
         slides.push({ type: "content", title: slideTitle, bullets: chunk });
       }
     }
@@ -1072,22 +1073,25 @@ function buildContentSlide(pptx: PptxGenJS, data: SlideData, theme: Theme, image
       break;
   }
   
-  // Content bullets
+  // Content bullets — prevent overlap with proper spacing
   const bullets = data.bullets || [];
-  const lineHeight = design.style === "bold" ? 0.7 : 0.65;
+  const maxBullets = 4;
+  const lineHeight = 0.85;
   
   bullets.forEach((bullet, i) => {
-    if (i < 5) {
+    if (i < maxBullets) {
       const bulletChar = getBulletChar(design.bulletStyle, i);
-      slide.addText(`${bulletChar} ${bullet}`, {
+      const truncatedBullet = bullet.length > 120 ? bullet.substring(0, 117) + "..." : bullet;
+      slide.addText(`${bulletChar} ${truncatedBullet}`, {
         x: contentStartX, 
         y: contentStartY + (i * lineHeight), 
         w: contentWidth, 
-        h: 0.6,
-        fontSize: design.style === "minimal" ? 14 : 15, 
+        h: 0.8,
+        fontSize: 14, 
         color: theme.text,
         fontFace: design.fontSecondary,
-        valign: 'top'
+        valign: 'top',
+        shrinkText: true
       });
     }
   });
@@ -1309,12 +1313,15 @@ function buildConclusionSlide(pptx: PptxGenJS, data: SlideData, theme: Theme) {
   
   const bullets = data.bullets || [];
   bullets.forEach((bullet, i) => {
-    if (i < 5) {
+    if (i < 4) {
       const bulletChar = design.bulletStyle === "check" ? "✓" : getBulletChar(design.bulletStyle, i);
-      slide.addText(`${bulletChar} ${bullet}`, {
-        x: 0.5, y: contentStartY + (i * 0.7), w: 9, h: 0.6,
-        fontSize: 16, color: theme.text,
-        fontFace: design.fontSecondary
+      const truncatedBullet = bullet.length > 120 ? bullet.substring(0, 117) + "..." : bullet;
+      slide.addText(`${bulletChar} ${truncatedBullet}`, {
+        x: 0.5, y: contentStartY + (i * 0.85), w: 9, h: 0.8,
+        fontSize: 15, color: theme.text,
+        fontFace: design.fontSecondary,
+        valign: 'top',
+        shrinkText: true
       });
     }
   });
@@ -1370,11 +1377,13 @@ function buildReferencesSlide(pptx: PptxGenJS, data: SlideData, theme: Theme) {
   
   const refs = data.bullets || [];
   refs.forEach((ref, i) => {
-    if (i < 10) {
-      slide.addText(`[${i + 1}] ${ref}`, {
-        x: 0.5, y: contentStartY + (i * 0.55), w: 9, h: 0.5,
-        fontSize: 12, color: theme.text,
-        fontFace: design.fontSecondary
+    if (i < 8) {
+      const truncatedRef = ref.length > 120 ? ref.substring(0, 117) + "..." : ref;
+      slide.addText(`[${i + 1}] ${truncatedRef}`, {
+        x: 0.5, y: contentStartY + (i * 0.6), w: 9, h: 0.55,
+        fontSize: 11, color: theme.text,
+        fontFace: design.fontSecondary,
+        valign: 'top'
       });
     }
   });
@@ -1463,7 +1472,13 @@ serve(async (req) => {
   }
 
   try {
-    const { document_url, theme: requestedTheme, include_images = true } = await req.json();
+    const { document_url, theme: requestedTheme, include_images = true, slide_count_range = "10-12" } = await req.json();
+    
+    // Parse slide count range
+    const [slideMin, slideMax] = slide_count_range.split("-").map((n: string) => parseInt(n.trim()));
+    const effectiveMin = isNaN(slideMin) ? 10 : slideMin;
+    const effectiveMax = isNaN(slideMax) ? 12 : slideMax;
+    console.log(`[PPT] Requested slide range: ${effectiveMin}-${effectiveMax}`);
     
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -1722,8 +1737,11 @@ REQUIRED STRUCTURE (include ALL that apply based on document):
 12. Thank You (type: "thankyou")
 
 GUIDELINES:
-- Create 12-25 slides for thorough, comprehensive coverage
-- Each content slide should have 4-5 bullet points maximum. If a topic needs more points, split it across multiple slides with numbered titles like 'Methodology (1/2)', 'Methodology (2/2)'
+- You MUST generate between ${effectiveMin} and ${effectiveMax} slides total (including title, conclusion, references, and thank you slides).
+- If the document content exceeds ${effectiveMax} slides, merge related points and prioritize the most important findings.
+- If the document content is sparse, expand key sections across multiple slides to reach at least ${effectiveMin} slides.
+- Each content slide should have 3-4 bullet points maximum. If a topic needs more points, split it across multiple slides with numbered titles like 'Methodology (1/2)', 'Methodology (2/2)'
+- Each bullet point must be one concise sentence, maximum 18 words. Never write multi-sentence bullets.
 - Do NOT squeeze too many bullet points into one slide
 - Extract ACTUAL data, statistics, and specific findings from the document
 - Include imagePrompt for 2-3 key slides (methodology, results, system design)
@@ -1785,8 +1803,23 @@ GUIDELINES:
         // Remove any slide that ended up empty after sanitization.
         .filter((s) => s.type === "title" || s.type === "thankyou" || (s.title && (s.bullets?.length || s.tableData)));
 
+      // Enforce slide count range: trim content slides if over max
+      if (presentationData.slides.length > effectiveMax) {
+        const structuralTypes = new Set(["title", "conclusion", "references", "thankyou"]);
+        const structuralSlides = presentationData.slides.filter(s => structuralTypes.has(s.type));
+        const contentSlides = presentationData.slides.filter(s => !structuralTypes.has(s.type));
+        const contentSlotsAvailable = effectiveMax - structuralSlides.length;
+        const trimmedContent = contentSlides.slice(0, Math.max(contentSlotsAvailable, 1));
+        
+        // Rebuild in order: title first, then content, then conclusion/references/thankyou
+        const titleSlides = structuralSlides.filter(s => s.type === "title");
+        const endSlides = structuralSlides.filter(s => s.type !== "title");
+        presentationData.slides = [...titleSlides, ...trimmedContent, ...endSlides];
+        console.log(`[PPT] Trimmed slides from ${structuralSlides.length + contentSlides.length} to ${presentationData.slides.length} (max: ${effectiveMax})`);
+      }
+
       // Guardrail: if model output degenerates after sanitization, fall back to doc-driven slides.
-      if (presentationData.slides.length < 6) {
+      if (presentationData.slides.length < 4) {
         throw new Error("AI output too small after sanitization");
       }
     } catch (e) {
@@ -1853,13 +1886,13 @@ GUIDELINES:
           buildThankYouSlide(pptx, selectedTheme, presentationData.author, presentationData.institution);
           break;
         default: {
-          // Auto-split content slides with more than 5 bullets
+          // Auto-split content slides with more than 4 bullets
           const bullets = slideData.bullets || [];
-          if (bullets.length > 5) {
-            for (let j = 0; j < bullets.length; j += 5) {
-              const chunk = bullets.slice(j, j + 5);
-              const partNum = Math.floor(j / 5) + 1;
-              const totalParts = Math.ceil(bullets.length / 5);
+          if (bullets.length > 4) {
+            for (let j = 0; j < bullets.length; j += 4) {
+              const chunk = bullets.slice(j, j + 4);
+              const partNum = Math.floor(j / 4) + 1;
+              const totalParts = Math.ceil(bullets.length / 4);
               const splitTitle = totalParts > 1 ? `${slideData.title} (${partNum}/${totalParts})` : slideData.title;
               buildContentSlide(pptx, { ...slideData, title: splitTitle, bullets: chunk }, selectedTheme, j === 0 ? imageUrl : undefined);
             }
