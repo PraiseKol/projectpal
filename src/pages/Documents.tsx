@@ -27,6 +27,7 @@ const Documents = () => {
   const [showViewer, setShowViewer] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState("random");
   const [includeImages, setIncludeImages] = useState(true);
+  const [slideCountRange, setSlideCountRange] = useState("10-12");
 
   useEffect(() => {
     checkUserPlan();
