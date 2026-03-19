@@ -1738,8 +1738,11 @@ REQUIRED STRUCTURE (include ALL that apply based on document):
 12. Thank You (type: "thankyou")
 
 GUIDELINES:
-- Create 12-25 slides for thorough, comprehensive coverage
-- Each content slide should have 4-5 bullet points maximum. If a topic needs more points, split it across multiple slides with numbered titles like 'Methodology (1/2)', 'Methodology (2/2)'
+- You MUST generate between ${effectiveMin} and ${effectiveMax} slides total (including title, conclusion, references, and thank you slides).
+- If the document content exceeds ${effectiveMax} slides, merge related points and prioritize the most important findings.
+- If the document content is sparse, expand key sections across multiple slides to reach at least ${effectiveMin} slides.
+- Each content slide should have 3-4 bullet points maximum. If a topic needs more points, split it across multiple slides with numbered titles like 'Methodology (1/2)', 'Methodology (2/2)'
+- Each bullet point must be one concise sentence, maximum 18 words. Never write multi-sentence bullets.
 - Do NOT squeeze too many bullet points into one slide
 - Extract ACTUAL data, statistics, and specific findings from the document
 - Include imagePrompt for 2-3 key slides (methodology, results, system design)
