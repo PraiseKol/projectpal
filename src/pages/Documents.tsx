@@ -272,6 +272,35 @@ const Documents = () => {
 
             {uploadedDocUrl && (
               <div>
+                <h2 className="text-lg font-semibold mb-4">Number of Slides</h2>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Choose how many slides your presentation should have
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                  {[
+                    { value: "7-9", label: "7–9 slides", desc: "Concise" },
+                    { value: "10-12", label: "10–12 slides", desc: "Standard" },
+                    { value: "13-15", label: "13–15 slides", desc: "Detailed" },
+                    { value: "16-21", label: "16–21 slides", desc: "Comprehensive" },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => setSlideCountRange(option.value)}
+                      className={`p-3 rounded-xl border-2 text-center transition-all ${
+                        slideCountRange === option.value
+                          ? "border-primary bg-primary/10 shadow-sm"
+                          : "border-border hover:border-primary/40 hover:bg-muted/50"
+                      }`}
+                    >
+                      <LayoutGrid className={`h-5 w-5 mx-auto mb-1.5 ${
+                        slideCountRange === option.value ? "text-primary" : "text-muted-foreground"
+                      }`} />
+                      <p className="text-sm font-semibold">{option.label}</p>
+                      <p className="text-xs text-muted-foreground">{option.desc}</p>
+                    </button>
+                  ))}
+                </div>
+
                 <h2 className="text-lg font-semibold mb-4">Choose Template Style</h2>
                 <ThemeSelector
                   selectedTheme={selectedTheme}
