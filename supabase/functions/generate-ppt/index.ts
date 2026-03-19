@@ -183,12 +183,11 @@ function buildFallbackFromDocContent(docContent: string, documentTitle: string):
   ];
 
   const pushIf = (title: string, body: string) => {
-    const allBullets = toBullets(body, 20);
+    const allBullets = toBullets(body, 16);
     if (allBullets.length) {
-      // Split into chunks of 5 bullets per slide
-      for (let j = 0; j < allBullets.length; j += 5) {
-        const chunk = allBullets.slice(j, j + 5);
-        const slideTitle = allBullets.length > 5 ? `${title} (${Math.floor(j / 5) + 1}/${Math.ceil(allBullets.length / 5)})` : title;
+      for (let j = 0; j < allBullets.length; j += 4) {
+        const chunk = allBullets.slice(j, j + 4);
+        const slideTitle = allBullets.length > 4 ? `${title} (${Math.floor(j / 4) + 1}/${Math.ceil(allBullets.length / 4)})` : title;
         slides.push({ type: "content", title: slideTitle, bullets: chunk });
       }
     }
