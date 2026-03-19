@@ -1,63 +1,52 @@
 
 
-# Plan: Improve Credit Error Messages, Increase Chapter Length, Fix Department/Naming Issues
+# Plan: Improve Humanizer to Pass GPTZero (Flash + 2-Pass)
 
-## 1. Improve 402 Error Toast Messages (Frontend)
+## Approach
+Keep `gemini-2.5-flash` for both passes (~2x current cost). Add GPTZero-specific rules targeting **burstiness** (sentence length variation) and **perplexity** (unexpected word choices).
 
-**File: `src/pages/Chat.tsx` (lines 438-456)**
+## Changes — Single file: `supabase/functions/humanize-text/index.ts`
 
-The backend already returns `credits_required`, `credits_available`, and `error` in the 402 response. Update the frontend error handler to show a more specific, actionable toast:
+### 1. Add burstiness and perplexity rules to HUMANIZE_PROMPT
 
-- Replace the generic message with: **"This operation requires {X} credits, but you only have {Y}. Subscribe to a plan with more credits to unlock this feature!"**
-- Include the operation name when possible (map `actionType` from error body to a human-readable label like "Chapter 3 (Methodology)")
-- Add the `action_type` field to the 402 error responses in the edge function so the frontend can display it
+Insert 3 new rules before the existing Rule 16 (self-audit), renumbering as needed:
 
-**File: `supabase/functions/chat-ai/index.ts` (lines 497-538)**
+**RULE 17: SENTENCE LENGTH BURSTINESS** — After every 2 long sentences (20+ words), insert one SHORT sentence (4-9 words). Examples: "This matters.", "The data confirms it.", "Results varied widely." Occasionally write one very long sentence (35+ words). No 3 consecutive sentences should be within 5 words of each other in length.
 
-- Add `action_type` to all 402 JSON responses so the frontend can show "Chapter 3 requires 25 credits" instead of just "This action requires 25 credits"
-- Update error messages to be clearer: "Generating **{action label}** requires **{cost}** credits, but you only have **{available}**. Subscribe to unlock this!"
+**RULE 18: RAISE PERPLEXITY** — Replace predictable AI adjective-noun pairs with less common but valid alternatives ("significant impact" → "measurable footprint"). Use concrete specifics ("many researchers" → "over forty studies"). Insert occasional hedging ("or so it seems", "at least on paper"). Vary register within paragraphs (one sentence slightly informal, next more technical).
 
-## 2. Increase Chapter Content Length
+**RULE 19: STRUCTURAL REWRITING** — For at least 30% of sentences, restructure clause order (not just swap synonyms). Occasionally merge two short sentences with unexpected conjunctions ("and yet", "but then again"). Occasionally fragment a long sentence into a short declarative + continuation.
 
-**File: `supabase/functions/chat-ai/index.ts` (lines 677-941, system prompt)**
+### 2. Strengthen Rule 13 (Avoid Uniform Simplification)
 
-Add explicit page-length guidance to the system prompt after the `## CONTENT QUALITY` section:
+Increase retained complex vocabulary from 15-20% to 20-30%.
 
+### 3. Update Rule 16 (Self-Audit) with new checks
+
+Add: count sentence lengths (fix any 3 consecutive within 5 words of each other), verify at least 3 unexpected word pairings per paragraph.
+
+### 4. Add second-pass burstiness audit
+
+Create a `BURSTINESS_AUDIT_PROMPT` — a focused prompt that:
+- Counts sentence lengths in the input
+- Breaks up any stretches of 3+ sentences with similar length
+- Adds 2-3 short punchy sentences where needed
+- Replaces any remaining predictable AI word pairings
+- Preserves all citations and references exactly
+
+### 5. Update the processing flow (lines 332-337)
+
+Replace single-pass with two-pass:
 ```
-## CHAPTER LENGTH REQUIREMENTS:
-- Chapter 1 (Introduction): Minimum 8-10 pages of content
-- Chapter 2 (Literature Review): Minimum 12-15 pages of content  
-- Chapter 3 (Methodology): Minimum 8-10 pages of content
-- Chapter 4 (Results & Discussion): Minimum 12-15 pages of content
-- Chapter 5 (Conclusion): Minimum 5-7 pages of content
-- Each "page" is approximately 300 words of academic prose
-- Be thorough and detailed in every section. Students need substantive, comprehensive content.
-- Do NOT be brief or scan when generating chapters. Fill out every subsection with real academic depth.
+// Pass 1: Deep humanization with enhanced rules
+const pass1Result = await callAI(LOVABLE_API_KEY, HUMANIZE_PROMPT, text);
+
+// Pass 2: Burstiness enforcement
+const humanizedText = await callAI(LOVABLE_API_KEY, BURSTINESS_AUDIT_PROMPT, pass1Result);
 ```
 
-Also add `max_tokens: 16000` to the AI call (line 677) to allow longer outputs.
-
-## 3. Remove "Long Essay" Label Restriction for Law
-
-**File: `supabase/functions/chat-ai/index.ts` (line 774)**
-
-Change: `Law projects are called "Long Essays" (NOT "project" or "thesis")`  
-To: `Law projects may be called "Long Essays", "Projects", or "Dissertations" depending on the institution.`
-
-Remove the forced "Long Essay" terminology throughout. The AI should use whatever term the student uses.
-
-## 4. Make Department Structure Generic (Not Just Social Science / Law)
-
-**File: `supabase/functions/chat-ai/index.ts` (lines 691-707)**
-
-- Change `## DEFAULT DOCUMENT STRUCTURE (Science / Social Science / Other Departments)` to `## DEFAULT DOCUMENT STRUCTURE (All Departments)`
-- Update the department detection intro to clarify: "The DEFAULT structure works for ALL departments (Computer Science, Engineering, Business, Education, Social Sciences, Natural Sciences, etc.). Only Law uses a different structure."
-- Remove any implication that the tool is limited to Social Science or Law
-
-## Summary of Files to Modify
-
-| File | Changes |
-|---|---|
-| `supabase/functions/chat-ai/index.ts` | Add `action_type` to 402 responses, add chapter length requirements to system prompt, increase `max_tokens`, fix Law/department naming |
-| `src/pages/Chat.tsx` | Improve 402 error toast to show specific credit cost and operation name |
+### Cost Impact
+- **Current**: 1 Flash call per humanization
+- **After**: 2 Flash calls per humanization (~2x cost)
+- No model tier upgrade, no frontend or database changes needed
 
