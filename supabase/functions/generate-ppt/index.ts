@@ -909,20 +909,22 @@ function buildTitleSlide(pptx: PptxGenJS, data: SlideData, theme: Theme, present
   const titleY = design.style === "bold" ? 1.8 : 2.2;
   
   slide.addText(data.title || presentationData.title, {
-    x: titleX, y: titleY, w: titleW, h: 1.2,
+    x: titleX, y: titleY, w: titleW, h: 1.8,
     fontSize: design.style === "bold" ? 44 : 40, 
     bold: true, 
     color: theme.text, 
     align: design.titleAlign,
-    fontFace: design.fontPrimary
+    fontFace: design.fontPrimary,
+    shrinkText: true,
+    valign: 'top'
   });
   
   // Subtitle/Author
   const subtitle = data.subtitle || presentationData.author || '';
   if (subtitle) {
     slide.addText(subtitle, {
-      x: titleX, y: titleY + 1.3, w: titleW, h: 0.6,
-      fontSize: 20, color: theme.accent, align: design.titleAlign,
+      x: titleX, y: titleY + 2.0, w: titleW, h: 0.6,
+      fontSize: 20, color: theme.secondary, align: design.titleAlign,
       fontFace: design.fontSecondary
     });
   }
@@ -930,7 +932,7 @@ function buildTitleSlide(pptx: PptxGenJS, data: SlideData, theme: Theme, present
   // Institution
   if (presentationData.institution) {
     slide.addText(presentationData.institution, {
-      x: titleX, y: titleY + 2.0, w: titleW, h: 0.5,
+      x: titleX, y: titleY + 2.6, w: titleW, h: 0.5,
       fontSize: 16, color: theme.secondary, align: design.titleAlign,
       fontFace: design.fontSecondary
     });
@@ -1442,7 +1444,7 @@ function buildThankYouSlide(pptx: PptxGenJS, theme: Theme, author?: string, inst
   slide.addText("Questions & Discussion", {
     x: 0.5, y: 3.2, w: 9, h: 0.6,
     fontSize: 22, 
-    color: design.style === "minimal" ? theme.accent : theme.secondary, 
+    color: theme.secondary, 
     align: 'center',
     fontFace: design.fontSecondary
   });
@@ -1459,7 +1461,7 @@ function buildThankYouSlide(pptx: PptxGenJS, theme: Theme, author?: string, inst
     slide.addText(institution, {
       x: 0.5, y: 4.8, w: 9, h: 0.4,
       fontSize: 14, 
-      color: design.style === "minimal" ? theme.secondary : theme.accent, 
+      color: theme.secondary, 
       align: 'center',
       fontFace: design.fontSecondary
     });
@@ -1723,7 +1725,7 @@ SLIDE TYPES:
 - "thankyou" - Final slide
 
 REQUIRED STRUCTURE (include ALL that apply based on document):
-1. Title Slide (type: "title") - Extract title, author, institution from document
+1. Title Slide (type: "title") - Extract title, author, institution from document. Extract the author's full name EXACTLY as written in the document. Do not split, rearrange, or abbreviate name parts. Look for the name on the title page or cover page.
 2. Introduction/Overview (type: "content") - Context and background
 3. Problem Statement & Objectives (type: "content") - Research problem and goals
 4. Literature Review (type: "content") - Key theories, previous research

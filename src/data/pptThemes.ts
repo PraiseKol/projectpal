@@ -85,7 +85,7 @@ export const PPT_THEMES: PPTTheme[] = [
       background: "#FFFBEB",
       headerBg: "#F59E0B",
       text: "#1F2937",
-      accent: "#7C3AED",
+      accent: "#D97706",
     },
     design: {
       style: "elegant",
