@@ -1314,12 +1314,15 @@ function buildConclusionSlide(pptx: PptxGenJS, data: SlideData, theme: Theme) {
   
   const bullets = data.bullets || [];
   bullets.forEach((bullet, i) => {
-    if (i < 5) {
+    if (i < 4) {
       const bulletChar = design.bulletStyle === "check" ? "✓" : getBulletChar(design.bulletStyle, i);
-      slide.addText(`${bulletChar} ${bullet}`, {
-        x: 0.5, y: contentStartY + (i * 0.7), w: 9, h: 0.6,
-        fontSize: 16, color: theme.text,
-        fontFace: design.fontSecondary
+      const truncatedBullet = bullet.length > 120 ? bullet.substring(0, 117) + "..." : bullet;
+      slide.addText(`${bulletChar} ${truncatedBullet}`, {
+        x: 0.5, y: contentStartY + (i * 0.85), w: 9, h: 0.8,
+        fontSize: 15, color: theme.text,
+        fontFace: design.fontSecondary,
+        valign: 'top',
+        shrinkText: true
       });
     }
   });
