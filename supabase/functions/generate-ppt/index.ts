@@ -1473,7 +1473,13 @@ serve(async (req) => {
   }
 
   try {
-    const { document_url, theme: requestedTheme, include_images = true } = await req.json();
+    const { document_url, theme: requestedTheme, include_images = true, slide_count_range = "10-12" } = await req.json();
+    
+    // Parse slide count range
+    const [slideMin, slideMax] = slide_count_range.split("-").map((n: string) => parseInt(n.trim()));
+    const effectiveMin = isNaN(slideMin) ? 10 : slideMin;
+    const effectiveMax = isNaN(slideMax) ? 12 : slideMax;
+    console.log(`[PPT] Requested slide range: ${effectiveMin}-${effectiveMax}`);
     
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
