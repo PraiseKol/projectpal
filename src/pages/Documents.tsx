@@ -153,7 +153,8 @@ const Documents = () => {
         body: { 
           document_url: uploadedDocUrl, 
           theme: selectedTheme,
-          include_images: includeImages 
+          include_images: includeImages,
+          slide_count_range: slideCountRange
         },
       });
 
