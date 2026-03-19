@@ -1444,7 +1444,7 @@ function buildThankYouSlide(pptx: PptxGenJS, theme: Theme, author?: string, inst
   slide.addText("Questions & Discussion", {
     x: 0.5, y: 3.2, w: 9, h: 0.6,
     fontSize: 22, 
-    color: design.style === "minimal" ? theme.accent : theme.secondary, 
+    color: theme.secondary, 
     align: 'center',
     fontFace: design.fontSecondary
   });
@@ -1461,7 +1461,7 @@ function buildThankYouSlide(pptx: PptxGenJS, theme: Theme, author?: string, inst
     slide.addText(institution, {
       x: 0.5, y: 4.8, w: 9, h: 0.4,
       fontSize: 14, 
-      color: design.style === "minimal" ? theme.secondary : theme.accent, 
+      color: theme.secondary, 
       align: 'center',
       fontFace: design.fontSecondary
     });
