@@ -1,59 +1,40 @@
 
 
-# Plan: Slide Count Selector + Fix Text Overlap in PPT Generator
+# Plan: Fix Title Slide Overlap + Thank You Slide Color Issues
 
-## 1. Frontend — Slide Count Selector (`src/pages/Documents.tsx`)
+## Problem Analysis
 
-Add a new section between the upload success and the theme selector. Four radio-style card options using existing UI components:
+**Issue 1 — Title slide text overlap:** The title "Development of a Smart Predictive Machine Learning Model for Detecting Skin Diseases (Acne, Melanoma, Mycosis)" is long and wraps, but the author/subtitle is placed at a fixed offset (`titleY + 1.3`), causing overlap. Additionally, the AI sometimes misreads author names from documents (e.g., "Kolawole Praise" → "Kol Awole Pr Aise K Ayode").
 
-- **7–9 slides** | **10–12 slides** | **13–15 slides** | **16–21 slides**
-- Default: `"10-12"`
-- New state: `slideCountRange`
-- Pass `slide_count_range` in the `generate-ppt` request body
-- Styled as clickable cards in a 2x2 or 4-column grid, matching the existing theme selector aesthetic
+**Issue 2 — Purple text on Thank You slide:** The "Warm Gradient" theme uses `accent: "7C3AED"` (purple), which is used for "Questions & Discussion" and institution text on the thank you slide. Purple clashes badly with the brown/amber theme. This affects multiple themes where accent colors don't complement the primary background.
 
-## 2. Edge Function — Enforce Slide Count (`supabase/functions/generate-ppt/index.ts`)
+## Changes — `supabase/functions/generate-ppt/index.ts`
 
-**a) Accept new parameter** (line 1466): extract `slide_count_range` from request body, parse to min/max numbers.
+### 1. Fix title slide spacing (buildTitleSlide, ~line 906-937)
 
-**b) Update AI system prompt** (line 1724-1725): replace the fixed "Create 12-25 slides" guideline with:
-```
-You MUST generate between {min} and {max} slides total (including title, conclusion, references, thankyou).
-If content exceeds {max} slides, merge related points and prioritize key findings.
-If content is sparse, expand important sections across multiple slides.
-```
+- Increase title text box height from `1.2` to `1.8` to give long titles room
+- Push subtitle (author) down from `titleY + 1.3` to `titleY + 2.0`
+- Push institution down from `titleY + 2.0` to `titleY + 2.6`
+- This prevents overlap even with 4-5 line titles
 
-**c) Post-AI enforcement** (line 1777): after parsing slides, trim array to max if over, keeping title/conclusion/references/thankyou and trimming content slides from the middle.
+### 2. Fix accent colors on Thank You slide (buildThankYouSlide, ~line 1442-1465)
 
-## 3. Fix Text Overlap in Slide Rendering (`supabase/functions/generate-ppt/index.ts`)
+- Replace `theme.accent` with `theme.secondary` for "Questions & Discussion" text (line 1445) — `secondary` is always designed to complement `primary`
+- Replace `theme.accent` with `theme.secondary` for institution text (line 1462) — same reason
+- This ensures all text on the thank you slide uses colors from the same palette family
 
-**a) `buildContentSlide` (line 1075-1093) — Bullet overlap fix:**
-- Increase bullet text box height from `0.6` to `0.8`
-- Increase `lineHeight` from `0.65-0.7` to `0.85`
-- Cap bullets at 4 per slide (currently 5)
-- Add `shrinkText: true` and `valign: 'top'` to prevent overflow
-- Truncate individual bullets longer than 120 characters with "..."
+### 3. Fix clashing accent colors in theme definitions (~line 314-334)
 
-**b) `toBullets` function (line 85-97):**
-- Add max character limit per bullet (cap at 120 chars)
+- Change "Warm Gradient" accent from `"7C3AED"` (purple) to `"D97706"` (amber) — matches the warm palette
+- Audit other themes and fix any where accent clashes with primary
 
-**c) `buildConclusionSlide` (line 1311-1320):**
-- Increase spacing from `0.7` to `0.85` per bullet
-- Cap at 4 bullets
+### 4. Improve author name extraction in AI prompt (~line 1726)
 
-**d) `buildReferencesSlide` (line 1371-1380):**
-- Reduce max refs from 10 to 8 per slide
-- Increase spacing from `0.55` to `0.6`
-
-**e) AI prompt bullet length rule** (line 1726): add instruction:
-```
-Each bullet point must be one concise sentence, maximum 18 words. Never write multi-sentence bullets.
-```
+- Add explicit instruction: "Extract the author's full name EXACTLY as written in the document. Do not split or rearrange name parts. Look for the name on the title page or cover page."
 
 ## Files Modified
 
 | File | Changes |
 |------|---------|
-| `src/pages/Documents.tsx` | Add slide count selector UI, pass to API |
-| `supabase/functions/generate-ppt/index.ts` | Accept slide count, update prompt, fix overlap in all slide builders |
+| `supabase/functions/generate-ppt/index.ts` | Fix title slide spacing, thank you slide colors, accent color definitions, author extraction prompt |
 
