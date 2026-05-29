@@ -196,6 +196,54 @@ export type Database = {
         }
         Relationships: []
       }
+      blog_posts: {
+        Row: {
+          author: string | null
+          content: string
+          cover_image_url: string | null
+          created_at: string
+          excerpt: string | null
+          id: string
+          keywords: string | null
+          meta_description: string | null
+          published: boolean
+          published_at: string | null
+          slug: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author?: string | null
+          content: string
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt?: string | null
+          id?: string
+          keywords?: string | null
+          meta_description?: string | null
+          published?: boolean
+          published_at?: string | null
+          slug: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author?: string | null
+          content?: string
+          cover_image_url?: string | null
+          created_at?: string
+          excerpt?: string | null
+          id?: string
+          keywords?: string | null
+          meta_description?: string | null
+          published?: boolean
+          published_at?: string | null
+          slug?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chat_sessions: {
         Row: {
           created_at: string
@@ -350,6 +398,7 @@ export type Database = {
         Row: {
           campaign_id: string | null
           email: string
+          email_type: string | null
           error_message: string | null
           id: string
           sent_at: string
@@ -359,6 +408,7 @@ export type Database = {
         Insert: {
           campaign_id?: string | null
           email: string
+          email_type?: string | null
           error_message?: string | null
           id?: string
           sent_at?: string
@@ -368,6 +418,7 @@ export type Database = {
         Update: {
           campaign_id?: string | null
           email?: string
+          email_type?: string | null
           error_message?: string | null
           id?: string
           sent_at?: string
@@ -495,6 +546,8 @@ export type Database = {
           monthly_analysis_count: number | null
           monthly_analysis_reset_date: string | null
           monthly_credits: number
+          monthly_free_analysis_used_at: string | null
+          monthly_free_ppt_used_at: string | null
           paid_credits: number
           plan_type: Database["public"]["Enums"]["plan_type"]
           referred_by: string | null
@@ -516,6 +569,8 @@ export type Database = {
           monthly_analysis_count?: number | null
           monthly_analysis_reset_date?: string | null
           monthly_credits?: number
+          monthly_free_analysis_used_at?: string | null
+          monthly_free_ppt_used_at?: string | null
           paid_credits?: number
           plan_type?: Database["public"]["Enums"]["plan_type"]
           referred_by?: string | null
@@ -537,11 +592,40 @@ export type Database = {
           monthly_analysis_count?: number | null
           monthly_analysis_reset_date?: string | null
           monthly_credits?: number
+          monthly_free_analysis_used_at?: string | null
+          monthly_free_ppt_used_at?: string | null
           paid_credits?: number
           plan_type?: Database["public"]["Enums"]["plan_type"]
           referred_by?: string | null
           status?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      project_topics: {
+        Row: {
+          created_at: string
+          department: string
+          department_name: string
+          id: string
+          level: string | null
+          topic: string
+        }
+        Insert: {
+          created_at?: string
+          department: string
+          department_name: string
+          id?: string
+          level?: string | null
+          topic: string
+        }
+        Update: {
+          created_at?: string
+          department?: string
+          department_name?: string
+          id?: string
+          level?: string | null
+          topic?: string
         }
         Relationships: []
       }
@@ -566,6 +650,33 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      referral_credit_rewards: {
+        Row: {
+          created_at: string
+          credits_awarded: number
+          id: string
+          referred_user_id: string
+          referrer_user_id: string
+          trigger_event: string
+        }
+        Insert: {
+          created_at?: string
+          credits_awarded: number
+          id?: string
+          referred_user_id: string
+          referrer_user_id: string
+          trigger_event: string
+        }
+        Update: {
+          created_at?: string
+          credits_awarded?: number
+          id?: string
+          referred_user_id?: string
+          referrer_user_id?: string
+          trigger_event?: string
         }
         Relationships: []
       }

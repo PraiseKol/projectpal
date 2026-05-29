@@ -27,6 +27,10 @@ import NotFound from "./pages/NotFound";
 import DataAnalysis from "./pages/DataAnalysis";
 import QuestionnaireBuilder from "./pages/QuestionnaireBuilder";
 import Humanizer from "./pages/Humanizer";
+import Blog from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
+import Topics from "./pages/Topics";
+import DepartmentTopics from "./pages/DepartmentTopics";
 import OAuthCallback from "./components/OAuthCallback";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -65,6 +69,10 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/pricing" element={<Pricing />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:slug" element={<BlogPost />} />
+              <Route path="/topics" element={<Topics />} />
+              <Route path="/topics/:department" element={<DepartmentTopics />} />
               <Route path="/~oauth/*" element={<OAuthCallback />} />
               {/* Protected routes */}
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
