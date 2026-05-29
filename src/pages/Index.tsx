@@ -7,6 +7,9 @@ import { BookOpen, Sparkles, CheckCircle } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SEO } from "@/components/SEO";
 import { ProjectPalLogo } from "@/components/ProjectPalLogo";
+import { SocialProof } from "@/components/Landing/SocialProof";
+import { Testimonials } from "@/components/Landing/Testimonials";
+import { UniversityLogos } from "@/components/Landing/UniversityLogos";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -52,7 +55,11 @@ const Index = () => {
       />
       {/* Header */}
       <header className="container mx-auto px-4 py-4 flex justify-end">
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/blog")}>Blog</Button>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/topics")}>Topics</Button>
+          <ThemeToggle />
+        </div>
       </header>
 
       {/* Hero Section */}
@@ -74,6 +81,10 @@ const Index = () => {
           </Button>
         </div>
       </section>
+
+      <UniversityLogos />
+      <SocialProof />
+      <Testimonials />
 
       {/* Features Section */}
       <section className="container mx-auto px-4 py-16">
