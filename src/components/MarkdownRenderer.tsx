@@ -7,7 +7,7 @@ interface MarkdownRendererProps {
   className?: string;
 }
 
-export const MarkdownRenderer = ({ content, className }: MarkdownRendererProps) => {
+const MarkdownRendererInner = ({ content, className }: MarkdownRendererProps) => {
   return (
     <div className={cn("prose prose-sm max-w-none", className)}>
       <ReactMarkdown
@@ -111,3 +111,7 @@ export const MarkdownRenderer = ({ content, className }: MarkdownRendererProps) 
     </div>
   );
 };
+
+// Memoized: chat messages re-render often (typing effect, composer input) —
+// only reparse the markdown when the content actually changes.
+export const MarkdownRenderer = React.memo(MarkdownRendererInner);
