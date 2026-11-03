@@ -108,6 +108,9 @@ const Chat = () => {
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [creditCosts, setCreditCosts] = useState<Record<string, number>>({});
   const [costsOpen, setCostsOpen] = useState(false);
+  const [isLoadingSession, setIsLoadingSession] = useState(false);
+  const [failedMessage, setFailedMessage] = useState<string | null>(null);
+  const loadSessionRef = useRef(0);
 
   const displayedSessions = showAllChats ? chatSessions : chatSessions.slice(0, 3);
 
@@ -219,18 +222,25 @@ const Chat = () => {
     }
   };
 
-  const loadSession = async (sessionId: string) => {
+  const loadSession = async (targetSessionId: string) => {
+    const requestId = ++loadSessionRef.current;
+    setIsLoadingSession(true);
     try {
-      setSessionId(sessionId);
-
       // Load messages for this session
       const { data, error } = await supabase
         .from("messages")
         .select("*")
-        .eq("session_id", sessionId)
+        .eq("session_id", targetSessionId)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
+
+      // Ignore stale responses — only the newest selection wins
+      if (requestId !== loadSessionRef.current) return;
+
+      // Switch session and messages together, so the view never shows one
+      // conversation while the composer is aimed at another
+      setSessionId(targetSessionId);
       setMessages(data || []);
 
       // Close sidebar on mobile after selecting a chat
@@ -239,7 +249,9 @@ const Chat = () => {
       }
     } catch (error) {
       logError("Chat:loadSession", error);
-      toast.error(translateError(error));
+      if (requestId === loadSessionRef.current) toast.error(translateError(error));
+    } finally {
+      if (requestId === loadSessionRef.current) setIsLoadingSession(false);
     }
   };
 
@@ -340,8 +352,9 @@ const Chat = () => {
     setTypingMessageId(null);
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleSend = async (overrideMessage?: string) => {
+    const rawText = overrideMessage ?? input;
+    if (!rawText.trim() || isLoading) return;
 
     let currentSessionId = sessionId;
 
@@ -375,8 +388,9 @@ const Chat = () => {
     const isFreeUser =
       profile?.plan_type === "free" ||
       (profile?.credits_expiry_date && new Date(profile.credits_expiry_date) < new Date());
+    // Match the server rule: a free user can spend min(daily, monthly) credits
     const hasCredits = isFreeUser
-      ? profile?.monthly_credits > 0
+      ? Math.min(profile?.monthly_credits ?? 0, profile?.daily_credits ?? 0) > 0
       : profile?.daily_credits > 0 || profile?.paid_credits > 0;
 
     if (!hasCredits) {
@@ -385,7 +399,7 @@ const Chat = () => {
       return;
     }
 
-    const userMessage = input.trim();
+    const userMessage = rawText.trim();
     setInput("");
     setIsLoading(true);
 
@@ -400,11 +414,12 @@ const Chat = () => {
       setMessages((prev) => [...prev, userMsg]);
 
       // Save user message
-      await supabase.from("messages").insert({
+      const { error: insertError } = await supabase.from("messages").insert({
         session_id: currentSessionId,
         sender: "user",
         content: userMessage,
       });
+      if (insertError) throw insertError;
 
       // Call AI edge function
       const { data, error } = await supabase.functions.invoke("chat-ai", {
@@ -436,8 +451,11 @@ const Chat = () => {
 
       // Update profile credits
       setProfile((prev: any) => ({ ...prev, ...data.profile }));
+      setFailedMessage(null);
     } catch (error: any) {
       logError("Chat:sendMessage", error);
+      // Keep the prompt so the user can retry it with one tap
+      setFailedMessage(userMessage);
       // Check for 402 (insufficient credits) from edge function
       const errorBody = error?.context?.body;
       const statusCode = error?.context?.status || error?.status;
@@ -483,20 +501,25 @@ const Chat = () => {
   };
 
   const quickActions = [
-    { label: "Generate Project Topic", prompt: "Generate a project topic for my field of study" },
-    { label: "Write Chapter 1 (Introduction)", prompt: "Help me write Chapter 1: Introduction for my project" },
-    { label: "Search for Articles", prompt: "Search for academic articles about [your topic here]" },
-    { label: "Write Chapter 2 (Literature Review)", prompt: "Help me write Chapter 2: Literature Review" },
-    { label: "Write Proposal", prompt: "Help me write a research proposal" },
-    { label: "Write Chapter 3 (Methodology)", prompt: "Help me write Chapter 3: Methodology" },
-    { label: "Generate References", prompt: "Generate academic references in APA format" },
+    { label: "Generate Project Topic", prompt: "Generate a project topic for my field of study", costKey: "credit_cost_simple_chat" },
+    { label: "Write Chapter 1 (Introduction)", prompt: "Help me write Chapter 1: Introduction for my project", costKey: "credit_cost_chapter_1" },
+    { label: "Search for Articles", prompt: "Search for academic articles about [your topic here]", costKey: "credit_cost_article_search" },
+    { label: "Write Chapter 2 (Literature Review)", prompt: "Help me write Chapter 2: Literature Review", costKey: "credit_cost_chapter_2" },
+    { label: "Write Proposal", prompt: "Help me write a research proposal", costKey: "credit_cost_research_proposal" },
+    { label: "Write Chapter 3 (Methodology)", prompt: "Help me write Chapter 3: Methodology", costKey: "credit_cost_chapter_3" },
+    { label: "Generate References", prompt: "Generate academic references in APA format", costKey: "credit_cost_references" },
     {
       label: "Edit Chapter 4 (Results/Discussion)",
       prompt: "Help me edit and improve Chapter 4: Results and Discussion",
+      costKey: "credit_cost_chapter_4",
     },
-    { label: "Analyze", prompt: "Analyze your generated chapters" },
-    { label: "Write Chapter 5 (Conclusion)", prompt: "Help me write Chapter 5: Conclusion and Recommendations" },
+    { label: "Analyze", prompt: "Analyze your generated chapters", costKey: "credit_cost_analysis" },
+    { label: "Write Chapter 5 (Conclusion)", prompt: "Help me write Chapter 5: Conclusion and Recommendations", costKey: "credit_cost_chapter_5" },
   ];
+
+  // Live credit cost for a quick action (falls back to the default cost)
+  const getOpCost = (key?: string) =>
+    key ? creditCosts[key] ?? CREDIT_OPERATIONS.find((o) => o.key === key)?.defaultCost ?? null : null;
 
   // Get display credits based on plan type
   const getCreditsDisplay = () => {
