@@ -7,9 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Copy, Download, Loader2, AlertTriangle, Sparkles } from "lucide-react";
+import { ArrowLeft, Copy, Download, Loader2, AlertTriangle, Sparkles, Lock } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ParaphraserSkeleton } from "@/components/skeletons/ParaphraserSkeleton";
+import { ToastAction } from "@/components/ui/toast";
 import { translateError, logError } from "@/utils/errorMessages";
 
 const FREE_WORD_LIMIT = 120;
@@ -163,10 +164,15 @@ const Paraphraser = () => {
 
   const handleCopy = () => {
     if (!canExport) {
+      // Clear, non-destructive upgrade path — never a red error for a plan limit
       toast({
-        title: "Upgrade Required",
-        description: "Upgrade to Pro or Scholar to copy and download paraphrased text.",
-        variant: "destructive",
+        title: "Exporting is a paid feature",
+        description: "You can keep paraphrasing free. Pro and Scholar plans can copy and download results.",
+        action: (
+          <ToastAction altText="View plans" onClick={() => navigate("/pricing")}>
+            View Plans
+          </ToastAction>
+        ),
       });
       return;
     }
@@ -180,9 +186,13 @@ const Paraphraser = () => {
   const handleDownload = () => {
     if (!canExport) {
       toast({
-        title: "Upgrade Required",
-        description: "Upgrade to Pro or Scholar to download paraphrased text.",
-        variant: "destructive",
+        title: "Exporting is a paid feature",
+        description: "You can keep paraphrasing free. Pro and Scholar plans can copy and download results.",
+        action: (
+          <ToastAction altText="View plans" onClick={() => navigate("/pricing")}>
+            View Plans
+          </ToastAction>
+        ),
       });
       return;
     }
@@ -232,10 +242,13 @@ const Paraphraser = () => {
               <div className="flex-1">
                 <h3 className="font-semibold text-sm">Free Plan Limits</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {hasUsedDailyLimit 
+                  {hasUsedDailyLimit
                     ? "You've used your daily paraphrases. Come back tomorrow or upgrade for unlimited access!"
-                    : `${FREE_DAILY_LIMIT - dailyParaphraseCount}/${FREE_DAILY_LIMIT} paraphrases remaining today • Max ${FREE_WORD_LIMIT} words • No export`
+                    : `${FREE_DAILY_LIMIT - dailyParaphraseCount}/${FREE_DAILY_LIMIT} paraphrases remaining today • Max ${FREE_WORD_LIMIT} words • Uses 1 credit each`
                   }
+                </p>
+                <p className="text-xs text-muted-foreground mt-1 italic">
+                  Example — before: "This study examines the effects of X." → after: "The research investigates how X influences outcomes."
                 </p>
                 <Button 
                   size="sm" 
@@ -326,8 +339,8 @@ const Paraphraser = () => {
             
             {!canExport && outputText && (
               <div className="mb-3 p-2 bg-muted rounded-lg flex items-center gap-2 text-sm text-muted-foreground">
-                <AlertTriangle className="h-4 w-4" />
-                <span>Upgrade to copy or download</span>
+                <Lock className="h-4 w-4" />
+                <span>Copy and download unlock on Pro &amp; Scholar — your result stays visible here.</span>
               </div>
             )}
             
