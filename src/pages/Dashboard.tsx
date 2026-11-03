@@ -27,6 +27,7 @@ import {
   RefreshCw,
   Lock,
   BarChart3,
+  CheckCircle,
   Users,
   Trash2,
   ClipboardList,
@@ -41,6 +42,7 @@ import { SEO } from "@/components/SEO";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
 import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton";
+import { DashboardTour } from "@/components/Dashboard/DashboardTour";
 import { translateError, logError } from "@/utils/errorMessages";
 
 const Dashboard = () => {
@@ -295,6 +297,7 @@ const Dashboard = () => {
             <ThemeToggle />
             {/* Desktop navigation */}
             <div className="hidden md:flex items-center gap-2">
+              <DashboardTour userId={profile?.id ?? null} />
               {isAmbassador && (
                 <Button onClick={() => navigate("/ambassador")} variant="outline" size="sm">
                   <Users className="h-4 w-4 mr-2" />
