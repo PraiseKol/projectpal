@@ -1505,10 +1505,27 @@ serve(async (req) => {
 
     if (profileError) throw profileError;
 
-    // Check if plan is scholar (PPT is Scholar-only)
-    if (profile.plan_type !== 'scholar') {
+    // Plan access: Scholar always; active Pro users get one free deck per
+    // month as a trial — their first generated deck sells the upgrade.
+    const trialExpiry = profile.credits_expiry_date
+      ? new Date(profile.credits_expiry_date) < new Date()
+      : true;
+    const trialUsedThisMonth = (() => {
+      if (!profile.monthly_free_ppt_used_at) return false;
+      const used = new Date(profile.monthly_free_ppt_used_at);
+      const now = new Date();
+      return used.getMonth() === now.getMonth() && used.getFullYear() === now.getFullYear();
+    })();
+    const isProTrial = profile.plan_type === 'pro' && !trialExpiry && !trialUsedThisMonth;
+
+    if (profile.plan_type !== 'scholar' && !isProTrial) {
+      const trialMessage = profile.plan_type === 'pro'
+        ? (trialUsedThisMonth
+            ? 'You have already used your free PowerPoint this month. Upgrade to Scholar for unlimited PPT generation.'
+            : 'Your Pro subscription has expired. Renew it to use your monthly free PPT, or upgrade to Scholar.')
+        : 'Scholar plan required. PPT Generator is an exclusive Scholar feature — Pro users get one free deck every month.';
       return new Response(
-        JSON.stringify({ error: 'Scholar plan required. PPT Generator is an exclusive Scholar feature.' }),
+        JSON.stringify({ error: trialMessage }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -1519,11 +1536,8 @@ serve(async (req) => {
 
     let dailyCredits = profile.daily_credits;
     let paidCredits = profile.paid_credits || 0;
-    const creditsExpiryDate = profile.credits_expiry_date;
 
-    // Check if subscription has expired
-    const paidCreditsExpired = creditsExpiryDate ? new Date(creditsExpiryDate) < new Date() : true;
-    const isActiveSubscriber = !paidCreditsExpired;
+    const isActiveSubscriber = !trialExpiry;
 
     console.log(`[CREDIT] PPT - User: ${user.id}, Plan: ${profile.plan_type}`);
     console.log(`[CREDIT] Before - Daily: ${profile.daily_credits}, Paid: ${profile.paid_credits}`);
@@ -1561,12 +1575,14 @@ serve(async (req) => {
       dailyCredits = DEFAULT_DAILY;
     }
 
-    // Credit deduction logic - variable based on image option
-    const creditsToDeduct = include_images ? (BASE_CREDIT_COST + IMAGE_CREDIT_COST) : BASE_CREDIT_COST;
+    // Credit deduction logic - variable based on image option (free for the Pro monthly trial)
+    const creditsToDeduct = isProTrial ? 0 : (include_images ? (BASE_CREDIT_COST + IMAGE_CREDIT_COST) : BASE_CREDIT_COST);
     let canProceed = false;
-    let creditSource = '';
+    let creditSource = isProTrial ? 'pro monthly free trial' : '';
 
-    if (dailyCredits >= creditsToDeduct) {
+    if (isProTrial) {
+      canProceed = true;
+    } else if (dailyCredits >= creditsToDeduct) {
       dailyCredits -= creditsToDeduct;
       canProceed = true;
       creditSource = 'daily';
@@ -1945,13 +1961,14 @@ GUIDELINES:
       throw new Error('Failed to generate download URL');
     }
 
-    // Update credits
+    // Update credits (and mark the Pro monthly trial as used)
     await supabaseClient
       .from('profiles')
       .update({
         daily_credits: dailyCredits,
         paid_credits: paidCredits,
         daily_reset_date: today,
+        ...(isProTrial ? { monthly_free_ppt_used_at: new Date().toISOString() } : {}),
       })
       .eq('id', user.id);
 
@@ -1960,6 +1977,7 @@ GUIDELINES:
         ppt_url: signedUrlData.signedUrl,
         download_name: downloadName,
         credits_used: creditsToDeduct,
+        pro_trial: isProTrial,
         images_enabled: include_images,
         theme_used: selectedTheme.name,
         design_style: selectedTheme.design.style,
