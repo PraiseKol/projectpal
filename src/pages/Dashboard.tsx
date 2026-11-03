@@ -771,6 +771,11 @@ const Dashboard = () => {
                   <Badge variant="secondary" className="text-xs">
                     {pptCreditCost} Credits
                   </Badge>
+                ) : profile?.plan_type === "pro" && isActiveSubscriber() ? (
+                  <Badge variant="secondary" className="text-xs gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    1 free/month
+                  </Badge>
                 ) : (
                   <Badge variant="outline" className="text-xs gap-1">
                     <Lock className="h-3 w-3" />
