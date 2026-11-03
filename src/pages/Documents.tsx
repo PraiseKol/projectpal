@@ -85,8 +85,13 @@ const Documents = () => {
       return;
     }
 
+    // A newly selected file fully invalidates the previous upload, output and error,
+    // so generation can never run against the old document.
     setSelectedFile(file);
+    setUploadedDocUrl("");
     setGeneratedPptUrl("");
+    setGeneratedPptName("generated-presentation.pptx");
+    setGenerationError(null);
   };
 
   const handleUpload = async () => {
