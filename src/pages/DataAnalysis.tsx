@@ -188,22 +188,22 @@ const DataAnalysisContent = () => {
       <TutorialOverlay />
       <WelcomeDialog />
       
-      {/* Header */}
+      {/* Header — collapses gracefully on narrow screens */}
       <header className="border-b border-border">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button onClick={() => navigate("/dashboard")} variant="ghost" size="sm">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            <Button onClick={() => navigate("/dashboard")} variant="ghost" size="sm" aria-label="Back to dashboard">
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-gradient-to-br from-primary to-secondary rounded-xl">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="p-2 bg-gradient-to-br from-primary to-secondary rounded-xl shrink-0">
                 <GraduationCap className="h-5 w-5 text-white" />
               </div>
-              <span className="text-lg font-semibold">Data Analysis</span>
+              <span className="text-base sm:text-lg font-semibold hidden xs:inline">Data Analysis</span>
             </div>
           </div>
-          <div className="flex items-center gap-2 sm:gap-4">
-            <Button variant="ghost" size="sm" onClick={startTutorial}>
+          <div className="flex items-center gap-1 sm:gap-4 shrink-0">
+            <Button variant="ghost" size="sm" onClick={startTutorial} aria-label="Start the tutorial">
               <HelpCircle className="h-4 w-4 sm:mr-1" />
               <span className="hidden sm:inline">Tutorial</span>
             </Button>
@@ -240,12 +240,12 @@ const DataAnalysisContent = () => {
                           <StepIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
                         )}
                       </div>
-                      <span className={`mt-1 sm:mt-2 text-xs sm:text-sm font-medium ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+                      <span className={`mt-1 sm:mt-2 text-xs sm:text-sm font-medium text-center ${isActive ? 'text-primary' : 'text-muted-foreground hidden sm:inline'}`}>
                         {step.name}
                       </span>
                     </div>
                     {index < STEPS.length - 1 && (
-                      <div className={`flex-1 h-0.5 mx-4 ${currentStep > step.id ? 'bg-primary' : 'bg-muted'}`} />
+                      <div className={`flex-1 h-0.5 mx-1 sm:mx-4 ${currentStep > step.id ? 'bg-primary' : 'bg-muted'}`} />
                     )}
                   </div>
                 );

@@ -9,31 +9,40 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { MaintenanceBanner } from "@/components/MaintenanceBanner";
 import { SuspensionBanner } from "@/components/SuspensionBanner";
 import { FeatureGate } from "@/components/FeatureGate";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import ResetPassword from "./pages/ResetPassword";
-import Dashboard from "./pages/Dashboard";
-import Chat from "./pages/Chat";
-import Pricing from "./pages/Pricing";
-import Settings from "./pages/Settings";
-import Paraphraser from "./pages/Paraphraser";
-import Documents from "./pages/Documents";
-import DocumentEditor from "./pages/DocumentEditor";
-import CheckoutSuccess from "./pages/CheckoutSuccess";
-import TransactionHistory from "./pages/TransactionHistory";
-import Admin from "./pages/Admin";
-import Ambassador from "./pages/Ambassador";
-import NotFound from "./pages/NotFound";
-import DataAnalysis from "./pages/DataAnalysis";
-import QuestionnaireBuilder from "./pages/QuestionnaireBuilder";
-import Humanizer from "./pages/Humanizer";
-import Blog from "./pages/Blog";
-import BlogPost from "./pages/BlogPost";
-import Topics from "./pages/Topics";
-import DepartmentTopics from "./pages/DepartmentTopics";
-import OAuthCallback from "./components/OAuthCallback";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+
+// Route-level code splitting: heavy pages (and their docx/jspdf exports)
+// load only when the visitor opens them.
+const Index = lazy(() => import("./pages/Index"));
+const Auth = lazy(() => import("./pages/Auth"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Chat = lazy(() => import("./pages/Chat"));
+const Pricing = lazy(() => import("./pages/Pricing"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Paraphraser = lazy(() => import("./pages/Paraphraser"));
+const Documents = lazy(() => import("./pages/Documents"));
+const DocumentEditor = lazy(() => import("./pages/DocumentEditor"));
+const CheckoutSuccess = lazy(() => import("./pages/CheckoutSuccess"));
+const TransactionHistory = lazy(() => import("./pages/TransactionHistory"));
+const Admin = lazy(() => import("./pages/Admin"));
+const Ambassador = lazy(() => import("./pages/Ambassador"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const DataAnalysis = lazy(() => import("./pages/DataAnalysis"));
+const QuestionnaireBuilder = lazy(() => import("./pages/QuestionnaireBuilder"));
+const Humanizer = lazy(() => import("./pages/Humanizer"));
+const Blog = lazy(() => import("./pages/Blog"));
+const BlogPost = lazy(() => import("./pages/BlogPost"));
+const Topics = lazy(() => import("./pages/Topics"));
+const DepartmentTopics = lazy(() => import("./pages/DepartmentTopics"));
+import OAuthCallback from "./components/OAuthCallback";
+
+const PageFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="animate-pulse text-muted-foreground text-sm">Loading…</div>
+  </div>
+);
 
 const queryClient = new QueryClient();
 
@@ -63,6 +72,7 @@ const App = () => (
             <AuthEventHandler />
             <MaintenanceBanner />
             <SuspensionBanner />
+            <Suspense fallback={<PageFallback />}>
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<Index />} />
@@ -91,6 +101,7 @@ const App = () => (
               
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </Suspense>
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>

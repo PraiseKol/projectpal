@@ -694,10 +694,10 @@ const Chat = () => {
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2 md:gap-4">
               {/* Mobile hamburger menu */}
-              <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setShowSidebar(true)}>
+              <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setShowSidebar(true)} aria-label="Open chats">
                 <Menu className="h-5 w-5" />
               </Button>
-              <Button onClick={() => navigate("/dashboard")} variant="outline" size="sm">
+              <Button onClick={() => navigate("/dashboard")} variant="outline" size="sm" aria-label="Back to dashboard">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div className="flex items-center gap-2">
@@ -949,6 +949,7 @@ const Chat = () => {
                 disabled={isLoading || !input.trim()}
                 size="icon"
                 className="rounded-full shrink-0"
+                aria-label="Send message"
               >
                 <Send className="h-4 w-4" />
               </Button>
