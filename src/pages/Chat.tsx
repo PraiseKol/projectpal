@@ -30,6 +30,7 @@ import {
   Copy,
   Check,
   FastForward,
+  RefreshCw,
   ChevronUp,
   ChevronDown,
   Coins,
@@ -708,7 +709,9 @@ const Chat = () => {
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
           {/* Scrollable messages area */}
           <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
-            {messages.length === 0 ? (
+            {isLoadingSession ? (
+              <div className="text-center py-12 text-muted-foreground">Loading conversation…</div>
+            ) : messages.length === 0 ? (
               <div className="text-center py-12">
                 <Sparkles className="h-16 w-16 mx-auto mb-4 text-primary" />
                 <h2 className="text-xl sm:text-2xl font-bold mb-2">Welcome to ProjectPal</h2>
@@ -723,8 +726,15 @@ const Chat = () => {
                       className="justify-start text-left h-auto py-3 rounded-xl hover:bg-accent/50"
                       onClick={() => setInput(action.prompt)}
                     >
-                      <div>
-                        <div className="font-semibold">{action.label}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold">{action.label}</span>
+                          {getOpCost(action.costKey) !== null && (
+                            <Badge variant="secondary" className="text-[10px] shrink-0">
+                              {getOpCost(action.costKey)} cr
+                            </Badge>
+                          )}
+                        </div>
                         <div className="text-xs text-muted-foreground mt-1">{action.prompt}</div>
                       </div>
                     </Button>
@@ -869,6 +879,11 @@ const Chat = () => {
                       onClick={() => setInput(action.prompt)}
                     >
                       {action.label}
+                      {getOpCost(action.costKey) !== null && (
+                        <Badge variant="secondary" className="text-[10px] ml-1.5 px-1.5">
+                          {getOpCost(action.costKey)}
+                        </Badge>
+                      )}
                     </Button>
                   ))}
                 </div>
@@ -878,6 +893,26 @@ const Chat = () => {
 
           {/* Input Area - fixed at bottom */}
           <div className="px-4 pb-4 pt-2 border-t border-border shrink-0 bg-background">
+            {failedMessage && (
+              <div className="flex items-center justify-between gap-3 mb-2 p-2.5 rounded-xl bg-destructive/10 border border-destructive/30">
+                <span className="text-xs text-destructive flex-1 min-w-0">
+                  Your last message didn't send. Tap Retry to send it again.
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 h-7 text-xs"
+                  onClick={() => {
+                    const msg = failedMessage;
+                    setFailedMessage(null);
+                    handleSend(msg);
+                  }}
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Retry
+                </Button>
+              </div>
+            )}
             <div className="flex gap-2 items-end">
               <Textarea
                 value={input}
@@ -892,7 +927,7 @@ const Chat = () => {
                 disabled={isLoading}
                 className="min-h-[40px] max-h-[120px] resize-none rounded-2xl py-2"
                 rows={1}
-                style={{ height: "auto", overflow: "hidden" }}
+                style={{ height: "auto", overflowY: "auto" }}
                 ref={(el) => {
                   if (el) {
                     el.style.height = "auto";
@@ -901,7 +936,7 @@ const Chat = () => {
                 }}
               />
               <Button
-                onClick={handleSend}
+                onClick={() => handleSend()}
                 disabled={isLoading || !input.trim()}
                 size="icon"
                 className="rounded-full shrink-0"
