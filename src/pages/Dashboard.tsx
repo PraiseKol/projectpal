@@ -577,8 +577,12 @@ const Dashboard = () => {
                 </div>
               )}
             </div>
-            {profile?.plan_type !== "free" && (
+            {profile?.plan_type !== "free" ? (
               <p className="text-xs text-muted-foreground mt-2">Daily credits are consumed first, then paid credits</p>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-2">
+                You can ask a question or try the AI Humanizer right now — full chapters and PowerPoint generation need an upgrade.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -680,7 +684,7 @@ const Dashboard = () => {
         )}
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div data-tour="tour-tools-grid" className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <Card
             className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in"
             onClick={() => navigate("/chat")}
@@ -694,23 +698,29 @@ const Dashboard = () => {
 
           <Card
             className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in"
-            onClick={() => navigate("/chat")}
+            onClick={() => navigate(`/chat?starter=${encodeURIComponent("Generate a project topic for my field of study")}`)}
           >
             <CardHeader>
               <FileText className="h-12 w-12 mb-4 text-primary" />
-              <CardTitle>Generate Project</CardTitle>
-              <CardDescription>Quick access to project topic generation and proposal writing</CardDescription>
+              <div className="flex items-center gap-2">
+                <CardTitle>Generate Project</CardTitle>
+                <Badge variant="secondary" className="text-xs">1 credit</Badge>
+              </div>
+              <CardDescription>Get a research-ready project topic in seconds — opens chat with the prompt filled in</CardDescription>
             </CardHeader>
           </Card>
 
           <Card
             className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in"
-            onClick={() => navigate("/chat")}
+            onClick={() => navigate(`/chat?starter=${encodeURIComponent("Help me write Chapter 1: Introduction for my project")}`)}
           >
             <CardHeader>
               <Sparkles className="h-12 w-12 mb-4 text-primary" />
-              <CardTitle>Academic Writing</CardTitle>
-              <CardDescription>Generate chapters, references, and edit your content</CardDescription>
+              <div className="flex items-center gap-2">
+                <CardTitle>Academic Writing</CardTitle>
+                <Badge variant="secondary" className="text-xs">from 5 credits</Badge>
+              </div>
+              <CardDescription>Write your introduction chapter — opens chat with the prompt filled in</CardDescription>
             </CardHeader>
           </Card>
 

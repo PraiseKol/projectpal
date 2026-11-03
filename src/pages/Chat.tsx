@@ -153,6 +153,15 @@ const Chat = () => {
   }, [isMobile]);
 
   useEffect(() => {
+    // Dashboard "starter" deep links fill the composer with the prompt
+    const starter = searchParams.get("starter");
+    if (starter) {
+      setInput(starter);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
