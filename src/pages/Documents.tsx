@@ -28,6 +28,9 @@ const Documents = () => {
   const [selectedTheme, setSelectedTheme] = useState("random");
   const [includeImages, setIncludeImages] = useState(true);
   const [slideCountRange, setSlideCountRange] = useState("10-12");
+  const [userPlan, setUserPlan] = useState<string | null>(null);
+  const [proTrialUsed, setProTrialUsed] = useState(false);
+  const [subscriptionActive, setSubscriptionActive] = useState(false);
 
   useEffect(() => {
     checkUserPlan();
@@ -43,22 +46,24 @@ const Documents = () => {
 
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("plan_type")
+        .select("plan_type, credits_expiry_date, monthly_free_ppt_used_at")
         .eq("id", user.id)
         .single();
 
       if (error) throw error;
 
-      if (profile.plan_type !== "scholar") {
-        toast({
-          title: "Scholar Plan Required",
-          description: "This feature is only available for Scholar plan users.",
-          variant: "destructive",
-        });
-        navigate("/pricing");
-        return;
-      }
+      // Everyone can browse the tool and set up a document — only Scholar
+      // (or Pro's one-free-deck-per-month trial) can generate. Value is
+      // shown before the paywall instead of a redirect.
+      const expired = profile.credits_expiry_date
+        ? new Date(profile.credits_expiry_date) < new Date()
+        : true;
+      const used = profile.monthly_free_ppt_used_at ? new Date(profile.monthly_free_ppt_used_at) : null;
+      const now = new Date();
 
+      setUserPlan(profile.plan_type);
+      setSubscriptionActive(profile.plan_type === "free" ? true : !expired);
+      setProTrialUsed(!!used && used.getMonth() === now.getMonth() && used.getFullYear() === now.getFullYear());
       setIsCheckingPlan(false);
     } catch (error) {
       logError("Documents:checkUserPlan", error);
