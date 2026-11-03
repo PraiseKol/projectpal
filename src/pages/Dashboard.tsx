@@ -754,14 +754,18 @@ const Dashboard = () => {
             className={`hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in ${
               !canAccessFeature("scholar") ? "opacity-80" : ""
             }`}
-            onClick={() =>
-              handleFeatureClick(
-                "PPT Generator",
-                "/documents",
-                "scholar",
-                "Create professional PowerPoint presentations from your documents with AI. This premium feature is exclusively available for Scholar plan users.",
-              )
-            }
+            onClick={() => {
+              if (profile?.plan_type === "pro" && isActiveSubscriber()) {
+                navigate("/documents");
+              } else {
+                handleFeatureClick(
+                  "PPT Generator",
+                  "/documents",
+                  "scholar",
+                  "Create professional PowerPoint presentations from your documents with AI. Available on Scholar — Pro users get one free deck every month.",
+                );
+              }
+            }}
           >
             <CardHeader>
               <Sparkles className="h-12 w-12 mb-4 text-secondary" />
