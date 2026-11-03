@@ -287,5 +287,59 @@ async function handleChargeSuccess(supabase: any, data: any) {
         console.error('Failed to create commission record:', commissionError);
       }
     }
+
+    // Universal referral rewards: every referrer earns bonus credits on their
+    // invitee's first purchase (ambassadors also earn the cash commission above).
+    try {
+      const { data: rewardSettings } = await supabase
+        .from('app_settings')
+        .select('key, value')
+        .in('key', ['referral_purchase_bonus_credits']);
+      let purchaseBonus = 100;
+      (rewardSettings || []).forEach((s: { key: string; value: string }) => {
+        if (s.key === 'referral_purchase_bonus_credits') purchaseBonus = parseInt(s.value) || 100;
+      });
+
+      // Who referred this buyer? Stored on the profile at signup.
+      const { data: buyerProfile } = await supabase
+        .from('profiles')
+        .select('referred_by')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (buyerProfile?.referred_by && purchaseBonus > 0) {
+        const { data: insertedReward, error: rewardError } = await supabase
+          .from('referral_credit_rewards')
+          .insert({
+            referrer_user_id: buyerProfile.referred_by,
+            referred_user_id: userId,
+            trigger_event: 'first_purchase',
+            credits_awarded: purchaseBonus,
+          })
+          .select()
+          .maybeSingle();
+
+        // A unique-constraint miss means the reward was already paid — never double-credit.
+        if (!rewardError && insertedReward) {
+          const { data: referrerProfile } = await supabase
+            .from('profiles')
+            .select('paid_credits')
+            .eq('id', buyerProfile.referred_by)
+            .maybeSingle();
+
+          if (referrerProfile) {
+            await supabase
+              .from('profiles')
+              .update({ paid_credits: (referrerProfile.paid_credits || 0) + purchaseBonus })
+              .eq('id', buyerProfile.referred_by);
+            console.log(`Awarded ${purchaseBonus} referral credits to ${buyerProfile.referred_by} for ${userId}'s first purchase`);
+          }
+        } else if (rewardError) {
+          console.error('Failed to record referral reward:', rewardError);
+        }
+      }
+    } catch (referralRewardError) {
+      console.error('Referral reward processing failed:', referralRewardError);
+    }
   }
 }
