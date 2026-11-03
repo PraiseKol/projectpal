@@ -8,7 +8,6 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { SEO } from "@/components/SEO";
 import { ProjectPalLogo } from "@/components/ProjectPalLogo";
 import { SocialProof } from "@/components/Landing/SocialProof";
-import { Testimonials } from "@/components/Landing/Testimonials";
 import { UniversityLogos } from "@/components/Landing/UniversityLogos";
 
 const Index = () => {
@@ -73,18 +72,21 @@ const Index = () => {
           assistance.
         </p>
         <div className="flex flex-col xs:flex-row gap-3 xs:gap-4 justify-center animate-fade-in">
-          <Button size="lg" variant="gradient" onClick={() => navigate("/auth")}>
+          <Button size="lg" variant="gradient" onClick={() => navigate("/auth?mode=signup")}>
             Get Started Free
           </Button>
           <Button size="lg" variant="outline" onClick={() => navigate("/pricing")}>
             View Pricing
           </Button>
         </div>
+        <p className="text-sm text-muted-foreground mt-6 animate-fade-in">
+          Free accounts start with daily credits — no card required. <Button variant="link" className="px-1 underline h-auto p-0 text-sm" onClick={() => navigate("/auth")}>Sign in</Button> if you already have an account.
+        </p>
       </section>
 
       <UniversityLogos />
       <SocialProof />
-      <Testimonials />
+
 
       {/* Features Section */}
       <section className="container mx-auto px-4 py-16">
@@ -129,7 +131,7 @@ const Index = () => {
           <p className="text-lg text-muted-foreground mb-8">
             Join ProjectPal today and transform your academic writing experience.
           </p>
-          <Button size="lg" variant="gradient" onClick={() => navigate("/auth")}>
+          <Button size="lg" variant="gradient" onClick={() => navigate("/auth?mode=signup")}>
             Create Free Account
           </Button>
         </Card>

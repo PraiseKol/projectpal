@@ -4,8 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { SEO } from "@/components/SEO";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ProjectPalLogo } from "@/components/ProjectPalLogo";
-import { ArrowLeft, Calendar } from "lucide-react";
+import { ArrowLeft, Calendar, AlertCircle } from "lucide-react";
 
 interface Post {
   id: string;
@@ -20,18 +21,27 @@ interface Post {
 const Blog = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    setError(false);
     supabase
       .from("blog_posts")
       .select("id,slug,title,excerpt,cover_image_url,author,published_at")
       .eq("published", true)
       .order("published_at", { ascending: false })
-      .then(({ data }) => {
-        setPosts(data || []);
+      .then(({ data, error: err }) => {
+        if (err) {
+          setError(true);
+        } else {
+          setPosts(data || []);
+        }
         setLoading(false);
       });
-  }, []);
+  };
+
+  useEffect(load, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -55,7 +65,17 @@ const Blog = () => {
           Practical guides for writing your final year project — from topic selection to defence.
         </p>
         {loading ? (
-          <p className="text-muted-foreground">Loading…</p>
+          <div className="grid md:grid-cols-2 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-40 rounded-2xl" />
+            ))}
+          </div>
+        ) : error ? (
+          <div className="text-center py-10">
+            <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-3" />
+            <p className="text-muted-foreground mb-4">We couldn't load the posts right now.</p>
+            <Button onClick={load}>Try again</Button>
+          </div>
         ) : posts.length === 0 ? (
           <p className="text-muted-foreground">No posts yet. Check back soon.</p>
         ) : (

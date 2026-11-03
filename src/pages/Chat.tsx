@@ -30,6 +30,7 @@ import {
   Copy,
   Check,
   FastForward,
+  RefreshCw,
   ChevronUp,
   ChevronDown,
   Coins,
@@ -108,6 +109,9 @@ const Chat = () => {
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [creditCosts, setCreditCosts] = useState<Record<string, number>>({});
   const [costsOpen, setCostsOpen] = useState(false);
+  const [isLoadingSession, setIsLoadingSession] = useState(false);
+  const [failedMessage, setFailedMessage] = useState<string | null>(null);
+  const loadSessionRef = useRef(0);
 
   const displayedSessions = showAllChats ? chatSessions : chatSessions.slice(0, 3);
 
@@ -147,6 +151,15 @@ const Chat = () => {
       setShowSidebar(true);
     }
   }, [isMobile]);
+
+  useEffect(() => {
+    // Dashboard "starter" deep links fill the composer with the prompt
+    const starter = searchParams.get("starter");
+    if (starter) {
+      setInput(starter);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
@@ -219,18 +232,25 @@ const Chat = () => {
     }
   };
 
-  const loadSession = async (sessionId: string) => {
+  const loadSession = async (targetSessionId: string) => {
+    const requestId = ++loadSessionRef.current;
+    setIsLoadingSession(true);
     try {
-      setSessionId(sessionId);
-
       // Load messages for this session
       const { data, error } = await supabase
         .from("messages")
         .select("*")
-        .eq("session_id", sessionId)
+        .eq("session_id", targetSessionId)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
+
+      // Ignore stale responses — only the newest selection wins
+      if (requestId !== loadSessionRef.current) return;
+
+      // Switch session and messages together, so the view never shows one
+      // conversation while the composer is aimed at another
+      setSessionId(targetSessionId);
       setMessages(data || []);
 
       // Close sidebar on mobile after selecting a chat
@@ -239,7 +259,9 @@ const Chat = () => {
       }
     } catch (error) {
       logError("Chat:loadSession", error);
-      toast.error(translateError(error));
+      if (requestId === loadSessionRef.current) toast.error(translateError(error));
+    } finally {
+      if (requestId === loadSessionRef.current) setIsLoadingSession(false);
     }
   };
 
@@ -340,8 +362,9 @@ const Chat = () => {
     setTypingMessageId(null);
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleSend = async (overrideMessage?: string) => {
+    const rawText = overrideMessage ?? input;
+    if (!rawText.trim() || isLoading) return;
 
     let currentSessionId = sessionId;
 
@@ -375,8 +398,9 @@ const Chat = () => {
     const isFreeUser =
       profile?.plan_type === "free" ||
       (profile?.credits_expiry_date && new Date(profile.credits_expiry_date) < new Date());
+    // Match the server rule: a free user can spend min(daily, monthly) credits
     const hasCredits = isFreeUser
-      ? profile?.monthly_credits > 0
+      ? Math.min(profile?.monthly_credits ?? 0, profile?.daily_credits ?? 0) > 0
       : profile?.daily_credits > 0 || profile?.paid_credits > 0;
 
     if (!hasCredits) {
@@ -385,7 +409,7 @@ const Chat = () => {
       return;
     }
 
-    const userMessage = input.trim();
+    const userMessage = rawText.trim();
     setInput("");
     setIsLoading(true);
 
@@ -400,11 +424,12 @@ const Chat = () => {
       setMessages((prev) => [...prev, userMsg]);
 
       // Save user message
-      await supabase.from("messages").insert({
+      const { error: insertError } = await supabase.from("messages").insert({
         session_id: currentSessionId,
         sender: "user",
         content: userMessage,
       });
+      if (insertError) throw insertError;
 
       // Call AI edge function
       const { data, error } = await supabase.functions.invoke("chat-ai", {
@@ -436,8 +461,11 @@ const Chat = () => {
 
       // Update profile credits
       setProfile((prev: any) => ({ ...prev, ...data.profile }));
+      setFailedMessage(null);
     } catch (error: any) {
       logError("Chat:sendMessage", error);
+      // Keep the prompt so the user can retry it with one tap
+      setFailedMessage(userMessage);
       // Check for 402 (insufficient credits) from edge function
       const errorBody = error?.context?.body;
       const statusCode = error?.context?.status || error?.status;
@@ -483,20 +511,25 @@ const Chat = () => {
   };
 
   const quickActions = [
-    { label: "Generate Project Topic", prompt: "Generate a project topic for my field of study" },
-    { label: "Write Chapter 1 (Introduction)", prompt: "Help me write Chapter 1: Introduction for my project" },
-    { label: "Search for Articles", prompt: "Search for academic articles about [your topic here]" },
-    { label: "Write Chapter 2 (Literature Review)", prompt: "Help me write Chapter 2: Literature Review" },
-    { label: "Write Proposal", prompt: "Help me write a research proposal" },
-    { label: "Write Chapter 3 (Methodology)", prompt: "Help me write Chapter 3: Methodology" },
-    { label: "Generate References", prompt: "Generate academic references in APA format" },
+    { label: "Generate Project Topic", prompt: "Generate a project topic for my field of study", costKey: "credit_cost_simple_chat" },
+    { label: "Write Chapter 1 (Introduction)", prompt: "Help me write Chapter 1: Introduction for my project", costKey: "credit_cost_chapter_1" },
+    { label: "Search for Articles", prompt: "Search for academic articles about [your topic here]", costKey: "credit_cost_article_search" },
+    { label: "Write Chapter 2 (Literature Review)", prompt: "Help me write Chapter 2: Literature Review", costKey: "credit_cost_chapter_2" },
+    { label: "Write Proposal", prompt: "Help me write a research proposal", costKey: "credit_cost_research_proposal" },
+    { label: "Write Chapter 3 (Methodology)", prompt: "Help me write Chapter 3: Methodology", costKey: "credit_cost_chapter_3" },
+    { label: "Generate References", prompt: "Generate academic references in APA format", costKey: "credit_cost_references" },
     {
       label: "Edit Chapter 4 (Results/Discussion)",
       prompt: "Help me edit and improve Chapter 4: Results and Discussion",
+      costKey: "credit_cost_chapter_4",
     },
-    { label: "Analyze", prompt: "Analyze your generated chapters" },
-    { label: "Write Chapter 5 (Conclusion)", prompt: "Help me write Chapter 5: Conclusion and Recommendations" },
+    { label: "Analyze", prompt: "Analyze your generated chapters", costKey: "credit_cost_analysis" },
+    { label: "Write Chapter 5 (Conclusion)", prompt: "Help me write Chapter 5: Conclusion and Recommendations", costKey: "credit_cost_chapter_5" },
   ];
+
+  // Live credit cost for a quick action (falls back to the default cost)
+  const getOpCost = (key?: string) =>
+    key ? creditCosts[key] ?? CREDIT_OPERATIONS.find((o) => o.key === key)?.defaultCost ?? null : null;
 
   // Get display credits based on plan type
   const getCreditsDisplay = () => {
@@ -685,7 +718,9 @@ const Chat = () => {
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
           {/* Scrollable messages area */}
           <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
-            {messages.length === 0 ? (
+            {isLoadingSession ? (
+              <div className="text-center py-12 text-muted-foreground">Loading conversation…</div>
+            ) : messages.length === 0 ? (
               <div className="text-center py-12">
                 <Sparkles className="h-16 w-16 mx-auto mb-4 text-primary" />
                 <h2 className="text-xl sm:text-2xl font-bold mb-2">Welcome to ProjectPal</h2>
@@ -700,8 +735,15 @@ const Chat = () => {
                       className="justify-start text-left h-auto py-3 rounded-xl hover:bg-accent/50"
                       onClick={() => setInput(action.prompt)}
                     >
-                      <div>
-                        <div className="font-semibold">{action.label}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold">{action.label}</span>
+                          {getOpCost(action.costKey) !== null && (
+                            <Badge variant="secondary" className="text-[10px] shrink-0">
+                              {getOpCost(action.costKey)} cr
+                            </Badge>
+                          )}
+                        </div>
                         <div className="text-xs text-muted-foreground mt-1">{action.prompt}</div>
                       </div>
                     </Button>
@@ -846,6 +888,11 @@ const Chat = () => {
                       onClick={() => setInput(action.prompt)}
                     >
                       {action.label}
+                      {getOpCost(action.costKey) !== null && (
+                        <Badge variant="secondary" className="text-[10px] ml-1.5 px-1.5">
+                          {getOpCost(action.costKey)}
+                        </Badge>
+                      )}
                     </Button>
                   ))}
                 </div>
@@ -855,6 +902,26 @@ const Chat = () => {
 
           {/* Input Area - fixed at bottom */}
           <div className="px-4 pb-4 pt-2 border-t border-border shrink-0 bg-background">
+            {failedMessage && (
+              <div className="flex items-center justify-between gap-3 mb-2 p-2.5 rounded-xl bg-destructive/10 border border-destructive/30">
+                <span className="text-xs text-destructive flex-1 min-w-0">
+                  Your last message didn't send. Tap Retry to send it again.
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 h-7 text-xs"
+                  onClick={() => {
+                    const msg = failedMessage;
+                    setFailedMessage(null);
+                    handleSend(msg);
+                  }}
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Retry
+                </Button>
+              </div>
+            )}
             <div className="flex gap-2 items-end">
               <Textarea
                 value={input}
@@ -869,7 +936,7 @@ const Chat = () => {
                 disabled={isLoading}
                 className="min-h-[40px] max-h-[120px] resize-none rounded-2xl py-2"
                 rows={1}
-                style={{ height: "auto", overflow: "hidden" }}
+                style={{ height: "auto", overflowY: "auto" }}
                 ref={(el) => {
                   if (el) {
                     el.style.height = "auto";
@@ -878,7 +945,7 @@ const Chat = () => {
                 }}
               />
               <Button
-                onClick={handleSend}
+                onClick={() => handleSend()}
                 disabled={isLoading || !input.trim()}
                 size="icon"
                 className="rounded-full shrink-0"

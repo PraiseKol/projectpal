@@ -523,29 +523,19 @@ serve(async (req) => {
     } else if (actionType !== 'multi_chapter') {
       // Single chapter / other action — standard credit check
       if (totalAvailable < creditCost) {
-        // SMART CREDIT: If user has at least 1 credit, deduct 1 and explain inline
+        // Explaining a shortfall must be free — never charge a user to
+        // discover a restriction. No credits are deducted for this message.
         if (totalAvailable >= 1) {
-          console.log(`[CREDIT] Smart credit explanation: user has ${totalAvailable} but needs ${creditCost} for ${actionType}. Deducting 1 credit for explanation.`);
-          
-          // Deduct 1 credit
-          const smartDeduct = deductCredits(1, dailyCredits, monthlyCredits, paidCredits, isActiveSubscriber);
+          console.log(`[CREDIT] Free shortfall explanation for ${actionType}: have ${totalAvailable}, need ${creditCost}. No credits deducted.`);
+
+          // Report the user's current (possibly reset) balances unchanged.
+          const smartDeduct = {
+            success: true,
+            dailyCredits,
+            monthlyCredits,
+            paidCredits,
+          };
           if (smartDeduct.success) {
-            // Save the deducted credits
-            const adminClient = createClient(
-              Deno.env.get('SUPABASE_URL') ?? '',
-              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-            );
-
-            await adminClient
-              .from('profiles')
-              .update({
-                daily_credits: smartDeduct.dailyCredits,
-                monthly_credits: smartDeduct.monthlyCredits,
-                paid_credits: smartDeduct.paidCredits,
-                daily_reset_date: today,
-              })
-              .eq('id', user.id);
-
             // Build human-readable action label
             const ACTION_LABELS: Record<string, string> = {
               chapter_1: "Chapter 1 (Introduction)", chapter_2: "Chapter 2 (Literature Review)",
@@ -561,8 +551,7 @@ serve(async (req) => {
               `- **Required:** ${creditCost} credits\n` +
               `- **Available:** ${totalAvailable} credits\n` +
               `- **Shortfall:** ${creditCost - totalAvailable} credits\n\n` +
-              `To get this done, upgrade to a **Pro** or **Scholar** plan to receive more credits. Once you upgrade, come back and we'll pick up right where we left off! 🚀\n\n` +
-              `*1 credit was used to provide this explanation.*`;
+              `To get this done, upgrade to a **Pro** or **Scholar** plan to receive more credits. Once you upgrade, come back and we'll pick up right where we left off! 🚀`;
 
             // Save user message
             await supabaseClient.from('messages').insert({

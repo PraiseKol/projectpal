@@ -27,6 +27,7 @@ import {
   RefreshCw,
   Lock,
   BarChart3,
+  CheckCircle,
   Users,
   Trash2,
   ClipboardList,
@@ -41,6 +42,7 @@ import { SEO } from "@/components/SEO";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
 import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton";
+import { DashboardTour } from "@/components/Dashboard/DashboardTour";
 import { translateError, logError } from "@/utils/errorMessages";
 
 const Dashboard = () => {
@@ -295,6 +297,7 @@ const Dashboard = () => {
             <ThemeToggle />
             {/* Desktop navigation */}
             <div className="hidden md:flex items-center gap-2">
+              <DashboardTour userId={profile?.id ?? null} />
               {isAmbassador && (
                 <Button onClick={() => navigate("/ambassador")} variant="outline" size="sm">
                   <Users className="h-4 w-4 mr-2" />
@@ -364,13 +367,57 @@ const Dashboard = () => {
             </div>
           );
         })()}
+        {/* First Project Card — replaces the empty state until the user has activity */}
+        {recentChats.length === 0 && recentParaphrases.length === 0 && (
+          <Card data-tour="tour-start-card" className="mb-8 border-primary/30 bg-gradient-to-br from-primary/10 to-secondary/10 animate-fade-in">
+            <CardContent className="pt-6">
+              <h2 className="text-xl font-bold mb-1">Start your first project</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Pick a starting point below — each one costs a credit or two from your free daily allowance.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Button
+                  variant="outline"
+                  className="justify-start h-auto py-3 flex-col items-start gap-1"
+                  onClick={() => navigate(`/chat?starter=${encodeURIComponent("Generate a project topic for my field of study")}`)}
+                >
+                  <span className="font-semibold text-sm">Generate a project topic</span>
+                  <span className="text-xs text-muted-foreground">Takes about 1 credit</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start h-auto py-3 flex-col items-start gap-1"
+                  onClick={() => navigate(`/chat?starter=${encodeURIComponent("Help me write Chapter 1: Introduction for my project")}`)}
+                >
+                  <span className="font-semibold text-sm">Write Chapter 1</span>
+                  <span className="text-xs text-muted-foreground">Takes about 5 credits</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start h-auto py-3 flex-col items-start gap-1"
+                  onClick={() => navigate("/chat")}
+                >
+                  <span className="font-semibold text-sm">Ask a question</span>
+                  <span className="text-xs text-muted-foreground">Takes about 1 credit</span>
+                </Button>
+              </div>
+              <div className="flex items-center gap-2 mt-4 text-xs text-muted-foreground">
+                <CheckCircle className="h-3.5 w-3.5 text-secondary" />
+                You can ask a question and try the humanizer right now — bigger jobs may need an upgrade later.
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Credit Info Card */}
-        <Card className="mb-8 animate-fade-in">
+        <Card data-tour="tour-credits-card" className="mb-8 animate-fade-in">
           <CardHeader>
             <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-xl sm:text-2xl">
-                  Welcome Back{profile?.first_name ? `, ${profile.first_name}` : ""}!
+                  {recentChats.length === 0 && recentParaphrases.length === 0
+                    ? `Welcome${profile?.first_name ? `, ${profile.first_name}` : ""} — let's start your project!`
+                    : `Welcome Back${profile?.first_name ? `, ${profile.first_name}` : ""}!`}
                 </CardTitle>
                 <div className="text-sm text-muted-foreground mt-1 flex items-center">
                   Plan:{" "}
@@ -530,8 +577,12 @@ const Dashboard = () => {
                 </div>
               )}
             </div>
-            {profile?.plan_type !== "free" && (
+            {profile?.plan_type !== "free" ? (
               <p className="text-xs text-muted-foreground mt-2">Daily credits are consumed first, then paid credits</p>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-2">
+                You can ask a question or try the AI Humanizer right now — full chapters and PowerPoint generation need an upgrade.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -633,7 +684,7 @@ const Dashboard = () => {
         )}
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div data-tour="tour-tools-grid" className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <Card
             className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in"
             onClick={() => navigate("/chat")}
@@ -647,23 +698,29 @@ const Dashboard = () => {
 
           <Card
             className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in"
-            onClick={() => navigate("/chat")}
+            onClick={() => navigate(`/chat?starter=${encodeURIComponent("Generate a project topic for my field of study")}`)}
           >
             <CardHeader>
               <FileText className="h-12 w-12 mb-4 text-primary" />
-              <CardTitle>Generate Project</CardTitle>
-              <CardDescription>Quick access to project topic generation and proposal writing</CardDescription>
+              <div className="flex items-center gap-2">
+                <CardTitle>Generate Project</CardTitle>
+                <Badge variant="secondary" className="text-xs">1 credit</Badge>
+              </div>
+              <CardDescription>Get a research-ready project topic in seconds — opens chat with the prompt filled in</CardDescription>
             </CardHeader>
           </Card>
 
           <Card
             className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer animate-scale-in"
-            onClick={() => navigate("/chat")}
+            onClick={() => navigate(`/chat?starter=${encodeURIComponent("Help me write Chapter 1: Introduction for my project")}`)}
           >
             <CardHeader>
               <Sparkles className="h-12 w-12 mb-4 text-primary" />
-              <CardTitle>Academic Writing</CardTitle>
-              <CardDescription>Generate chapters, references, and edit your content</CardDescription>
+              <div className="flex items-center gap-2">
+                <CardTitle>Academic Writing</CardTitle>
+                <Badge variant="secondary" className="text-xs">from 5 credits</Badge>
+              </div>
+              <CardDescription>Write your introduction chapter — opens chat with the prompt filled in</CardDescription>
             </CardHeader>
           </Card>
 
@@ -697,14 +754,18 @@ const Dashboard = () => {
             className={`hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in ${
               !canAccessFeature("scholar") ? "opacity-80" : ""
             }`}
-            onClick={() =>
-              handleFeatureClick(
-                "PPT Generator",
-                "/documents",
-                "scholar",
-                "Create professional PowerPoint presentations from your documents with AI. This premium feature is exclusively available for Scholar plan users.",
-              )
-            }
+            onClick={() => {
+              if (profile?.plan_type === "pro" && isActiveSubscriber()) {
+                navigate("/documents");
+              } else {
+                handleFeatureClick(
+                  "PPT Generator",
+                  "/documents",
+                  "scholar",
+                  "Create professional PowerPoint presentations from your documents with AI. Available on Scholar — Pro users get one free deck every month.",
+                );
+              }
+            }}
           >
             <CardHeader>
               <Sparkles className="h-12 w-12 mb-4 text-secondary" />
@@ -713,6 +774,11 @@ const Dashboard = () => {
                 {canAccessFeature("scholar") ? (
                   <Badge variant="secondary" className="text-xs">
                     {pptCreditCost} Credits
+                  </Badge>
+                ) : profile?.plan_type === "pro" && isActiveSubscriber() ? (
+                  <Badge variant="secondary" className="text-xs gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    1 free/month
                   </Badge>
                 ) : (
                   <Badge variant="outline" className="text-xs gap-1">

@@ -28,6 +28,9 @@ const Documents = () => {
   const [selectedTheme, setSelectedTheme] = useState("random");
   const [includeImages, setIncludeImages] = useState(true);
   const [slideCountRange, setSlideCountRange] = useState("10-12");
+  const [userPlan, setUserPlan] = useState<string | null>(null);
+  const [proTrialUsed, setProTrialUsed] = useState(false);
+  const [subscriptionActive, setSubscriptionActive] = useState(false);
 
   useEffect(() => {
     checkUserPlan();
@@ -43,28 +46,35 @@ const Documents = () => {
 
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("plan_type")
+        .select("plan_type, credits_expiry_date, monthly_free_ppt_used_at")
         .eq("id", user.id)
         .single();
 
       if (error) throw error;
 
-      if (profile.plan_type !== "scholar") {
-        toast({
-          title: "Scholar Plan Required",
-          description: "This feature is only available for Scholar plan users.",
-          variant: "destructive",
-        });
-        navigate("/pricing");
-        return;
-      }
+      // Everyone can browse the tool and set up a document — only Scholar
+      // (or Pro's one-free-deck-per-month trial) can generate. Value is
+      // shown before the paywall instead of a redirect.
+      const expired = profile.credits_expiry_date
+        ? new Date(profile.credits_expiry_date) < new Date()
+        : true;
+      const used = profile.monthly_free_ppt_used_at ? new Date(profile.monthly_free_ppt_used_at) : null;
+      const now = new Date();
 
+      setUserPlan(profile.plan_type);
+      setSubscriptionActive(profile.plan_type === "free" ? true : !expired);
+      setProTrialUsed(!!used && used.getMonth() === now.getMonth() && used.getFullYear() === now.getFullYear());
       setIsCheckingPlan(false);
     } catch (error) {
       logError("Documents:checkUserPlan", error);
       navigate("/dashboard");
     }
   };
+
+  // Scholar (active) or an active Pro user who hasn't used this month's free deck
+  const canGenerate =
+    subscriptionActive &&
+    (userPlan === "scholar" || (userPlan === "pro" && !proTrialUsed));
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -85,8 +95,13 @@ const Documents = () => {
       return;
     }
 
+    // A newly selected file fully invalidates the previous upload, output and error,
+    // so generation can never run against the old document.
     setSelectedFile(file);
+    setUploadedDocUrl("");
     setGeneratedPptUrl("");
+    setGeneratedPptName("generated-presentation.pptx");
+    setGenerationError(null);
   };
 
   const handleUpload = async () => {
@@ -239,6 +254,27 @@ const Documents = () => {
 
         <Card className="p-6 shadow-md rounded-2xl">
           <div className="space-y-6">
+            {/* Value preview — shown before the paywall, never after it */}
+            {!canGenerate && (
+              <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-secondary/5 p-4">
+                <h2 className="text-sm font-semibold mb-3">What you'll get — a preview</h2>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg p-3 text-white shadow" style={{ background: "linear-gradient(135deg, #0d9488, #059669)" }}>
+                    <p className="text-[10px] uppercase opacity-80">Slide 1</p>
+                    <p className="font-bold text-sm mt-1">Chapter One: Introduction</p>
+                    <p className="text-[10px] mt-2 opacity-90">Your Name • Your Department</p>
+                  </div>
+                  <div className="rounded-lg border bg-card p-3 shadow">
+                    <p className="text-[10px] text-muted-foreground">Slide 2</p>
+                    <p className="font-bold text-sm mt-1">1.1 Background of the Study</p>
+                    <p className="text-[10px] mt-2 text-muted-foreground">• Up to 4 clean bullets per slide, never cramped</p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Real decks follow your document and selected theme. Set yours up below.
+                </p>
+              </div>
+            )}
             <div>
               <h2 className="text-lg font-semibold mb-4">Upload Document</h2>
               <p className="text-sm text-muted-foreground mb-4">
@@ -328,23 +364,41 @@ const Documents = () => {
                   <p className="text-xs text-muted-foreground">
                     Credit cost: <span className="font-semibold">{includeImages ? 15 : 10} credits</span>
                   </p>
-                  <Button
-                    onClick={handleGeneratePPT}
-                    disabled={isGenerating}
-                    className="w-full"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Generating PowerPoint...
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="mr-2 h-4 w-4" />
-                      Generate PowerPoint
-                      </>
-                    )}
-                  </Button>
+                  {canGenerate ? (
+                    <Button
+                      onClick={handleGeneratePPT}
+                      disabled={isGenerating}
+                      className="w-full"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Generating PowerPoint...
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="mr-2 h-4 w-4" />
+                          Generate PowerPoint
+                        </>
+                      )}
+                    </Button>
+                  ) : userPlan === "pro" && subscriptionActive ? (
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/20 text-center">
+                      <h3 className="font-semibold mb-1">Your free monthly deck is used</h3>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        You've used your one free PowerPoint this month. Upgrade to Scholar for unlimited generation.
+                      </p>
+                      <Button onClick={() => navigate("/pricing")} variant="gradient">See Plans</Button>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/20 text-center">
+                      <h3 className="font-semibold mb-1">Ready to generate?</h3>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        PowerPoint generation is a Scholar feature — Pro users get one free deck every month.
+                      </p>
+                      <Button onClick={() => navigate("/pricing")} variant="gradient">See Plans</Button>
+                    </div>
+                  )}
 
                   {/* Error display with retry */}
                   {generationError && (

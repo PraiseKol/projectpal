@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,15 +9,53 @@ import { ArrowLeft, Sparkles, Copy, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { SEO } from "@/components/SEO";
 
+const MAX_CHARS = 25000;
+
 const Humanizer = () => {
   const navigate = useNavigate();
   const [inputText, setInputText] = useState("");
   const [outputText, setOutputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [cost, setCost] = useState(5);
+  const [credits, setCredits] = useState<{ daily: number; monthly: number; paid: number; plan: string } | null>(null);
 
   const wordCount = (text: string) =>
     text.trim() ? text.trim().split(/\s+/).length : 0;
+  const isOverCharLimit = inputText.length > MAX_CHARS;
+
+  useEffect(() => {
+    (async () => {
+      // Live cost from admin settings
+      const { data: settings } = await supabase
+        .from("app_settings")
+        .select("key, value")
+        .eq("key", "credit_cost_humanizer");
+      if (settings?.[0]) {
+        const val = parseInt(settings[0].value, 10);
+        if (!isNaN(val)) setCost(val);
+      }
+      // Current balance so users see what they can afford
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("plan_type, daily_credits, monthly_credits, paid_credits, credits_expiry_date")
+        .eq("id", user.id)
+        .single();
+      if (profile) {
+        const expired = profile.credits_expiry_date
+          ? new Date(profile.credits_expiry_date) < new Date()
+          : true;
+        setCredits({
+          daily: profile.daily_credits ?? 0,
+          monthly: profile.monthly_credits ?? 0,
+          paid: profile.plan_type !== "free" && !expired ? profile.paid_credits ?? 0 : 0,
+          plan: profile.plan_type,
+        });
+      }
+    })();
+  }, []);
 
   const handleHumanize = async () => {
     if (!inputText.trim()) {
@@ -34,8 +72,13 @@ const Humanizer = () => {
       });
 
       if (error) {
-        const msg = (error as any)?.message || "Failed to humanize text";
+        // Surface the useful body message from non-2xx responses
+        const body = (error as any)?.context?.body;
+        const msg = body?.error || (error as any)?.message || "Failed to humanize text";
         toast.error(msg);
+        if (body?.credits_required) {
+          setTimeout(() => navigate("/pricing"), 2000);
+        }
         return;
       }
 
@@ -81,7 +124,12 @@ const Humanizer = () => {
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             <h1 className="text-lg font-bold">AI Humanizer</h1>
-            <Badge variant="secondary" className="text-xs">5 Credits</Badge>
+            <Badge variant="secondary" className="text-xs">{cost} Credits</Badge>
+            {credits && (
+              <Badge variant="outline" className="text-xs">
+                You have {credits.plan === "free" ? Math.min(credits.daily, credits.monthly) : credits.daily + credits.paid} credits
+              </Badge>
+            )}
           </div>
         </div>
       </header>
@@ -100,16 +148,17 @@ const Humanizer = () => {
               placeholder="Paste your text here..."
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              className="min-h-[200px] resize-y"
+              className={`min-h-[200px] resize-y ${isOverCharLimit ? "border-destructive" : ""}`}
               disabled={isLoading}
             />
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">
-                {wordCount(inputText)} words
+              <span className={`text-xs ${isOverCharLimit ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                {wordCount(inputText)} words • {inputText.length.toLocaleString()}/{MAX_CHARS.toLocaleString()} characters
+                {isOverCharLimit && " — over the limit, trim your text"}
               </span>
               <Button
                 onClick={handleHumanize}
-                disabled={isLoading || !inputText.trim()}
+                disabled={isLoading || !inputText.trim() || isOverCharLimit}
                 className="gap-2"
               >
                 {isLoading ? (
