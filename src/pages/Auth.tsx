@@ -42,6 +42,10 @@ const Auth = () => {
   const [pendingVerification, setPendingVerification] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
   const [isResending, setIsResending] = useState(false);
+  // Open on Sign Up when the visitor arrived from a "create account" CTA
+  const [activeTab, setActiveTab] = useState<'signin' | 'signup'>(
+    searchParams.get("mode") === "signup" ? "signup" : "signin"
+  );
 
   // Check if user is already logged in
   useEffect(() => {
@@ -175,6 +179,8 @@ const Auth = () => {
     setLastName("");
     setEmail("");
     setPassword("");
+    // Return to the sign-up form, not the default sign-in tab
+    setActiveTab("signup");
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -441,7 +447,7 @@ const Auth = () => {
           </p>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="signin" className="w-full" onValueChange={() => setErrors({})}>
+          <Tabs value={activeTab} className="w-full" onValueChange={(v) => { setActiveTab(v as 'signin' | 'signup'); setErrors({}); }}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
