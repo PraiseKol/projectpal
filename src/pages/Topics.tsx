@@ -16,27 +16,20 @@ const Topics = () => {
   const load = () => {
     setLoading(true);
     setError(false);
+    // Server-side aggregate counts — no more 1000-row client-side tally
     supabase
-      .from("project_topics")
-      .select("department,department_name")
-      .limit(1000)
+      .rpc("get_topic_department_counts")
       .then(({ data, error: err }) => {
         if (err) {
           setError(true);
           setLoading(false);
           return;
         }
-        const map = new Map<string, { department_name: string; count: number }>();
-        (data || []).forEach((r: any) => {
-          const cur = map.get(r.department);
-          if (cur) cur.count += 1;
-          else map.set(r.department, { department_name: r.department_name, count: 1 });
-        });
         setDepts(
-          Array.from(map.entries()).map(([department, v]) => ({
-            department,
-            department_name: v.department_name,
-            count: v.count,
+          (data || []).map((r: any) => ({
+            department: r.department,
+            department_name: r.department_name,
+            count: Number(r.topic_count),
           }))
         );
         setLoading(false);

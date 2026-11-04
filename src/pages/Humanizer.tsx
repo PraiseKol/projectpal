@@ -7,12 +7,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Sparkles, Copy, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useUpgradeModal } from "@/hooks/useUpgradeModal";
 import { SEO } from "@/components/SEO";
 
 const MAX_CHARS = 25000;
 
 const Humanizer = () => {
   const navigate = useNavigate();
+  const { showUpgrade } = useUpgradeModal();
   const [inputText, setInputText] = useState("");
   const [outputText, setOutputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -75,9 +77,14 @@ const Humanizer = () => {
         // Surface the useful body message from non-2xx responses
         const body = (error as any)?.context?.body;
         const msg = body?.error || (error as any)?.message || "Failed to humanize text";
-        toast.error(msg);
         if (body?.credits_required) {
-          setTimeout(() => navigate("/pricing"), 2000);
+          showUpgrade({
+            featureName: "Not enough credits to humanize",
+            featureDescription: msg,
+            requiredPlan: "pro",
+          });
+        } else {
+          toast.error(msg);
         }
         return;
       }
