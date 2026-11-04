@@ -60,7 +60,7 @@ export const BlogManagement = () => {
         .order("updated_at", { ascending: false });
       if (error) throw error;
       setPosts((data as BlogPost[]) || []);
-    } catch (error) {
+    } catch {
       toast.error("Could not load blog posts. Try again.");
     } finally {
       setIsLoading(false);
