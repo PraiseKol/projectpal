@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
+import { TypingEffect } from "@/components/TypingEffect";
 import { useUpgradeModal } from "@/hooks/useUpgradeModal";
 import { ShareWithClassmates } from "@/components/ShareWithClassmates";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";

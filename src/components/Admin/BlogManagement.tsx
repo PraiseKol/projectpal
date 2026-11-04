@@ -101,7 +101,7 @@ export const BlogManagement = () => {
     try {
       const slug = form.slug.trim() ? slugify(form.slug) : slugify(form.title);
       const publishedAt = form.published && !isEditing ? new Date().toISOString() : undefined;
-      const payload: Record<string, any> = {
+      const payload: any = {
         slug,
         title: form.title.trim(),
         excerpt: form.excerpt.trim() || null,
@@ -138,7 +138,7 @@ export const BlogManagement = () => {
 
   const togglePublished = async (post: BlogPost) => {
     try {
-      const patch: Record<string, any> = { published: !post.published };
+      const patch: any = { published: !post.published };
       if (!post.published) patch.published_at = new Date().toISOString();
       const { error } = await supabase.from("blog_posts").update(patch).eq("id", post.id);
       if (error) throw error;
