@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Eye, EyeOff, CheckCircle2, XCircle, GraduationCap } from "lucide-react";
 import { resetPasswordSchema, getAuthErrorMessage } from "@/lib/validations/auth";
 
@@ -18,7 +18,7 @@ const ResetPassword = () => {
   const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string }>({});
   const [isValidSession, setIsValidSession] = useState<boolean | null>(null);
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { toast: _unusedToast } = { toast: null }; // eslint-disable-line
 
   // Password strength indicators
   const passwordChecks = {
