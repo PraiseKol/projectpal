@@ -3,7 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { useUpgradeModal } from "@/hooks/useUpgradeModal";
+import { useErrorHandler } from "@/hooks/useErrorHandler";
+import { ShareWithClassmates } from "@/components/ShareWithClassmates";
 import { ArrowLeft, Upload, Loader2, FileText, Download, Eye, ImageIcon, RefreshCw, AlertCircle, LayoutGrid } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,11 +15,11 @@ import { DocumentViewer } from "@/components/DocumentViewer";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { DocumentsSkeleton } from "@/components/skeletons/DocumentsSkeleton";
 import { ThemeSelector } from "@/components/Documents/ThemeSelector";
-import { translateError, logError } from "@/utils/errorMessages";
 
 const Documents = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { showUpgrade } = useUpgradeModal();
+  const { handleError } = useErrorHandler();
   const [isCheckingPlan, setIsCheckingPlan] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -31,6 +34,7 @@ const Documents = () => {
   const [userPlan, setUserPlan] = useState<string | null>(null);
   const [proTrialUsed, setProTrialUsed] = useState(false);
   const [subscriptionActive, setSubscriptionActive] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   useEffect(() => {
     checkUserPlan();
@@ -66,7 +70,7 @@ const Documents = () => {
       setProTrialUsed(!!used && used.getMonth() === now.getMonth() && used.getFullYear() === now.getFullYear());
       setIsCheckingPlan(false);
     } catch (error) {
-      logError("Documents:checkUserPlan", error);
+      handleError(error, { context: "Documents:checkUserPlan" });
       navigate("/dashboard");
     }
   };
@@ -87,11 +91,7 @@ const Documents = () => {
     ];
 
     if (!validTypes.includes(file.type)) {
-      toast({
-        title: "Invalid File Type",
-        description: "Please upload a PDF, DOC, or DOCX file.",
-        variant: "destructive",
-      });
+      toast.error("Please upload a PDF, DOC, or DOCX file.");
       return;
     }
 
@@ -139,34 +139,24 @@ const Documents = () => {
         file_name: selectedFile.name,
       });
 
-      toast({
-        title: "Upload Successful",
-        description: "Document uploaded. You can now generate a presentation.",
-      });
+      toast.success("Document uploaded. You can now generate a presentation.");
     } catch (error: any) {
-      logError("Documents:upload", error);
-      toast({
-        title: "Upload Failed",
-        description: translateError(error),
-        variant: "destructive",
-      });
+      handleError(error, { context: "Documents:upload" });
     } finally {
       setIsUploading(false);
     }
   };
-
-  const [generationError, setGenerationError] = useState<string | null>(null);
 
   const handleGeneratePPT = async () => {
     if (!uploadedDocUrl) return;
 
     setIsGenerating(true);
     setGenerationError(null);
-    
+
     try {
       const { data, error } = await supabase.functions.invoke("generate-ppt", {
-        body: { 
-          document_url: uploadedDocUrl, 
+        body: {
+          document_url: uploadedDocUrl,
           theme: selectedTheme,
           include_images: includeImages,
           slide_count_range: slideCountRange
@@ -192,38 +182,44 @@ const Documents = () => {
         const errorMsg = data.error.toLowerCase();
         if (errorMsg.includes("credit")) {
           setGenerationError("Insufficient credits. Please upgrade your plan.");
+          showUpgrade({
+            featureName: "Not enough credits to generate",
+            featureDescription: "A PowerPoint deck uses credits from your balance. Upgrade to Scholar for generous monthly credits, or top up to continue.",
+            requiredPlan: "scholar",
+          });
         } else if (errorMsg.includes("document") || errorMsg.includes("parse") || errorMsg.includes("extract")) {
           setGenerationError("Could not read the document. Try uploading a different file format (PDF, DOC, or DOCX).");
+          toast.error("Could not read the document. Try uploading a different file format (PDF, DOC, or DOCX).");
         } else if (errorMsg.includes("ai") || errorMsg.includes("model")) {
           setGenerationError("AI service temporarily unavailable. Please try again in a few minutes.");
+          toast.error("AI service temporarily unavailable. Please try again in a few minutes.");
         } else {
           setGenerationError(data.error);
+          toast.error(data.error);
         }
-        toast({
-          title: "Generation Failed",
-          description: data.error,
-          variant: "destructive",
-        });
         return;
       }
 
-       setGeneratedPptUrl(data.ppt_url);
-       if (data.download_name) {
-         setGeneratedPptName(data.download_name);
-       }
-      toast({
-        title: "Success!",
-        description: "PowerPoint presentation generated successfully.",
-      });
+      setGeneratedPptUrl(data.ppt_url);
+      if (data.download_name) {
+        setGeneratedPptName(data.download_name);
+      }
+      toast.success("PowerPoint presentation generated successfully.");
     } catch (error: any) {
-      logError("Documents:generatePPT", error);
-      const errorMessage = translateError(error);
-      setGenerationError(errorMessage);
-      toast({
-        title: "Generation Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      const errorMessage = error?.message?.includes("Insufficient credits")
+        ? error.message
+        : undefined;
+      if (errorMessage) {
+        setGenerationError(errorMessage);
+        showUpgrade({
+          featureName: "Not enough credits to generate",
+          featureDescription: "A PowerPoint deck uses credits from your balance. Upgrade to Scholar for generous monthly credits, or top up to continue.",
+          requiredPlan: "scholar",
+        });
+      } else {
+        handleError(error, { context: "Documents:generatePPT" });
+        setGenerationError("Generation failed. Please try again.");
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -342,11 +338,11 @@ const Documents = () => {
                   selectedTheme={selectedTheme}
                   onThemeSelect={setSelectedTheme}
                 />
-                
+
                 <div className="mt-6 space-y-4">
                   <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
-                    <Checkbox 
-                      id="include-images" 
+                    <Checkbox
+                      id="include-images"
                       checked={includeImages}
                       onCheckedChange={(checked) => setIncludeImages(checked as boolean)}
                     />
@@ -360,7 +356,7 @@ const Documents = () => {
                       {includeImages ? "+5 credits" : ""}
                     </span>
                   </div>
-                  
+
                   <p className="text-xs text-muted-foreground">
                     Credit cost: <span className="font-semibold">{includeImages ? 15 : 10} credits</span>
                   </p>
@@ -388,7 +384,18 @@ const Documents = () => {
                       <p className="text-sm text-muted-foreground mb-3">
                         You've used your one free PowerPoint this month. Upgrade to Scholar for unlimited generation.
                       </p>
-                      <Button onClick={() => navigate("/pricing")} variant="gradient">See Plans</Button>
+                      <Button
+                        variant="gradient"
+                        onClick={() =>
+                          showUpgrade({
+                            featureName: "Unlimited PowerPoint generation",
+                            featureDescription: "Scholar generates unlimited decks every month with premium templates and AI images — plus every other top-tier feature.",
+                            requiredPlan: "scholar",
+                          })
+                        }
+                      >
+                        See Plans
+                      </Button>
                     </div>
                   ) : (
                     <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/20 text-center">
@@ -396,7 +403,18 @@ const Documents = () => {
                       <p className="text-sm text-muted-foreground mb-3">
                         PowerPoint generation is a Scholar feature — Pro users get one free deck every month.
                       </p>
-                      <Button onClick={() => navigate("/pricing")} variant="gradient">See Plans</Button>
+                      <Button
+                        variant="gradient"
+                        onClick={() =>
+                          showUpgrade({
+                            featureName: "PowerPoint generation",
+                            featureDescription: "Turn your project document into a professionally designed deck. Unlock it with Scholar, or try it free with Pro (one deck per month).",
+                            requiredPlan: "scholar",
+                          })
+                        }
+                      >
+                        See Plans
+                      </Button>
                     </div>
                   )}
 
@@ -432,14 +450,17 @@ const Documents = () => {
                       Download PowerPoint
                     </a>
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => setShowViewer(true)}
                     className="flex-1"
                   >
                     <Eye className="mr-2 h-4 w-4" />
                     Open in Viewer
                   </Button>
+                </div>
+                <div className="mt-3">
+                  <ShareWithClassmates context="ppt" compact />
                 </div>
               </div>
             )}
