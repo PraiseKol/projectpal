@@ -705,7 +705,10 @@ const Chat = () => {
   );
 
   const mainChatContent = (
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+    <div
+      className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden"
+      style={isMobile && vvHeight ? { height: `${vvHeight}px` } : undefined}
+    >
         {/* Header */}
         <header className="border-b border-border sticky top-0 z-30 bg-background">
           <div className="px-4 py-3 flex items-center justify-between">
@@ -832,7 +835,7 @@ const Chat = () => {
                               </Button>
                             </div>
                           )}
-                          <div className="mt-3 flex justify-end gap-1">
+                          <div className="mt-3 flex justify-end gap-1 items-center">
                             <Button
                               variant="ghost"
                               size="sm"
@@ -845,6 +848,9 @@ const Chat = () => {
                                 <Copy className="h-4 w-4" />
                               )}
                             </Button>
+                            {isDocumentContent(msg.content) && (
+                              <ShareWithClassmates context="chapter" compact />
+                            )}
                             <ExportOptions
                               content={msg.content}
                               chatTitle={chatSessions.find((s) => s.id === sessionId)?.title}
