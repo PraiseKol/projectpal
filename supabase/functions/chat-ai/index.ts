@@ -9,14 +9,14 @@ const corsHeaders = {
 // Generate an intelligent chat title using AI
 async function generateIntelligentTitle(userMessage: string, apiKey: string): Promise<string> {
   try {
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-lite',
+        model: 'gemini-2.5-flash-lite',
         messages: [
           {
             role: 'system',
@@ -194,14 +194,14 @@ IMPORTANT DISTINCTIONS:
 
 Return ONLY valid JSON: {"actionType": "category_name", "cost": number}`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-lite',
+        model: 'gemini-2.5-flash-lite',
         messages: [
           { role: 'system', content: classificationPrompt },
           { role: 'user', content: `RECENT CONVERSATION CONTEXT:\n${conversationContext}\n\nCURRENT USER MESSAGE:\n${message}` }
@@ -329,7 +329,7 @@ serve(async (req) => {
     const articleSearchCheck = isArticleSearchRequest(message);
     
     // Determine credit cost based on message using AI classification
-    const LOVABLE_API_KEY_FOR_CLASSIFY = Deno.env.get('LOVABLE_API_KEY');
+    const LOVABLE_API_KEY_FOR_CLASSIFY = Deno.env.get('GEMINI_API_KEY');
     
     // Build conversation context from last 3 messages for classification
     const { data: recentMsgs } = await supabaseClient
@@ -729,19 +729,19 @@ serve(async (req) => {
     })) || [];
 
     // Call Lovable AI
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const LOVABLE_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
+      throw new Error('GEMINI_API_KEY not configured');
     }
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const aiResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: 'gemini-3-flash-preview',
         max_tokens: 16000,
         messages: [
           {
@@ -1080,7 +1080,7 @@ If the user is merely ASKING ABOUT a chapter (e.g., "What should chapter 3 conta
     let generatedTitle: string | null = null;
     
     if (isFirstMessage) {
-      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+      const LOVABLE_API_KEY = Deno.env.get('GEMINI_API_KEY');
       if (LOVABLE_API_KEY) {
         generatedTitle = await generateIntelligentTitle(message, LOVABLE_API_KEY);
         console.log(`[TITLE] Generated title for first message: "${generatedTitle}"`);

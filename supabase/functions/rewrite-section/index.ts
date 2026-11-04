@@ -111,9 +111,9 @@ Deno.serve(async (req) => {
 
     console.log(`Rewriting section for user ${user.id}, type: ${rewriteType}`);
 
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    const lovableApiKey = Deno.env.get("GEMINI_API_KEY");
     if (!lovableApiKey) {
-      throw new Error("LOVABLE_API_KEY not configured");
+      throw new Error("GEMINI_API_KEY not configured");
     }
 
     const promptMap: Record<RewriteType, string> = {
@@ -124,14 +124,14 @@ Deno.serve(async (req) => {
       summarize: `Summarize the following text concisely while preserving the key points and main ideas. Make it shorter but keep the essential meaning.`,
     };
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${lovableApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gemini-2.5-flash",
         messages: [
           { 
             role: "system", 

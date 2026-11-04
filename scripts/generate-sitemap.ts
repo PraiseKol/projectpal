@@ -3,9 +3,9 @@ import { writeFileSync } from "fs";
 import { resolve } from "path";
 
 const BASE_URL = "https://projectpal.site";
-const SUPABASE_URL = "https://mpjhpdlevqcwfsbacozj.supabase.co";
+const SUPABASE_URL = "https://sbejtmywvxxamsuqnwun.supabase.co";
 const ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wamhwZGxldnFjd2ZzYmFjb3pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg1MTY0NzQsImV4cCI6MjA4NDA5MjQ3NH0.EG1Vs9skPxh0G0MneZviOrz6FH28tEMHXLxuW0aktWA";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNiZWp0bXl3dnh4YW1zdXFud3VuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2Nzk5NjAsImV4cCI6MjEwOTI1NTk2MH0.kkk37HSBgvCz9_Pbv82RsrT4sOT9Yv-p5tTtXfue_70";
 
 interface SitemapEntry {
   path: string;

@@ -63,14 +63,14 @@ IMPORTANT: Look at the INTENT. "Write the introduction" is chapter_1 (5 credits)
 
 Return ONLY valid JSON: {"type": "category_name", "cost": number, "category": "edit|analysis|generation"}`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-lite',
+        model: 'gemini-2.5-flash-lite',
         messages: [
           { role: 'system', content: classificationPrompt },
           { role: 'user', content: instruction }
@@ -181,7 +181,7 @@ serve(async (req) => {
     }
 
     // Determine request type and credit cost using AI classification
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    const lovableApiKey = Deno.env.get("GEMINI_API_KEY");
     let creditCost: number;
     let requestType: "edit" | "analysis" | "generation";
     
@@ -239,7 +239,7 @@ serve(async (req) => {
 
     // Call Lovable AI (reuse key if already fetched, otherwise get it)
     if (!lovableApiKey) {
-      console.error("LOVABLE_API_KEY not configured");
+      console.error("GEMINI_API_KEY not configured");
       return new Response(
         JSON.stringify({ error: "AI service not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -424,7 +424,7 @@ Return ONLY the requested content as clean, well-formatted text. Do not include 
     }
 
     const requestBody: any = {
-      model: "google/gemini-3-flash-preview",
+      model: "gemini-3-flash-preview",
       max_tokens: 16000,
       messages: [
         { role: "system", content: systemPrompt },
@@ -440,7 +440,7 @@ Return ONLY the requested content as clean, well-formatted text. Do not include 
       requestBody.tool_choice = toolChoice;
     }
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${lovableApiKey}`,

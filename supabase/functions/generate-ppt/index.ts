@@ -107,28 +107,21 @@ async function extractPdfTextWithGemini(
   
   console.log('[PPT] Sending PDF to Gemini for text extraction...');
   
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'file',
-              file: {
-                filename: 'document.pdf',
-                file_data: `data:application/pdf;base64,${base64Data}`,
-              },
-            },
-            {
-              type: 'text',
-              text: `Extract ALL text content from this PDF document. Include:
+  const response = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+    {
+      method: 'POST',
+      headers: {
+        'x-goog-api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { inlineData: { mimeType: 'application/pdf', data: base64Data } },
+              {
+                text: `Extract ALL text content from this PDF document. Include:
 - All headings and subheadings
 - All body text and paragraphs
 - All bullet points and numbered lists
@@ -137,12 +130,13 @@ async function extractPdfTextWithGemini(
 - References and citations
 
 Return ONLY the extracted text content, preserving the document structure with appropriate line breaks. Do not add any commentary or explanations.`,
-            },
-          ],
-        },
-      ],
-    }),
-  });
+              },
+            ],
+          },
+        ],
+      }),
+    }
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -151,7 +145,9 @@ Return ONLY the extracted text content, preserving the document structure with a
   }
 
   const data = await response.json();
-  const extractedText = data.choices?.[0]?.message?.content || '';
+  const extractedText = (data.candidates?.[0]?.content?.parts ?? [])
+    .map((p: any) => p.text ?? '')
+    .join('');
   
   console.log(`[PPT] Gemini extracted ${extractedText.length} characters from PDF`);
   return extractedText;
@@ -779,24 +775,25 @@ async function generateSlideImage(
   try {
     console.log('[IMAGE] Generating image for prompt:', prompt.substring(0, 50));
     
-    const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-image-preview',
-        messages: [{
-          role: 'user',
-          content: `Create a professional, clean illustration for a presentation slide about: ${prompt}. 
+    const imagePrompt = `Create a professional, clean illustration for a presentation slide about: ${prompt}. 
 Style: Modern, minimalist, professional, suitable for academic presentations.
 Color scheme: Use shades of #${theme.primary} and #${theme.secondary}.
-No text in the image. High quality, clean vector-style illustration. Simple and elegant.`
-        }],
-        modalities: ['image', 'text']
-      }),
-    });
+No text in the image. High quality, clean vector-style illustration. Simple and elegant.`;
+
+    const imageResponse = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
+      {
+        method: 'POST',
+        headers: {
+          'x-goog-api-key': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: imagePrompt }] }],
+          generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+        }),
+      }
+    );
 
     if (!imageResponse.ok) {
       console.error('[IMAGE] Generation failed:', imageResponse.status);
@@ -804,12 +801,13 @@ No text in the image. High quality, clean vector-style illustration. Simple and 
     }
 
     const imageData = await imageResponse.json();
-    const base64Image = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    
-    if (base64Image && base64Image.includes('base64,')) {
+    const parts = imageData.candidates?.[0]?.content?.parts ?? [];
+    const imagePart = parts.find((p: any) => p.inlineData?.data);
+
+    if (imagePart) {
       // Return the base64 data directly instead of uploading to storage
       console.log('[IMAGE] Generated successfully, returning base64 data');
-      return base64Image;
+      return `data:${imagePart.inlineData.mimeType || 'image/png'};base64,${imagePart.inlineData.data}`;
     }
   } catch (e) {
     console.error('[IMAGE] Generation error:', e);
@@ -1634,9 +1632,9 @@ serve(async (req) => {
     console.log(`[PPT] Selected theme: ${selectedTheme.name} (${selectedTheme.design.style} style, ${selectedTheme.design.headerStyle} header)`);
 
     // Get API key early - needed for document extraction
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const LOVABLE_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
+      throw new Error('GEMINI_API_KEY not configured');
     }
 
     // Fetch document content with proper binary handling for PDF/DOCX
@@ -1766,14 +1764,14 @@ GUIDELINES:
 - Make content substantive and specific, not generic
 - For tables, extract real data from the document when available`;
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const aiResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
           { 
