@@ -39,6 +39,8 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import { TypingEffect } from "@/components/TypingEffect";
+import { useUpgradeModal } from "@/hooks/useUpgradeModal";
+import { ShareWithClassmates } from "@/components/ShareWithClassmates";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -87,6 +89,7 @@ const CREDIT_OPERATIONS = [
 
 const Chat = () => {
   const navigate = useNavigate();
+  const { showUpgrade } = useUpgradeModal();
   const [searchParams] = useSearchParams();
   const isMobile = useIsMobile();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -112,6 +115,17 @@ const Chat = () => {
   const [isLoadingSession, setIsLoadingSession] = useState(false);
   const [failedMessage, setFailedMessage] = useState<string | null>(null);
   const loadSessionRef = useRef(0);
+  // Mobile keyboards shrink the visible viewport — track it so the composer stays visible
+  const [vvHeight, setVvHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv || !isMobile) return;
+    const onResize = () => setVvHeight(vv.height);
+    onResize();
+    vv.addEventListener("resize", onResize);
+    return () => vv.removeEventListener("resize", onResize);
+  }, [isMobile]);
 
   const displayedSessions = showAllChats ? chatSessions : chatSessions.slice(0, 3);
 
@@ -404,8 +418,11 @@ const Chat = () => {
       : profile?.daily_credits > 0 || profile?.paid_credits > 0;
 
     if (!hasCredits) {
-      toast.error("You've run out of credits for this month. Upgrade your plan for more credits!");
-      navigate("/pricing");
+      showUpgrade({
+        featureName: "You've run out of credits",
+        featureDescription: "Your free credits are used up. Upgrade to a paid plan for a bigger monthly allowance, or buy credits — paid plans never lose access mid-project.",
+        requiredPlan: "pro",
+      });
       return;
     }
 
@@ -494,13 +511,14 @@ const Chat = () => {
         const actionLabel = actionType ? ACTION_LABELS[actionType] || actionType.replace(/_/g, ' ') : "this operation";
         let msg: string;
         if (errorBody?.credits_required && errorBody?.credits_available !== undefined) {
-          msg = `Generating ${actionLabel} requires ${errorBody.credits_required} credits, but you only have ${errorBody.credits_available}. Subscribe to a plan with more credits to unlock this feature!`;
+          msg = `Generating ${actionLabel} requires ${errorBody.credits_required} credits, but you only have ${errorBody.credits_available}. Upgrade to a plan with more credits, or buy a top-up to continue.`;
         } else {
-          msg = errorBody?.error || "You've run out of credits. Subscribe to a plan with more credits to continue!";
+          msg = errorBody?.error || "You've run out of credits. Upgrade to a plan with more credits to continue!";
         }
-        toast.error(msg, {
-          duration: 8000,
-          action: { label: "Upgrade", onClick: () => navigate("/pricing") },
+        showUpgrade({
+          featureName: `Not enough credits for ${actionLabel}`,
+          featureDescription: msg,
+          requiredPlan: "pro",
         });
       } else {
         toast.error(translateError(error));
@@ -688,7 +706,10 @@ const Chat = () => {
   );
 
   const mainChatContent = (
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+    <div
+      className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden"
+      style={isMobile && vvHeight ? { height: `${vvHeight}px` } : undefined}
+    >
         {/* Header */}
         <header className="border-b border-border sticky top-0 z-30 bg-background">
           <div className="px-4 py-3 flex items-center justify-between">
@@ -815,7 +836,7 @@ const Chat = () => {
                               </Button>
                             </div>
                           )}
-                          <div className="mt-3 flex justify-end gap-1">
+                          <div className="mt-3 flex justify-end gap-1 items-center">
                             <Button
                               variant="ghost"
                               size="sm"
@@ -828,6 +849,9 @@ const Chat = () => {
                                 <Copy className="h-4 w-4" />
                               )}
                             </Button>
+                            {isDocumentContent(msg.content) && (
+                              <ShareWithClassmates context="chapter" compact />
+                            )}
                             <ExportOptions
                               content={msg.content}
                               chatTitle={chatSessions.find((s) => s.id === sessionId)?.title}

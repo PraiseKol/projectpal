@@ -6,19 +6,20 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { useUpgradeModal } from "@/hooks/useUpgradeModal";
+import { useErrorHandler } from "@/hooks/useErrorHandler";
 import { ArrowLeft, Copy, Download, Loader2, AlertTriangle, Sparkles, Lock } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ParaphraserSkeleton } from "@/components/skeletons/ParaphraserSkeleton";
-import { ToastAction } from "@/components/ui/toast";
-import { translateError, logError } from "@/utils/errorMessages";
 
 const FREE_WORD_LIMIT = 120;
 const FREE_DAILY_LIMIT = 3;
 
 const Paraphraser = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { showUpgrade } = useUpgradeModal();
+  const { handleError } = useErrorHandler();
   const [inputText, setInputText] = useState("");
   const [outputText, setOutputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -56,8 +57,8 @@ const Paraphraser = () => {
       setUserPlan(profile.plan_type);
 
       // Check if subscription is active
-      const paidCreditsExpired = profile.credits_expiry_date 
-        ? new Date(profile.credits_expiry_date) < new Date() 
+      const paidCreditsExpired = profile.credits_expiry_date
+        ? new Date(profile.credits_expiry_date) < new Date()
         : true;
       const activeSubscriber = profile.plan_type !== 'free' && !paidCreditsExpired;
       setIsActiveSubscriber(activeSubscriber);
@@ -65,10 +66,10 @@ const Paraphraser = () => {
 
       // Check daily paraphrase count for free users
       const today = new Date().toISOString().split('T')[0];
-      const resetDate = profile.daily_reset_date 
-        ? new Date(profile.daily_reset_date).toISOString().split('T')[0] 
+      const resetDate = profile.daily_reset_date
+        ? new Date(profile.daily_reset_date).toISOString().split('T')[0]
         : null;
-      
+
       if (resetDate !== today) {
         setDailyParaphraseCount(0);
       } else {
@@ -77,35 +78,27 @@ const Paraphraser = () => {
 
       setIsCheckingAuth(false);
     } catch (error) {
-      logError("Paraphraser:checkAuth", error);
+      handleError(error, { context: "Paraphraser:checkAuth" });
       navigate("/dashboard");
     }
   };
 
   const handleParaphrase = async () => {
     if (!inputText.trim()) {
-      toast({
-        title: "Input Required",
-        description: "Please enter text to paraphrase.",
-        variant: "destructive",
-      });
+      toast.error("Please enter text to paraphrase.");
       return;
     }
 
     if (isOverWordLimit) {
-      toast({
-        title: "Word Limit Exceeded",
-        description: `Free users are limited to ${FREE_WORD_LIMIT} words. Upgrade for unlimited paraphrasing.`,
-        variant: "destructive",
-      });
+      toast.error(`Free users are limited to ${FREE_WORD_LIMIT} words. Upgrade for unlimited paraphrasing.`);
       return;
     }
 
     if (hasUsedDailyLimit) {
-      toast({
-        title: "Daily Limit Reached",
-        description: "Free users can paraphrase 3 times per day. Upgrade for unlimited access!",
-        variant: "destructive",
+      showUpgrade({
+        featureName: "Daily limit reached",
+        featureDescription: `Free users can paraphrase ${FREE_DAILY_LIMIT} times per day. Pro and Scholar paraphrase unlimited texts of any length.`,
+        requiredPlan: "pro",
       });
       return;
     }
@@ -122,41 +115,24 @@ const Paraphraser = () => {
 
       if (data.error) {
         if (data.word_limit_exceeded) {
-          toast({
-            title: "Word Limit Exceeded",
-            description: data.error,
-            variant: "destructive",
-          });
+          toast.error(data.error);
         } else if (data.daily_limit_reached) {
-          toast({
-            title: "Daily Limit Reached",
-            description: data.error,
-            variant: "destructive",
-          });
+          toast.error(data.error);
           setDailyParaphraseCount(prev => prev + 1);
         } else {
-          toast({
-            title: "Error",
-            description: data.error,
-            variant: "destructive",
-          });
+          toast.error(data.error);
         }
         return;
       }
 
       setOutputText(data.paraphrased_text);
       setCanExport(data.can_export);
-      
+
       if (data.profile?.daily_paraphrase_count !== undefined) {
         setDailyParaphraseCount(data.profile.daily_paraphrase_count);
       }
     } catch (error: any) {
-      logError("Paraphraser:paraphrase", error);
-      toast({
-        title: "Paraphrase Error",
-        description: translateError(error),
-        variant: "destructive",
-      });
+      handleError(error, { context: "Paraphraser:paraphrase" });
     } finally {
       setIsLoading(false);
     }
@@ -165,34 +141,23 @@ const Paraphraser = () => {
   const handleCopy = () => {
     if (!canExport) {
       // Clear, non-destructive upgrade path — never a red error for a plan limit
-      toast({
-        title: "Exporting is a paid feature",
-        description: "You can keep paraphrasing free. Pro and Scholar plans can copy and download results.",
-        action: (
-          <ToastAction altText="View plans" onClick={() => navigate("/pricing")}>
-            View Plans
-          </ToastAction>
-        ),
+      showUpgrade({
+        featureName: "Exporting is a paid feature",
+        featureDescription: "You can keep paraphrasing free. Pro and Scholar plans can copy and download results.",
+        requiredPlan: "pro",
       });
       return;
     }
     navigator.clipboard.writeText(outputText);
-    toast({
-      title: "Copied!",
-      description: "Paraphrased text copied to clipboard.",
-    });
+    toast.success("Paraphrased text copied to clipboard.");
   };
 
   const handleDownload = () => {
     if (!canExport) {
-      toast({
-        title: "Exporting is a paid feature",
-        description: "You can keep paraphrasing free. Pro and Scholar plans can copy and download results.",
-        action: (
-          <ToastAction altText="View plans" onClick={() => navigate("/pricing")}>
-            View Plans
-          </ToastAction>
-        ),
+      showUpgrade({
+        featureName: "Exporting is a paid feature",
+        featureDescription: "You can keep paraphrasing free. Pro and Scholar plans can copy and download results.",
+        requiredPlan: "pro",
       });
       return;
     }
@@ -205,10 +170,7 @@ const Paraphraser = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast({
-      title: "Downloaded!",
-      description: "Paraphrased text saved as TXT file.",
-    });
+    toast.success("Paraphrased text saved as TXT file.");
   };
 
   if (isCheckingAuth) {
@@ -250,11 +212,17 @@ const Paraphraser = () => {
                 <p className="text-xs text-muted-foreground mt-1 italic">
                   Example — before: "This study examines the effects of X." → after: "The research investigates how X influences outcomes."
                 </p>
-                <Button 
-                  size="sm" 
-                  variant="gradient" 
+                <Button
+                  size="sm"
+                  variant="gradient"
                   className="mt-2"
-                  onClick={() => navigate("/pricing")}
+                  onClick={() =>
+                    showUpgrade({
+                      featureName: "Unlimited paraphrasing",
+                      featureDescription: "Pro and Scholar paraphrase unlimited text with no word caps, plus copy and download every result.",
+                      requiredPlan: "pro",
+                    })
+                  }
                 >
                   Upgrade for Unlimited
                 </Button>
@@ -277,14 +245,14 @@ const Paraphraser = () => {
                 </div>
               )}
             </div>
-            
+
             {isFreeUser && (
-              <Progress 
-                value={(wordCount / FREE_WORD_LIMIT) * 100} 
+              <Progress
+                value={(wordCount / FREE_WORD_LIMIT) * 100}
                 className={`h-1 mb-3 ${isOverWordLimit ? '[&>div]:bg-destructive' : ''}`}
               />
             )}
-            
+
             <Textarea
               placeholder="Enter text to paraphrase..."
               value={inputText}
@@ -315,35 +283,37 @@ const Paraphraser = () => {
               <h2 className="text-base sm:text-lg font-semibold">Paraphrased Output</h2>
               {outputText && (
                 <div className="flex gap-2">
-                  <Button 
-                    variant={canExport ? "outline" : "ghost"} 
-                    size="icon" 
-                    onClick={handleCopy} 
+                  <Button
+                    variant={canExport ? "outline" : "ghost"}
+                    size="icon"
+                    onClick={handleCopy}
                     className={`h-8 w-8 sm:h-9 sm:w-9 ${!canExport ? 'opacity-50' : ''}`}
                     title={canExport ? "Copy to clipboard" : "Upgrade to copy"}
+                    aria-label={canExport ? "Copy to clipboard" : "Upgrade to copy"}
                   >
                     <Copy className="h-4 w-4" />
                   </Button>
-                  <Button 
-                    variant={canExport ? "outline" : "ghost"} 
-                    size="icon" 
-                    onClick={handleDownload} 
+                  <Button
+                    variant={canExport ? "outline" : "ghost"}
+                    size="icon"
+                    onClick={handleDownload}
                     className={`h-8 w-8 sm:h-9 sm:w-9 ${!canExport ? 'opacity-50' : ''}`}
                     title={canExport ? "Download as TXT" : "Upgrade to download"}
+                    aria-label={canExport ? "Download as TXT" : "Upgrade to download"}
                   >
                     <Download className="h-4 w-4" />
                   </Button>
                 </div>
               )}
             </div>
-            
+
             {!canExport && outputText && (
               <div className="mb-3 p-2 bg-muted rounded-lg flex items-center gap-2 text-sm text-muted-foreground">
                 <Lock className="h-4 w-4" />
                 <span>Copy and download unlock on Pro &amp; Scholar — your result stays visible here.</span>
               </div>
             )}
-            
+
             <Textarea
               value={outputText}
               readOnly

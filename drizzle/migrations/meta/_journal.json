@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1793765497986,
+      "tag": "0000_topic_counts_rpc_and_lifecycle_email_columns",
+      "breakpoints": true
+    }
+  ]
+}

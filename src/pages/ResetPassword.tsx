@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Eye, EyeOff, CheckCircle2, XCircle, GraduationCap } from "lucide-react";
 import { resetPasswordSchema, getAuthErrorMessage } from "@/lib/validations/auth";
 
@@ -18,7 +18,6 @@ const ResetPassword = () => {
   const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string }>({});
   const [isValidSession, setIsValidSession] = useState<boolean | null>(null);
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   // Password strength indicators
   const passwordChecks = {
@@ -77,18 +76,11 @@ const ResetPassword = () => {
       
       if (error) throw error;
       
-      toast({
-        title: "Success",
-        description: "Password updated successfully. Redirecting to dashboard...",
-      });
-      
+      toast.success("Password updated successfully. Redirecting to dashboard...");
+
       setTimeout(() => navigate("/dashboard"), 1500);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: getAuthErrorMessage(error.message),
-        variant: "destructive",
-      });
+      toast.error(getAuthErrorMessage(error.message));
     } finally {
       setLoading(false);
     }
