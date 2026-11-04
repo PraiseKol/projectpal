@@ -542,7 +542,9 @@ export type Database = {
           daily_reset_date: string
           first_name: string | null
           id: string
+          inactivity_email_sent_at: string | null
           last_name: string | null
+          low_credit_email_sent_at: string | null
           monthly_analysis_count: number | null
           monthly_analysis_reset_date: string | null
           monthly_credits: number
@@ -553,6 +555,7 @@ export type Database = {
           referred_by: string | null
           status: string | null
           updated_at: string
+          welcome_email_sent_at: string | null
         }
         Insert: {
           bank_account_holder_name?: string | null
@@ -565,7 +568,9 @@ export type Database = {
           daily_reset_date?: string
           first_name?: string | null
           id: string
+          inactivity_email_sent_at?: string | null
           last_name?: string | null
+          low_credit_email_sent_at?: string | null
           monthly_analysis_count?: number | null
           monthly_analysis_reset_date?: string | null
           monthly_credits?: number
@@ -576,6 +581,7 @@ export type Database = {
           referred_by?: string | null
           status?: string | null
           updated_at?: string
+          welcome_email_sent_at?: string | null
         }
         Update: {
           bank_account_holder_name?: string | null
@@ -588,7 +594,9 @@ export type Database = {
           daily_reset_date?: string
           first_name?: string | null
           id?: string
+          inactivity_email_sent_at?: string | null
           last_name?: string | null
+          low_credit_email_sent_at?: string | null
           monthly_analysis_count?: number | null
           monthly_analysis_reset_date?: string | null
           monthly_credits?: number
@@ -599,6 +607,7 @@ export type Database = {
           referred_by?: string | null
           status?: string | null
           updated_at?: string
+          welcome_email_sent_at?: string | null
         }
         Relationships: []
       }
@@ -772,6 +781,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_topic_department_counts: {
+        Args: never
+        Returns: {
+          department: string
+          department_name: string
+          topic_count: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
