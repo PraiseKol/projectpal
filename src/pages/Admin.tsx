@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, LayoutDashboard, Users, CreditCard, Activity, Shield, Settings, History, UserCheck, Mail, Coins, MessageSquare, Tag } from "lucide-react";
+import { ArrowLeft, LayoutDashboard, Users, CreditCard, Activity, Shield, Settings, History, UserCheck, Mail, Coins, MessageSquare, Tag, Newspaper } from "lucide-react";
 import { toast } from "sonner";
 import { StatsOverview } from "@/components/Admin/StatsOverview";
 import { AdminCharts } from "@/components/Admin/AdminCharts";
@@ -18,6 +18,7 @@ import { AuditLog } from "@/components/Admin/AuditLog";
 import { AmbassadorManagement } from "@/components/Admin/AmbassadorManagement";
 import { MessagesManagement } from "@/components/Admin/MessagesManagement";
 import { EmailCampaigns } from "@/components/Admin/EmailCampaigns";
+import { BlogManagement } from "@/components/Admin/BlogManagement";
 import { CreditCostsSettings } from "@/components/Admin/CreditCostsSettings";
 import { PricingManagement } from "@/components/Admin/PricingManagement";
 import { AdminSkeleton } from "@/components/skeletons/AdminSkeleton";
@@ -182,6 +183,7 @@ const Admin = () => {
             {isSuperAdmin && <TabsTrigger value="roles"><Shield className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Roles</span></TabsTrigger>}
             <TabsTrigger value="ambassadors"><UserCheck className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Ambassadors</span></TabsTrigger>
             <TabsTrigger value="emails"><Mail className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Emails</span></TabsTrigger>
+            <TabsTrigger value="blog"><Newspaper className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Blog</span></TabsTrigger>
             <TabsTrigger value="settings"><Settings className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Settings</span></TabsTrigger>
             {isSuperAdmin && <TabsTrigger value="credits"><Coins className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Credit Costs</span></TabsTrigger>}
             {isSuperAdmin && <TabsTrigger value="pricing"><Tag className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Pricing</span></TabsTrigger>}
@@ -266,6 +268,10 @@ const Admin = () => {
 
           <TabsContent value="emails">
             <EmailCampaigns />
+          </TabsContent>
+
+          <TabsContent value="blog">
+            <BlogManagement />
           </TabsContent>
 
           <TabsContent value="settings">
