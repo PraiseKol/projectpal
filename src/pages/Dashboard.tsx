@@ -870,35 +870,19 @@ const Dashboard = () => {
             </CardHeader>
           </Card>
 
-          {/* Data Analysis - Scholar Only */}
+          {/* Data Analysis - free preview for everyone; exporting Chapter 4 is a Scholar feature */}
           <Card
-            variant={canAccessFeature("scholar") ? "glass" : "default"}
-            className={`hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in ${
-              !canAccessFeature("scholar") ? "opacity-80" : ""
-            }`}
-            onClick={() =>
-              handleFeatureClick(
-                "Data Analysis",
-                "/data-analysis",
-                "scholar",
-                "Analyze survey data with statistical methods for Chapter 4. This premium feature is exclusively available for Scholar plan users.",
-              )
-            }
+            variant="glass"
+            className="hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in"
+            onClick={() => navigate("/data-analysis")}
           >
             <CardHeader>
               <BarChart3 className="h-12 w-12 mb-4 text-primary" />
               <div className="flex items-center gap-2">
                 <CardTitle>Data Analysis</CardTitle>
-                {!canAccessFeature("scholar") ? (
-                  <Badge variant="outline" className="text-xs gap-1">
-                    <Lock className="h-3 w-3" />
-                    Scholar Only
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary" className="text-xs">
-                    Scholar
-                  </Badge>
-                )}
+                <Badge variant="secondary" className="text-xs">
+                  {canAccessFeature("scholar") ? "Scholar" : "Free preview"}
+                </Badge>
               </div>
               <CardDescription>Analyze survey data with statistical methods for Chapter 4</CardDescription>
             </CardHeader>

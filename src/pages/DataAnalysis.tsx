@@ -174,7 +174,9 @@ const DataAnalysisContent = () => {
     }
   };
 
-  const isFreeUser = profile?.plan_type === 'free';
+  // An expired paid plan counts as free: credits are kept, but only the free preview is available
+  const planExpired = !!profile?.credits_expiry_date && new Date(profile.credits_expiry_date) < new Date();
+  const isFreeUser = profile?.plan_type === 'free' || planExpired;
   const availableCredits = (profile?.daily_credits || 0) + (profile?.paid_credits || 0);
 
   if (isLoading) {
