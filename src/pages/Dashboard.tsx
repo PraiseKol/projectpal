@@ -762,7 +762,7 @@ const Dashboard = () => {
                   "PPT Generator",
                   "/documents",
                   "scholar",
-                  "Create professional PowerPoint presentations from your documents with AI. Available on Scholar — Pro users get one free deck every month.",
+                  "Create professional PowerPoint presentations from your documents with AI. Available on the Scholar plan.",
                 );
               }
             }}
@@ -802,7 +802,7 @@ const Dashboard = () => {
                 "Document Editor",
                 "/document-editor",
                 "pro",
-                "Upload documents to edit, generate or analyze. Available for Pro and Scholar plan users.",
+                "Upload documents to edit, generate or analyze. Available on the Scholar plan.",
               )
             }
           >
@@ -813,7 +813,7 @@ const Dashboard = () => {
                 {!canAccessFeature("pro") && (
                   <Badge variant="outline" className="text-xs gap-1">
                     <Lock className="h-3 w-3" />
-                    Pro & Scholar
+                    Scholar
                   </Badge>
                 )}
               </div>
@@ -832,7 +832,7 @@ const Dashboard = () => {
                 "Questionnaire Builder",
                 "/questionnaire-builder",
                 "pro",
-                "Design and export professional questionnaires with multiple question types. Available for Pro and Scholar plan users.",
+                "Design and export professional questionnaires with multiple question types. Available on the Scholar plan.",
               )
             }
           >
@@ -843,7 +843,7 @@ const Dashboard = () => {
                 {!canAccessFeature("pro") && (
                   <Badge variant="outline" className="text-xs gap-1">
                     <Lock className="h-3 w-3" />
-                    Pro & Scholar
+                    Scholar
                   </Badge>
                 )}
               </div>
@@ -926,7 +926,7 @@ const Dashboard = () => {
                 <div>
                   <h3 className="font-semibold mb-1">Unlock Premium Features</h3>
                   <p className="text-sm text-muted-foreground mb-3">
-                    Upgrade to Pro or Scholar plan to get more credits and access features like document upload, PPT
+                    Upgrade to the Scholar plan to get more credits and access features like document upload, PPT
                     generation, and paraphraser tool.
                   </p>
                   <Button onClick={() => navigate("/pricing")} size="sm" variant="gradient">

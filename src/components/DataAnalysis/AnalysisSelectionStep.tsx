@@ -265,7 +265,7 @@ export const AnalysisSelectionStep = ({
 
   // Check if analysis is accessible
   const isAccessible = (method: AnalysisMethod): boolean => {
-    if (isFreeUser && !method.freeAccess) return false;
+    // Free users can preview every analysis; only exporting is a paid feature
     return isCompatible(method);
   };
 
@@ -360,7 +360,8 @@ export const AnalysisSelectionStep = ({
     ? Math.round(totalCredits * 0.95) 
     : totalCredits;
 
-  const hasEnoughCredits = availableCredits >= finalCredits;
+  // Free users run a no-credit preview
+  const hasEnoughCredits = isFreeUser || availableCredits >= finalCredits;
 
   // Group analyses by category
   const groupedAnalyses = useMemo(() => {
@@ -406,9 +407,9 @@ export const AnalysisSelectionStep = ({
                   <div className="text-sm">
                     <span className="text-muted-foreground">Cost: </span>
                     <span className={`font-bold ${!hasEnoughCredits ? 'text-destructive' : 'text-primary'}`}>
-                      {finalCredits} credits
+                      {isFreeUser ? 'Free preview' : `${finalCredits} credits`}
                     </span>
-                    {selectedAnalyses.length >= 3 && (
+                    {!isFreeUser && selectedAnalyses.length >= 3 && (
                       <Badge variant="secondary" className="ml-2 text-xs">5% Bundle Discount</Badge>
                     )}
                   </div>
@@ -436,7 +437,7 @@ export const AnalysisSelectionStep = ({
               const compatible = isCompatible(method);
               const accessible = isAccessible(method);
               const selected = selectedAnalyses.includes(method.id);
-              const locked = isFreeUser && !method.freeAccess;
+              const locked = false; // free preview: no analysis is locked
               const configured = isConfigured(method);
               const hasConfig = needsConfiguration(method);
 
@@ -461,17 +462,19 @@ export const AnalysisSelectionStep = ({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium">{method.name}</span>
-                        <Badge variant="secondary" className="text-xs gap-1">
-                          <Coins className="h-3 w-3" />
-                          {method.credits}
-                        </Badge>
+                        {!isFreeUser && (
+                          <Badge variant="secondary" className="text-xs gap-1">
+                            <Coins className="h-3 w-3" />
+                            {method.credits}
+                          </Badge>
+                        )}
                         {locked && (
                           <Badge variant="outline" className="text-xs gap-1">
                             <Lock className="h-3 w-3" />
                             Paid
                           </Badge>
                         )}
-                        {method.freeAccess && isFreeUser && (
+                        {isFreeUser && (
                           <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-700 dark:text-green-400">
                             Free
                           </Badge>
@@ -542,7 +545,7 @@ export const AnalysisSelectionStep = ({
             ) : (
               <>
                 <Sparkles className="h-4 w-4" />
-                Run Analysis ({finalCredits} credits)
+                {isFreeUser ? 'Run Free Preview' : `Run Analysis (${finalCredits} credits)`}
               </>
             )}
           </Button>

@@ -106,7 +106,7 @@ const DocumentEditor = () => {
       .single();
 
     if (!profile || profile.plan_type === "free") {
-      toast.error("This feature is available for Pro and Scholar plan users");
+      toast.error("This feature is available on the Scholar plan");
       navigate("/pricing");
       return;
     }
@@ -450,7 +450,7 @@ const DocumentEditor = () => {
                 <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
               </div>
               <span className="text-base sm:text-lg font-semibold hidden xs:inline">Document Editor</span>
-              <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs hidden sm:inline-flex">Pro & Scholar</Badge>
+              <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs hidden sm:inline-flex">Scholar</Badge>
             </div>
           </div>
           <div className="flex items-center gap-1 sm:gap-2">

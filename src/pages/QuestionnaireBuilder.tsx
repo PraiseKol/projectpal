@@ -66,7 +66,7 @@ const QuestionnaireBuilder = () => {
         const hasAccess = (profile.plan_type === 'pro' || profile.plan_type === 'scholar') && !isExpired;
 
         if (!hasAccess) {
-          toast.error("This feature is available for Pro and Scholar plan users");
+          toast.error("This feature is available on the Scholar plan");
           navigate("/pricing");
           return;
         }

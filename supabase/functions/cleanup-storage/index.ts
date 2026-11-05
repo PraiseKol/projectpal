@@ -6,6 +6,40 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+
+// --- Access control: only the scheduled jobs (secret header) or a logged-in admin may call this function ---
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+async function isAuthorized(req: Request, admin: any): Promise<boolean> {
+  // 1) Scheduled jobs send a secret in the x-cron-secret header
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  const provided = req.headers.get("x-cron-secret");
+  if (cronSecret && provided && timingSafeEqual(provided, cronSecret)) return true;
+
+  // 2) Otherwise the caller must be a logged-in admin or super admin
+  const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+  if (!token) return false;
+  const { data, error } = await admin.auth.getUser(token);
+  if (error || !data?.user) return false;
+  for (const role of ["admin", "super_admin"]) {
+    const { data: hasRole } = await admin.rpc("has_role", { _user_id: data.user.id, _role: role });
+    if (hasRole === true) return true;
+  }
+  return false;
+}
+
+function unauthorized(corsHeaders: Record<string, string>): Response {
+  return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    status: 401,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -16,6 +50,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    if (!(await isAuthorized(req, supabaseClient))) {
+      return unauthorized(corsHeaders);
+    }
 
     const results = {
       ppt_images_deleted: 0,

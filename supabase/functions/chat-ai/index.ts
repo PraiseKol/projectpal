@@ -499,7 +499,7 @@ serve(async (req) => {
         const totalNeeded = requestedChapters.reduce((sum, ch) => sum + (dynamicCostMap[ch] || CHAPTER_COSTS[ch] || 5), 0);
         return new Response(
           JSON.stringify({
-            error: `You don't have enough credits for ${chapterListStr}. This requires ${totalNeeded} credits but you only have ${totalAvailable}. Upgrade to Pro or Scholar for more credits!`,
+            error: `You don't have enough credits for ${chapterListStr}. This requires ${totalNeeded} credits but you only have ${totalAvailable}. Upgrade to Scholar for more credits!`,
             credits_required: totalNeeded,
             credits_available: totalAvailable,
             action_type: 'multi_chapter',
@@ -551,7 +551,7 @@ serve(async (req) => {
               `- **Required:** ${creditCost} credits\n` +
               `- **Available:** ${totalAvailable} credits\n` +
               `- **Shortfall:** ${creditCost - totalAvailable} credits\n\n` +
-              `To get this done, upgrade to a **Pro** or **Scholar** plan to receive more credits. Once you upgrade, come back and we'll pick up right where we left off! 🚀`;
+              `To get this done, upgrade to the **Scholar** plan to receive more credits. Once you upgrade, come back and we'll pick up right where we left off! 🚀`;
 
             // Save user message
             await supabaseClient.from('messages').insert({
@@ -588,7 +588,7 @@ serve(async (req) => {
         } else if (profile.plan_type !== 'free' && paidCreditsExpired) {
           errorMessage = `Your subscription has expired. This requires ${creditCost} credits but you have ${totalAvailable} available. Upgrade to continue!`;
         } else {
-          errorMessage = `This requires ${creditCost} credits but you only have ${totalAvailable} available. Upgrade to Pro or Scholar for more credits!`;
+          errorMessage = `This requires ${creditCost} credits but you only have ${totalAvailable} available. Upgrade to Scholar for more credits!`;
         }
 
         console.log(`[CREDIT] Insufficient credits for ${actionType} (need ${creditCost}, have ${totalAvailable})`);

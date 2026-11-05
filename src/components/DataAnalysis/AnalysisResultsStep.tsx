@@ -64,6 +64,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TutorialTrigger } from "@/components/Tutorial";
+import { UpgradeDialog } from "@/components/UpgradeDialog";
 import { generateChapter4Sections, type TableData, type Chapter4Section } from "@/utils/analysisExportHelpers";
 import type { ColumnConfig, AnalysisResults } from "@/pages/DataAnalysis";
 
@@ -94,8 +95,14 @@ export const AnalysisResultsStep = ({
   onNewAnalysis,
 }: AnalysisResultsStepProps) => {
   const [activeTab, setActiveTab] = useState<string>(Object.keys(results)[0] || 'descriptive');
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const copyToClipboard = (text: string) => {
+    // APA interpretations are part of the paid export
+    if (isFreeUser) {
+      setShowUpgrade(true);
+      return;
+    }
     navigator.clipboard.writeText(text);
     toast.success("Copied to clipboard");
   };
@@ -162,7 +169,7 @@ export const AnalysisResultsStep = ({
 
   const handleExportTxt = () => {
     if (isFreeUser) {
-      toast.error("Export is available for paid users only");
+      setShowUpgrade(true);
       return;
     }
     
@@ -180,7 +187,7 @@ export const AnalysisResultsStep = ({
 
   const handleExportDocx = async () => {
     if (isFreeUser) {
-      toast.error("Export is available for paid users only");
+      setShowUpgrade(true);
       return;
     }
 
@@ -393,7 +400,7 @@ export const AnalysisResultsStep = ({
 
   const handleExportPdf = () => {
     if (isFreeUser) {
-      toast.error("Export is available for paid users only");
+      setShowUpgrade(true);
       return;
     }
 
@@ -656,40 +663,56 @@ export const AnalysisResultsStep = ({
           
           {/* Export Dropdown */}
           <TutorialTrigger id="tutorial-export-btn">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button disabled={isFreeUser}>
-                  {isFreeUser ? (
-                    <>
-                      <Lock className="h-4 w-4 mr-2" />
-                      Export (Paid)
-                    </>
-                  ) : (
-                    <>
-                      <Download className="h-4 w-4 mr-2" />
-                      Export Chapter 4
-                    </>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={handleExportTxt}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Download as .txt
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportDocx}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Download as .docx
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportPdf}>
-                  <FileType className="h-4 w-4 mr-2" />
-                  Download as .pdf
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {isFreeUser ? (
+              <Button onClick={() => setShowUpgrade(true)}>
+                <Lock className="h-4 w-4 mr-2" />
+                Export Chapter 4
+              </Button>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export Chapter 4
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={handleExportTxt}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Download as .txt
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportDocx}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Download as .docx
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportPdf}>
+                    <FileType className="h-4 w-4 mr-2" />
+                    Download as .pdf
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </TutorialTrigger>
         </div>
       </div>
+
+      {/* Free preview banner */}
+      {isFreeUser && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="py-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-medium">Your results are ready: free preview</p>
+              <p className="text-sm text-muted-foreground">
+                Your tables and charts are yours to view. Unlock APA-style interpretations and export your
+                full Chapter 4 as Word, PDF or text with the Scholar plan.
+              </p>
+            </div>
+            <Button variant="gradient" onClick={() => setShowUpgrade(true)}>
+              Unlock export
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Results Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -2778,6 +2801,15 @@ export const AnalysisResultsStep = ({
         )}
         </TutorialTrigger>
       </Tabs>
+
+      <UpgradeDialog
+        open={showUpgrade}
+        onOpenChange={setShowUpgrade}
+        featureName="Export Chapter 4"
+        featureDescription="Download your full Chapter 4 as Word, PDF or text, with APA-style interpretations written for every test."
+        requiredPlan="scholar"
+        currentPlan="free"
+      />
     </div>
   );
 };

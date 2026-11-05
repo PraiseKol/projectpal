@@ -1521,7 +1521,7 @@ serve(async (req) => {
         ? (trialUsedThisMonth
             ? 'You have already used your free PowerPoint this month. Upgrade to Scholar for unlimited PPT generation.'
             : 'Your Pro subscription has expired. Renew it to use your monthly free PPT, or upgrade to Scholar.')
-        : 'Scholar plan required. PPT Generator is an exclusive Scholar feature — Pro users get one free deck every month.';
+        : 'Scholar plan required. PPT Generator is an exclusive Scholar feature.';
       return new Response(
         JSON.stringify({ error: trialMessage }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

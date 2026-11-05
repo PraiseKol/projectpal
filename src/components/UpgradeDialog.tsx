@@ -44,12 +44,14 @@ export const UpgradeDialog = ({
   currentPlan,
 }: UpgradeDialogProps) => {
   const navigate = useNavigate();
-  const planInfo = planDetails[requiredPlan];
+  // The Pro plan no longer exists: anything that used to need Pro now needs Scholar
+  const effectivePlan = requiredPlan === 'pro' ? 'scholar' : requiredPlan;
+  const planInfo = planDetails[effectivePlan];
   const PlanIcon = planInfo.icon;
 
   const handleUpgrade = () => {
     onOpenChange(false);
-    navigate(`/pricing?plan=${requiredPlan}`);
+    navigate(`/pricing?plan=${effectivePlan}`);
   };
 
   return (

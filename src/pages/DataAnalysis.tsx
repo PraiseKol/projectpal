@@ -159,7 +159,11 @@ const DataAnalysisContent = () => {
       }
 
       setAnalysisResults(response.data.results);
-      toast.success(`Analysis complete! Used ${response.data.creditsUsed} credits`);
+      toast.success(
+        response.data.preview
+          ? "Your free preview is ready!"
+          : `Analysis complete! Used ${response.data.creditsUsed} credits`
+      );
       setCurrentStep(4);
       checkAuth();
     } catch (error) {
@@ -261,11 +265,12 @@ const DataAnalysisContent = () => {
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
                 <div>
-                  <p className="font-medium text-yellow-800 dark:text-yellow-200">Free Plan Limitations</p>
+                  <p className="font-medium text-yellow-800 dark:text-yellow-200">Free preview</p>
                   <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                    You can analyze 1 dataset per month with Descriptive Statistics and Correlation only. 
+                    Run any analysis on 1 dataset per month and see your tables and charts for free, with no credits used.
+                    Exporting Chapter 4 with APA interpretations is part of the Scholar plan.
                     <Button variant="link" className="p-0 h-auto text-yellow-800 dark:text-yellow-200 underline ml-1" onClick={() => navigate('/pricing')}>
-                      Upgrade for full access
+                      See plans
                     </Button>
                   </p>
                 </div>

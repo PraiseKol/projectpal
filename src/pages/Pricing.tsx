@@ -53,7 +53,8 @@ const Pricing = () => {
   const [freeMonthly, setFreeMonthly] = useState("40");
 
   // Get pre-selected values from URL params (for renewals)
-  const preSelectedPlan = searchParams.get("plan") as "pro" | "scholar" | null;
+  // Pro no longer exists: any renewal link (including old "pro" links) points at Scholar
+  const preSelectedPlan = searchParams.get("plan") ? ("scholar" as const) : null;
   const preSelectedBilling = searchParams.get("billing") as BillingPeriod | null;
 
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>(preSelectedBilling || "monthly");
@@ -195,13 +196,6 @@ const Pricing = () => {
   };
 
   // Dynamic pricing from app_settings (with hardcoded fallbacks)
-  const [dynamicProPlans, setDynamicProPlans] = useState([
-    { price: 5000, credits: 120, originalPrice: 7500 },
-    { price: 10000, credits: 240, originalPrice: 15000 },
-    { price: 20000, credits: 480, originalPrice: 30000 },
-    { price: 40000, credits: 960, originalPrice: 60000 },
-  ]);
-
   const [dynamicScholarPlans, setDynamicScholarPlans] = useState([
     { price: 7500, credits: 120, originalPrice: 11250 },
     { price: 15000, credits: 240, originalPrice: 22500 },
@@ -220,14 +214,13 @@ const Pricing = () => {
         const map: Record<string, string> = {};
         data.forEach((s) => (map[s.key] = s.value));
 
-        const loadTiers = (prefix: string, defaults: typeof dynamicProPlans) =>
+        const loadTiers = (prefix: string, defaults: typeof dynamicScholarPlans) =>
           defaults.map((d, i) => ({
             price: parseInt(map[`${prefix}_${i + 1}_price`]) || d.price,
             originalPrice: parseInt(map[`${prefix}_${i + 1}_original`]) || d.originalPrice,
             credits: d.credits,
           }));
 
-        setDynamicProPlans(loadTiers("pricing_pro", dynamicProPlans));
         setDynamicScholarPlans(loadTiers("pricing_scholar", dynamicScholarPlans));
       } catch (e) {
         // fallback to defaults
@@ -236,7 +229,6 @@ const Pricing = () => {
     loadDynamicPricing();
   }, []);
 
-  const baseProPlans = dynamicProPlans;
   const baseScholarPlans = dynamicScholarPlans;
 
   // Calculate plans based on billing period
@@ -266,10 +258,15 @@ const Pricing = () => {
     }
   };
 
-  const proPlans = getPlans(baseProPlans);
   const scholarPlans = getPlans(baseScholarPlans);
 
-  const scholarFeatures = ["PowerPoint presentation generator", "Data Analysis"];
+  const scholarFeatures = [
+    "Export Chapter 4 with APA interpretations",
+    "PowerPoint presentation generator",
+    "Document upload & editor",
+    "Advanced paraphraser",
+    "Priority support",
+  ];
 
   const getBillingLabel = () => {
     switch (billingPeriod) {
@@ -317,7 +314,7 @@ const Pricing = () => {
           </h1>
           <p className="text-lg text-muted-foreground mb-6">
             {preSelectedPlan
-              ? `Renewing your ${preSelectedPlan.toUpperCase()} plan`
+              ? `Renewing your Scholar plan`
               : "Select the perfect plan for your academic journey"}
           </p>
 
@@ -408,47 +405,14 @@ const Pricing = () => {
                   <Check className="h-4 w-4 text-secondary" />
                   <span>Basic AI features</span>
                 </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-secondary" />
+                  <span>Free data analysis preview (1 dataset/month)</span>
+                </li>
               </ul>
             </div>
           </CardContent>
         </Card>
-
-        {/* Pro Plans */}
-        <div className={`mb-8 ${preSelectedPlan === "pro" ? "ring-2 ring-primary ring-offset-4 rounded-xl p-4" : ""}`}>
-          <h2 className="text-3xl font-bold text-center mb-6">
-            Pro Plans
-            {preSelectedPlan === "pro" && <Badge className="ml-2 rounded-full">Recommended</Badge>}
-          </h2>
-          <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {proPlans.map((plan, index) => (
-              <Card key={index} className="hover:shadow-lg transition-all hover:scale-[1.02]">
-                <CardHeader>
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className="text-sm text-muted-foreground line-through">₦{plan.originalPrice.toLocaleString()}</span>
-                    <CardTitle className="text-2xl text-primary">₦{plan.price.toLocaleString()}</CardTitle>
-                  </div>
-                  <CardDescription>
-                    {plan.credits} credits / {getBillingLabel()}
-                    {billingPeriod !== "monthly" && (
-                      <span className="block text-xs mt-1">
-                        ₦{getMonthlyEquivalent(plan.price).toLocaleString()}/mo
-                      </span>
-                    )}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    className="w-full"
-                    onClick={() => openConfirmModal("pro", plan.price, plan.credits, plan.durationDays)}
-                    disabled={isLoading}
-                  >
-                    {preSelectedPlan === "pro" ? "Renew" : "Purchase"}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
 
         {/* Scholar Plans */}
         <div
@@ -462,7 +426,7 @@ const Pricing = () => {
                 {preSelectedPlan === "scholar" && <Badge className="ml-2 rounded-full">Recommended</Badge>}
               </h2>
             </div>
-            <p className="text-muted-foreground">Includes all Pro features plus:</p>
+            <p className="text-muted-foreground">Everything in Free, with no monthly cap, plus:</p>
             <div className="flex flex-wrap justify-center gap-2 mt-2">
               {scholarFeatures.map((feature) => (
                 <Badge key={feature} variant="outline" className="rounded-full">
@@ -560,25 +524,6 @@ const Pricing = () => {
                   },
                 },
                 {
-                  name: "Pro",
-                  badge: "Popular",
-                  dailyCredits: `${freeDaily} credits/day`,
-                  monthlyCap: "No cap",
-                  paidCredits: "Based on plan",
-                  creditsReset: "Daily",
-                  features: {
-                    chat: true,
-                    topics: true,
-                    proposal: true,
-                    chapters: true,
-                    references: true,
-                    documents: false,
-                    ppt: false,
-                    paraphraser: false,
-                    support: "Priority",
-                  },
-                },
-                {
                   name: "Scholar",
                   badge: "Best Value",
                   dailyCredits: `${freeDaily} credits/day`,
@@ -645,7 +590,7 @@ const Pricing = () => {
                           { label: "Document Upload", value: plan.features.documents },
                           { label: "PowerPoint Generator", value: plan.features.ppt },
                           { label: "Advanced Paraphraser", value: plan.features.paraphraser },
-                          { label: "Data Analysis", value: plan.name === "Free" ? "1/month" : true },
+                          { label: "Data Analysis", value: plan.name === "Free" ? "Free preview (1 dataset/month)" : true },
                         ].map((feature) => (
                           <div key={feature.label} className="flex items-center justify-between text-sm">
                             <span>{feature.label}</span>
@@ -689,14 +634,6 @@ const Pricing = () => {
                     </TableHead>
                     <TableHead className="text-center">
                       <div className="flex flex-col items-center gap-1">
-                        <span>Pro</span>
-                        <Badge variant="secondary" className="text-xs">
-                          Popular
-                        </Badge>
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-center">
-                      <div className="flex flex-col items-center gap-1">
                         <span>Scholar</span>
                         <Badge className="text-xs">Best Value</Badge>
                       </div>
@@ -706,7 +643,7 @@ const Pricing = () => {
                 <TableBody>
                   {/* Credits Section */}
                   <TableRow className="bg-muted/50">
-                    <TableCell colSpan={4} className="font-semibold">
+                    <TableCell colSpan={3} className="font-semibold">
                       <div className="flex items-center gap-2">
                         <Coins className="h-4 w-4" />
                         Credits & Limits
@@ -715,7 +652,6 @@ const Pricing = () => {
                   </TableRow>
                   <TableRow>
                     <TableCell>Daily Credits</TableCell>
-                    <TableCell className="text-center">{freeDaily} credits/day</TableCell>
                     <TableCell className="text-center">{freeDaily} credits/day</TableCell>
                     <TableCell className="text-center">{freeDaily} credits/day</TableCell>
                   </TableRow>
@@ -737,12 +673,10 @@ const Pricing = () => {
                     </TableCell>
                     <TableCell className="text-center text-muted-foreground">{freeMonthly} total</TableCell>
                     <TableCell className="text-center font-medium text-secondary">No cap</TableCell>
-                    <TableCell className="text-center font-medium text-secondary">No cap</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Paid Credits Pool</TableCell>
                     <TableCell className="text-center text-muted-foreground">None</TableCell>
-                    <TableCell className="text-center">Based on plan</TableCell>
                     <TableCell className="text-center">Based on plan</TableCell>
                   </TableRow>
                   <TableRow>
@@ -763,12 +697,11 @@ const Pricing = () => {
                     </TableCell>
                     <TableCell className="text-center text-muted-foreground">Monthly ({freeMonthly} cap)</TableCell>
                     <TableCell className="text-center font-medium text-secondary">Daily (until expiry)</TableCell>
-                    <TableCell className="text-center font-medium text-secondary">Daily (until expiry)</TableCell>
                   </TableRow>
 
                   {/* AI Features Section */}
                   <TableRow className="bg-muted/50">
-                    <TableCell colSpan={4} className="font-semibold">
+                    <TableCell colSpan={3} className="font-semibold">
                       <div className="flex items-center gap-2">
                         <Sparkles className="h-4 w-4" />
                         AI Features
@@ -777,9 +710,6 @@ const Pricing = () => {
                   </TableRow>
                   <TableRow>
                     <TableCell>AI Chat Assistance</TableCell>
-                    <TableCell className="text-center">
-                      <Check className="h-4 w-4 text-secondary mx-auto" />
-                    </TableCell>
                     <TableCell className="text-center">
                       <Check className="h-4 w-4 text-secondary mx-auto" />
                     </TableCell>
@@ -795,15 +725,9 @@ const Pricing = () => {
                     <TableCell className="text-center">
                       <Check className="h-4 w-4 text-secondary mx-auto" />
                     </TableCell>
-                    <TableCell className="text-center">
-                      <Check className="h-4 w-4 text-secondary mx-auto" />
-                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Proposal Writing</TableCell>
-                    <TableCell className="text-center">
-                      <Check className="h-4 w-4 text-secondary mx-auto" />
-                    </TableCell>
                     <TableCell className="text-center">
                       <Check className="h-4 w-4 text-secondary mx-auto" />
                     </TableCell>
@@ -819,15 +743,9 @@ const Pricing = () => {
                     <TableCell className="text-center">
                       <Check className="h-4 w-4 text-secondary mx-auto" />
                     </TableCell>
-                    <TableCell className="text-center">
-                      <Check className="h-4 w-4 text-secondary mx-auto" />
-                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Academic References</TableCell>
-                    <TableCell className="text-center">
-                      <Check className="h-4 w-4 text-secondary mx-auto" />
-                    </TableCell>
                     <TableCell className="text-center">
                       <Check className="h-4 w-4 text-secondary mx-auto" />
                     </TableCell>
@@ -838,18 +756,15 @@ const Pricing = () => {
 
                   {/* Scholar-Only Features */}
                   <TableRow className="bg-muted/50">
-                    <TableCell colSpan={4} className="font-semibold">
+                    <TableCell colSpan={3} className="font-semibold">
                       <div className="flex items-center gap-2">
                         <GraduationCap className="h-4 w-4" />
-                        Scholar-Exclusive Features
+                        Scholar Features
                       </div>
                     </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Document Upload & Editing</TableCell>
-                    <TableCell className="text-center">
-                      <X className="h-4 w-4 text-muted-foreground mx-auto" />
-                    </TableCell>
                     <TableCell className="text-center">
                       <X className="h-4 w-4 text-muted-foreground mx-auto" />
                     </TableCell>
@@ -863,17 +778,11 @@ const Pricing = () => {
                       <X className="h-4 w-4 text-muted-foreground mx-auto" />
                     </TableCell>
                     <TableCell className="text-center">
-                      <X className="h-4 w-4 text-muted-foreground mx-auto" />
-                    </TableCell>
-                    <TableCell className="text-center">
                       <Check className="h-4 w-4 text-secondary mx-auto" />
                     </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>Advanced Paraphraser</TableCell>
-                    <TableCell className="text-center">
-                      <X className="h-4 w-4 text-muted-foreground mx-auto" />
-                    </TableCell>
                     <TableCell className="text-center">
                       <X className="h-4 w-4 text-muted-foreground mx-auto" />
                     </TableCell>
@@ -897,10 +806,7 @@ const Pricing = () => {
                         </TooltipProvider>
                       </div>
                     </TableCell>
-                    <TableCell className="text-center text-muted-foreground">1/month (Basic)</TableCell>
-                    <TableCell className="text-center">
-                      <Check className="h-4 w-4 text-secondary mx-auto" />
-                    </TableCell>
+                    <TableCell className="text-center text-muted-foreground">Free preview (1/month)</TableCell>
                     <TableCell className="text-center">
                       <Check className="h-4 w-4 text-secondary mx-auto" />
                     </TableCell>
@@ -908,7 +814,7 @@ const Pricing = () => {
 
                   {/* Support */}
                   <TableRow className="bg-muted/50">
-                    <TableCell colSpan={4} className="font-semibold">
+                    <TableCell colSpan={3} className="font-semibold">
                       Support
                     </TableCell>
                   </TableRow>
@@ -916,9 +822,6 @@ const Pricing = () => {
                     <TableCell>Support Level</TableCell>
                     <TableCell className="text-center">
                       <Badge variant="outline">Basic</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="secondary">Priority</Badge>
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge>Priority</Badge>

@@ -1880,19 +1880,13 @@ serve(async (req) => {
             );
           }
           
-          // Free users can only use descriptive and correlation
-          const allowedFreeAnalyses = ['descriptive', 'frequencies', 'correlation_pearson'];
-          const requestedAnalyses = analyses.filter((a: string) => allowedFreeAnalyses.includes(a));
-          if (requestedAnalyses.length !== analyses.length) {
-            return new Response(
-              JSON.stringify({ error: 'Free users can only access Descriptive Statistics and Correlation Analysis. Upgrade for full access.' }),
-              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
         }
         
         // Calculate total credits needed
-        const totalCredits = analyses.reduce((sum: number, a: string) => sum + (ANALYSIS_CREDITS[a] || 0), 0);
+        // Free users get a no-credit preview of their results (export stays a Scholar feature)
+        const totalCredits = isFreeUser
+          ? 0
+          : analyses.reduce((sum: number, a: string) => sum + (ANALYSIS_CREDITS[a] || 0), 0);
         
         // Check if user has enough credits
         const dailyCredits = profile.daily_credits || 0;
@@ -1912,6 +1906,8 @@ serve(async (req) => {
         
         // Run the analyses
         const results: Record<string, any> = {};
+        const interpret = (type: string, r: any): Promise<string> =>
+          isFreeUser ? Promise.resolve('') : generateAcademicInterpretation(type, r);
         
         for (const analysisType of analyses) {
           try {
@@ -1949,7 +1945,7 @@ serve(async (req) => {
                   }
                 }
                 const firstResult = Object.values(results.descriptive).find(v => typeof v === 'object' && v !== null && (v as any).count > 0);
-                results.descriptive.interpretation = await generateAcademicInterpretation('descriptive', firstResult);
+                results.descriptive.interpretation = await interpret('descriptive', firstResult);
                 break;
               }
               
@@ -1989,7 +1985,7 @@ serve(async (req) => {
                 }
                 
                 if (numericCols.length >= 2) {
-                  results.correlation_pearson.interpretation = await generateAcademicInterpretation(
+                  results.correlation_pearson.interpretation = await interpret(
                     'correlation_pearson', 
                     results.correlation_pearson.matrix[0][1]
                   );
@@ -2040,7 +2036,7 @@ serve(async (req) => {
                       groups: groupKeys,
                       groupMeans: { [groupKeys[0]]: mean(groups[groupKeys[0]]), [groupKeys[1]]: mean(groups[groupKeys[1]]) },
                       significance: interpretSignificance(testResult.pValue),
-                      interpretation: await generateAcademicInterpretation('ttest_independent', testResult),
+                      interpretation: await interpret('ttest_independent', testResult),
                       // Add assumption checks for t-test
                       assumptions: {
                         normality: groupKeys.map(k => ({
@@ -2086,7 +2082,7 @@ serve(async (req) => {
                     preMean: mean(beforeTrimmed),
                     postMean: mean(afterTrimmed),
                     significance: interpretSignificance(testResult.pValue),
-                    interpretation: await generateAcademicInterpretation('ttest_paired', testResult),
+                    interpretation: await interpret('ttest_paired', testResult),
                     // Add assumption checks for paired t-test (normality of differences)
                     assumptions: {
                       normality: [
@@ -2138,7 +2134,7 @@ serve(async (req) => {
                         stdDev: standardDeviation(groups[k])
                       })),
                       significance: interpretSignificance(testResult.pValue),
-                      interpretation: await generateAcademicInterpretation('anova_oneway', testResult),
+                      interpretation: await interpret('anova_oneway', testResult),
                       // Add assumption checks
                       assumptions: {
                         normality: groupKeys.map(k => ({
@@ -2182,7 +2178,7 @@ serve(async (req) => {
                     factor1Name: factor1Col.name,
                     factor2Name: factor2Col.name,
                     dvName: dvCol.name,
-                    interpretation: await generateAcademicInterpretation('anova_twoway', anovaResult)
+                    interpretation: await interpret('anova_twoway', anovaResult)
                   };
                 } else {
                   results.anova_twoway = { error: 'Please configure both grouping variables and dependent variable' };
@@ -2202,7 +2198,7 @@ serve(async (req) => {
                     groupName: groupCol.name,
                     covariateName: covariateCol.name,
                     dvName: dvCol.name,
-                    interpretation: await generateAcademicInterpretation('ancova', ancovaResult)
+                    interpretation: await interpret('ancova', ancovaResult)
                   };
                 } else {
                   results.ancova = { error: 'Please configure grouping variable, covariate, and dependent variable' };
@@ -2238,7 +2234,7 @@ serve(async (req) => {
                     independentVariables: ivCols.map((c: any) => c.name),
                     sampleSize: minLen,
                     significance: interpretSignificance(regResult.fPValue),
-                    interpretation: await generateAcademicInterpretation('regression_linear', regResult)
+                    interpretation: await interpret('regression_linear', regResult)
                   };
                 } else {
                   results.regression_linear = { error: 'Please configure dependent and independent variables' };
@@ -2267,7 +2263,7 @@ serve(async (req) => {
                     dependentVariable: dvCol.name,
                     independentVariables: varNames,
                     outcomeCategories: uniqueValues,
-                    interpretation: await generateAcademicInterpretation('regression_logistic', logitResult)
+                    interpretation: await interpret('regression_logistic', logitResult)
                   };
                 } else {
                   results.regression_logistic = { error: 'Please configure a binary dependent variable and independent variables' };
@@ -2301,7 +2297,7 @@ serve(async (req) => {
                     categories1: cat1Values,
                     categories2: cat2Values,
                     observed,
-                    interpretation: await generateAcademicInterpretation('chi_square', chiResult)
+                    interpretation: await interpret('chi_square', chiResult)
                   };
                 } else {
                   results.chi_square = { error: 'Please configure two categorical variables' };
@@ -2325,7 +2321,7 @@ serve(async (req) => {
                     ...efaResult,
                     sampleSize: dataMatrix.length,
                     variableCount: varNames.length,
-                    interpretation: await generateAcademicInterpretation('factor_analysis', efaResult)
+                    interpretation: await interpret('factor_analysis', efaResult)
                   };
                 } else {
                   results.factor_analysis = { error: 'Factor analysis requires at least 5 Likert scale items' };
@@ -2365,7 +2361,7 @@ serve(async (req) => {
                         stdDev: standardDeviation(groups[k])
                       })),
                       significance: interpretSignificance(testResult.pValue),
-                      interpretation: await generateAcademicInterpretation('mannwhitney_u', testResult)
+                      interpretation: await interpret('mannwhitney_u', testResult)
                     };
                   } else {
                     results.mannwhitney_u = { error: 'Mann-Whitney U test requires exactly 2 groups' };
@@ -2406,7 +2402,7 @@ serve(async (req) => {
                         stdDev: standardDeviation(groups[k])
                       })),
                       significance: interpretSignificance(testResult.pValue),
-                      interpretation: await generateAcademicInterpretation('kruskal_wallis', testResult)
+                      interpretation: await interpret('kruskal_wallis', testResult)
                     };
                   } else {
                     results.kruskal_wallis = { error: 'Kruskal-Wallis test requires at least 2 groups' };
@@ -2438,7 +2434,7 @@ serve(async (req) => {
                     postMean: mean(afterTrimmed),
                     n: minLen,
                     significance: interpretSignificance(testResult.pValue),
-                    interpretation: await generateAcademicInterpretation('wilcoxon_signed_rank', testResult)
+                    interpretation: await interpret('wilcoxon_signed_rank', testResult)
                   };
                 } else {
                   results.wilcoxon_signed_rank = { error: 'Please configure pre-test and post-test columns' };
@@ -2501,6 +2497,7 @@ serve(async (req) => {
             success: true,
             results: sanitizedResults,
             creditsUsed: totalCredits,
+            preview: isFreeUser,
             remainingCredits: {
               daily: newDailyCredits,
               paid: newPaidCredits
