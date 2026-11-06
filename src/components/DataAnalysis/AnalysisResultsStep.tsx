@@ -65,6 +65,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TutorialTrigger } from "@/components/Tutorial";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
+import { ScreenshotShield } from "@/components/ScreenshotShield";
 import { generateChapter4Sections, type TableData, type Chapter4Section } from "@/utils/analysisExportHelpers";
 import type { ColumnConfig, AnalysisResults } from "@/pages/DataAnalysis";
 
@@ -650,6 +651,9 @@ export const AnalysisResultsStep = ({
           <p className="text-muted-foreground">
             {availableResults.length} analysis type(s) completed successfully
           </p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Export writes out your whole Chapter 4 for you, with the interpretation and representation of your results.
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={onBack}>
@@ -704,7 +708,8 @@ export const AnalysisResultsStep = ({
               <p className="font-medium">Your results are ready: free preview</p>
               <p className="text-sm text-muted-foreground">
                 Your tables and charts are yours to view. Unlock APA-style interpretations and export your
-                full Chapter 4 as Word, PDF or text with the Scholar plan.
+                full Chapter 4 as Word, PDF or text with the Scholar plan. This preview is watermarked
+                with your account email.
               </p>
             </div>
             <Button variant="gradient" onClick={() => setShowUpgrade(true)}>
@@ -714,7 +719,8 @@ export const AnalysisResultsStep = ({
         </Card>
       )}
 
-      {/* Results Tabs */}
+      {/* Results Tabs: watermarked and copy-protected for free previews */}
+      <ScreenshotShield enabled={isFreeUser}>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TutorialTrigger id="tutorial-results-tabs">
           <ScrollArea className="w-full">
@@ -2801,6 +2807,7 @@ export const AnalysisResultsStep = ({
         )}
         </TutorialTrigger>
       </Tabs>
+      </ScreenshotShield>
 
       <UpgradeDialog
         open={showUpgrade}

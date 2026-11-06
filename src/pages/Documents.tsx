@@ -13,6 +13,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { DocumentsSkeleton } from "@/components/skeletons/DocumentsSkeleton";
 import { ThemeSelector } from "@/components/Documents/ThemeSelector";
 import { translateError, logError } from "@/utils/errorMessages";
+import { PptPreview, type PptPreviewData } from "@/components/PptPreview";
 
 const Documents = () => {
   const navigate = useNavigate();
@@ -30,6 +31,7 @@ const Documents = () => {
   const [slideCountRange, setSlideCountRange] = useState("10-12");
   const [userPlan, setUserPlan] = useState<string | null>(null);
   const [proTrialUsed, setProTrialUsed] = useState(false);
+  const [previewData, setPreviewData] = useState<PptPreviewData | null>(null);
   const [subscriptionActive, setSubscriptionActive] = useState(false);
 
   useEffect(() => {
@@ -76,6 +78,10 @@ const Documents = () => {
     subscriptionActive &&
     (userPlan === "scholar" || (userPlan === "pro" && !proTrialUsed));
 
+  // Free users and expired plans get one on-screen preview per month (proTrialUsed doubles as
+  // "this month's allowance is used"). The downloadable file stays a Scholar feature.
+  const previewMode = !canGenerate && !(userPlan === "pro" && subscriptionActive);
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -100,6 +106,7 @@ const Documents = () => {
     setSelectedFile(file);
     setUploadedDocUrl("");
     setGeneratedPptUrl("");
+    setPreviewData(null);
     setGeneratedPptName("generated-presentation.pptx");
     setGenerationError(null);
   };
@@ -203,6 +210,16 @@ const Documents = () => {
           title: "Generation Failed",
           description: data.error,
           variant: "destructive",
+        });
+        return;
+      }
+
+      if (data.preview) {
+        setPreviewData({ title: data.title, theme: data.theme, slides: data.slides });
+        setProTrialUsed(true);
+        toast({
+          title: "Your free preview is ready!",
+          description: "Upgrade to Scholar to download it as a PowerPoint.",
         });
         return;
       }
@@ -344,6 +361,13 @@ const Documents = () => {
                 />
                 
                 <div className="mt-6 space-y-4">
+                  {previewMode ? (
+                    <p className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
+                      Free preview: see your slides on screen, once a month, with no credits used. The
+                      downloadable PowerPoint and AI images come with Scholar.
+                    </p>
+                  ) : (
+                    <>
                   <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg">
                     <Checkbox 
                       id="include-images" 
@@ -364,6 +388,8 @@ const Documents = () => {
                   <p className="text-xs text-muted-foreground">
                     Credit cost: <span className="font-semibold">{includeImages ? 15 : 10} credits</span>
                   </p>
+                    </>
+                  )}
                   {canGenerate ? (
                     <Button
                       onClick={handleGeneratePPT}
@@ -382,6 +408,30 @@ const Documents = () => {
                         </>
                       )}
                     </Button>
+                  ) : previewMode ? (
+                    proTrialUsed ? (
+                      <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/20 text-center">
+                        <h3 className="font-semibold mb-1">You've used this month's free preview</h3>
+                        <p className="text-sm text-muted-foreground mb-3">
+                          Upgrade to Scholar to generate and download full presentations.
+                        </p>
+                        <Button onClick={() => navigate("/pricing")} variant="gradient">See Plans</Button>
+                      </div>
+                    ) : (
+                      <Button onClick={handleGeneratePPT} disabled={isGenerating} className="w-full">
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Preparing your preview...
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Generate free preview
+                          </>
+                        )}
+                      </Button>
+                    )
                   ) : userPlan === "pro" && subscriptionActive ? (
                     <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/20 text-center">
                       <h3 className="font-semibold mb-1">Your free monthly deck is used</h3>
@@ -421,6 +471,8 @@ const Documents = () => {
                 </div>
               </div>
             )}
+
+            {previewData && <PptPreview data={previewData} />}
 
             {generatedPptUrl && (
               <div className="bg-muted p-4 rounded-xl">

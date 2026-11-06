@@ -15,6 +15,7 @@ import { QuestionnairePreview } from "@/components/Questionnaire/QuestionnairePr
 import { exportToPdf, exportToDocx } from "@/components/Questionnaire/QuestionnaireExport";
 import { sampleTemplate } from "@/components/Questionnaire/SampleTemplate";
 import { QuestionnaireChat } from "@/components/Questionnaire/QuestionnaireChat";
+import { UpgradeDialog } from "@/components/UpgradeDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +46,8 @@ const QuestionnaireBuilder = () => {
   const [activeTab, setActiveTab] = useState("builder");
   const [planType, setPlanType] = useState<string>("");
   const [isExporting, setIsExporting] = useState(false);
+  const [isPaid, setIsPaid] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -65,12 +68,10 @@ const QuestionnaireBuilder = () => {
           : true;
         const hasAccess = (profile.plan_type === 'pro' || profile.plan_type === 'scholar') && !isExpired;
 
-        if (!hasAccess) {
-          toast.error("This feature is available on the Scholar plan");
-          navigate("/pricing");
-          return;
-        }
-        setPlanType(profile.plan_type);
+        // Building and previewing are open to everyone; exporting is a Scholar feature.
+        // An expired plan counts as free (credits are kept).
+        setIsPaid(hasAccess);
+        setPlanType(hasAccess ? profile.plan_type : "free");
         setIsCheckingAccess(false);
       } catch {
         navigate("/dashboard");
@@ -106,6 +107,10 @@ const QuestionnaireBuilder = () => {
   }, [data]);
 
   const gateExport = async (exportFn: () => Promise<void>, format: string) => {
+    if (!isPaid) {
+      setShowUpgrade(true);
+      return;
+    }
     if (!validate()) {
       toast.error("Please fix validation errors before exporting");
       return;
@@ -229,7 +234,7 @@ const QuestionnaireBuilder = () => {
           </div>
         </div>
         <div className="container mx-auto px-4 flex items-center justify-center gap-1 py-1 border-t border-border text-xs text-muted-foreground">
-          <Coins className="h-3 w-3" /> Export costs 5 credits per download
+          <Coins className="h-3 w-3" /> {isPaid ? "Export costs 5 credits per download" : "Build and preview for free. Exporting to PDF/DOCX is part of the Scholar plan"}
         </div>
       </header>
 
@@ -300,7 +305,7 @@ const QuestionnaireBuilder = () => {
 
           <TabsContent value="preview">
             <div className="mb-4 flex items-center justify-between">
-              <p className="text-xs text-muted-foreground flex items-center gap-1"><Coins className="h-3 w-3" /> 5 credits per export</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1"><Coins className="h-3 w-3" /> {isPaid ? "5 credits per export" : "Export is part of the Scholar plan"}</p>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={isExporting}>
                   {isExporting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileDown className="h-4 w-4 mr-1" />} Download PDF
@@ -314,6 +319,15 @@ const QuestionnaireBuilder = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      <UpgradeDialog
+        open={showUpgrade}
+        onOpenChange={setShowUpgrade}
+        featureName="Export Questionnaire"
+        featureDescription="Download your questionnaire as a formatted PDF or Word document, ready to print or share with respondents."
+        requiredPlan="scholar"
+        currentPlan="free"
+      />
     </div>
   );
 };

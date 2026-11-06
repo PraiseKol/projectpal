@@ -748,24 +748,11 @@ const Dashboard = () => {
             </CardHeader>
           </Card>
 
-          {/* PPT Generator - Visible to all, Scholar Only access */}
+          {/* PPT Generator - open to everyone: free preview on screen, downloadable file on Scholar */}
           <Card
-            variant={canAccessFeature("scholar") ? "glass" : "default"}
-            className={`hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in ${
-              !canAccessFeature("scholar") ? "opacity-80" : ""
-            }`}
-            onClick={() => {
-              if (profile?.plan_type === "pro" && isActiveSubscriber()) {
-                navigate("/documents");
-              } else {
-                handleFeatureClick(
-                  "PPT Generator",
-                  "/documents",
-                  "scholar",
-                  "Create professional PowerPoint presentations from your documents with AI. Available on the Scholar plan.",
-                );
-              }
-            }}
+            variant="glass"
+            className="hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in"
+            onClick={() => navigate("/documents")}
           >
             <CardHeader>
               <Sparkles className="h-12 w-12 mb-4 text-secondary" />
@@ -775,15 +762,9 @@ const Dashboard = () => {
                   <Badge variant="secondary" className="text-xs">
                     {pptCreditCost} Credits
                   </Badge>
-                ) : profile?.plan_type === "pro" && isActiveSubscriber() ? (
-                  <Badge variant="secondary" className="text-xs gap-1">
-                    <Sparkles className="h-3 w-3" />
-                    1 free/month
-                  </Badge>
                 ) : (
-                  <Badge variant="outline" className="text-xs gap-1">
-                    <Lock className="h-3 w-3" />
-                    Scholar Only
+                  <Badge variant="secondary" className="text-xs">
+                    Free preview
                   </Badge>
                 )}
               </div>
@@ -821,29 +802,19 @@ const Dashboard = () => {
             </CardHeader>
           </Card>
 
-          {/* Questionnaire Builder - Pro & Scholar access */}
+          {/* Questionnaire Builder - open to everyone: build and preview free, export on Scholar */}
           <Card
-            variant={canAccessFeature("pro") ? "glass" : "default"}
-            className={`hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in ${
-              !canAccessFeature("pro") ? "opacity-80" : ""
-            }`}
-            onClick={() =>
-              handleFeatureClick(
-                "Questionnaire Builder",
-                "/questionnaire-builder",
-                "pro",
-                "Design and export professional questionnaires with multiple question types. Available on the Scholar plan.",
-              )
-            }
+            variant="glass"
+            className="hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer animate-scale-in"
+            onClick={() => navigate("/questionnaire-builder")}
           >
             <CardHeader>
               <ClipboardList className="h-12 w-12 mb-4 text-primary" />
               <div className="flex items-center gap-2">
                 <CardTitle>Questionnaire Builder</CardTitle>
-                {!canAccessFeature("pro") && (
-                  <Badge variant="outline" className="text-xs gap-1">
-                    <Lock className="h-3 w-3" />
-                    Scholar
+                {!canAccessFeature("scholar") && (
+                  <Badge variant="secondary" className="text-xs">
+                    Build free
                   </Badge>
                 )}
               </div>

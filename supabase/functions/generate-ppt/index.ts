@@ -1472,7 +1472,7 @@ serve(async (req) => {
   }
 
   try {
-    const { document_url, theme: requestedTheme, include_images = true, slide_count_range = "10-12" } = await req.json();
+    const { document_url, theme: requestedTheme, include_images: requestedImages = true, slide_count_range = "10-12" } = await req.json();
     
     // Parse slide count range
     const [slideMin, slideMax] = slide_count_range.split("-").map((n: string) => parseInt(n.trim()));
@@ -1516,14 +1516,18 @@ serve(async (req) => {
     })();
     const isProTrial = profile.plan_type === 'pro' && !trialExpiry && !trialUsedThisMonth;
 
-    if (profile.plan_type !== 'scholar' && !isProTrial) {
-      const trialMessage = profile.plan_type === 'pro'
-        ? (trialUsedThisMonth
-            ? 'You have already used your free PowerPoint this month. Upgrade to Scholar for unlimited PPT generation.'
-            : 'Your Pro subscription has expired. Renew it to use your monthly free PPT, or upgrade to Scholar.')
-        : 'Scholar plan required. PPT Generator is an exclusive Scholar feature.';
+    // Active Scholar (or the legacy Pro monthly trial) gets the full file. Everyone else, including
+    // free users and expired plans, gets one on-screen preview per month: no credits, no images, no file.
+    const isActiveScholar = profile.plan_type === 'scholar' && !trialExpiry;
+    const isFreePreview = !isActiveScholar && !isProTrial;
+    const include_images = isFreePreview ? false : requestedImages;
+
+    if (isFreePreview && trialUsedThisMonth) {
       return new Response(
-        JSON.stringify({ error: trialMessage }),
+        JSON.stringify({
+          error: 'You have used your free PowerPoint preview this month. Upgrade to Scholar to generate and download full presentations.',
+          preview_used: true,
+        }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -1540,7 +1544,7 @@ serve(async (req) => {
     console.log(`[CREDIT] PPT - User: ${user.id}, Plan: ${profile.plan_type}`);
     console.log(`[CREDIT] Before - Daily: ${profile.daily_credits}, Paid: ${profile.paid_credits}`);
 
-    if (!isActiveSubscriber) {
+    if (!isActiveSubscriber && !isFreePreview) {
       return new Response(
         JSON.stringify({ 
           error: 'Your Scholar subscription has expired. Please renew to access the PPT generator feature.',
@@ -1574,11 +1578,11 @@ serve(async (req) => {
     }
 
     // Credit deduction logic - variable based on image option (free for the Pro monthly trial)
-    const creditsToDeduct = isProTrial ? 0 : (include_images ? (BASE_CREDIT_COST + IMAGE_CREDIT_COST) : BASE_CREDIT_COST);
+    const creditsToDeduct = (isProTrial || isFreePreview) ? 0 : (include_images ? (BASE_CREDIT_COST + IMAGE_CREDIT_COST) : BASE_CREDIT_COST);
     let canProceed = false;
     let creditSource = isProTrial ? 'pro monthly free trial' : '';
 
-    if (isProTrial) {
+    if (isProTrial || isFreePreview) {
       canProceed = true;
     } else if (dailyCredits >= creditsToDeduct) {
       dailyCredits -= creditsToDeduct;
@@ -1848,6 +1852,40 @@ GUIDELINES:
     }
 
     console.log(`[PPT] Generated ${presentationData.slides?.length || 0} slides`);
+
+    // Free preview: send the slide content for on-screen viewing. No images, no PowerPoint file,
+    // and the preview allowance for this month is marked as used.
+    if (isFreePreview) {
+      await supabaseClient
+        .from('profiles')
+        .update({ monthly_free_ppt_used_at: new Date().toISOString() })
+        .eq('id', user.id);
+
+      return new Response(
+        JSON.stringify({
+          preview: true,
+          title: presentationData.title,
+          theme: {
+            name: selectedTheme.name,
+            primary: selectedTheme.primary,
+            secondary: selectedTheme.secondary,
+            background: selectedTheme.background,
+            headerBg: selectedTheme.headerBg,
+            text: selectedTheme.text,
+            accent: selectedTheme.accent,
+          },
+          slides: presentationData.slides.map((sl) => ({
+            type: sl.type,
+            title: sl.title,
+            subtitle: sl.subtitle,
+            bullets: sl.bullets,
+            tableData: sl.tableData,
+          })),
+          credits_used: 0,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Generate images for select slides (max 3) - only if enabled
     const slideImages: Map<number, string> = new Map();
