@@ -180,3 +180,16 @@ export const logError = (context: string, error: any): void => {
     console.error(`[${context}]`, error);
   }
 };
+
+/**
+ * Reads the message an edge function returned with a non-2xx status (supabase-js hides it
+ * inside error.context). Returns null when there is no readable message.
+ */
+export const getFunctionErrorMessage = async (error: any): Promise<string | null> => {
+  try {
+    const body = await error?.context?.json?.();
+    return typeof body?.error === 'string' ? body.error : null;
+  } catch {
+    return null;
+  }
+};

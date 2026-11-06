@@ -12,7 +12,7 @@ import { DocumentViewer } from "@/components/DocumentViewer";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { DocumentsSkeleton } from "@/components/skeletons/DocumentsSkeleton";
 import { ThemeSelector } from "@/components/Documents/ThemeSelector";
-import { translateError, logError } from "@/utils/errorMessages";
+import { translateError, logError, getFunctionErrorMessage } from "@/utils/errorMessages";
 import { PptPreview, type PptPreviewData } from "@/components/PptPreview";
 
 const Documents = () => {
@@ -181,6 +181,12 @@ const Documents = () => {
       });
 
       if (error) {
+        const serverMessage = await getFunctionErrorMessage(error);
+        if (serverMessage) {
+          setGenerationError(serverMessage);
+          toast({ title: "Generation Failed", description: serverMessage, variant: "destructive" });
+          return;
+        }
         // Handle specific error types
         if (error.message?.includes("rate limit") || error.message?.includes("429")) {
           throw new Error("Rate limit exceeded. Please wait a moment and try again.");

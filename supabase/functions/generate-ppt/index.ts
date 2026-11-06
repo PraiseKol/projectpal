@@ -108,7 +108,7 @@ async function extractPdfTextWithGemini(
   console.log('[PPT] Sending PDF to Gemini for text extraction...');
   
   const response = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+    `https://generativelanguage.googleapis.com/v1beta/models/${Deno.env.get('GEMINI_MODEL') ?? 'gemini-3.8-flash'}:generateContent`,
     {
       method: 'POST',
       headers: {
@@ -781,7 +781,7 @@ Color scheme: Use shades of #${theme.primary} and #${theme.secondary}.
 No text in the image. High quality, clean vector-style illustration. Simple and elegant.`;
 
     const imageResponse = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent',
+      `https://generativelanguage.googleapis.com/v1beta/models/${Deno.env.get('GEMINI_IMAGE_MODEL') ?? 'gemini-3.1-flash-image-preview'}:generateContent`,
       {
         method: 'POST',
         headers: {
@@ -1775,7 +1775,7 @@ GUIDELINES:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gemini-2.5-flash',
+        model: Deno.env.get('GEMINI_MODEL') ?? 'gemini-3.8-flash',
         messages: [
           { role: 'system', content: systemPrompt },
           { 

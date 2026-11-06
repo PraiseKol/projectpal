@@ -1676,7 +1676,7 @@ async function generateAcademicInterpretation(analysisType: string, results: any
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gemini-3-flash-preview',
+        model: Deno.env.get('GEMINI_MODEL') ?? 'gemini-3.8-flash',
         messages: [
           {
             role: 'system',
@@ -1877,7 +1877,7 @@ serve(async (req) => {
               .eq('id', user.id);
           } else if (profile.monthly_analysis_count >= 1) {
             return new Response(
-              JSON.stringify({ error: 'Free users can only analyze 1 dataset per month. Upgrade for unlimited access.' }),
+              JSON.stringify({ error: 'You have used your free analysis for this month. Subscribe to the Scholar plan for unlimited analyses and Chapter 4 export.' }),
               { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
           }

@@ -16,7 +16,7 @@ import { AnalysisResultsStep } from "@/components/DataAnalysis/AnalysisResultsSt
 import { DataAnalysisSkeleton } from "@/components/skeletons/DataAnalysisSkeleton";
 import { TutorialProvider, TutorialOverlay, WelcomeDialog, TutorialTrigger } from "@/components/Tutorial";
 import { useTutorial } from "@/hooks/useTutorial";
-import { translateError, logError } from "@/utils/errorMessages";
+import { translateError, logError, getFunctionErrorMessage } from "@/utils/errorMessages";
 
 export interface ColumnConfig {
   name: string;
@@ -150,6 +150,11 @@ const DataAnalysisContent = () => {
       });
 
       if (response.error) {
+        const serverMessage = await getFunctionErrorMessage(response.error);
+        if (serverMessage) {
+          toast.error(serverMessage);
+          return;
+        }
         throw new Error(response.error.message);
       }
 

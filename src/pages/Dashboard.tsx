@@ -814,7 +814,7 @@ const Dashboard = () => {
                 <CardTitle>Questionnaire Builder</CardTitle>
                 {!canAccessFeature("scholar") && (
                   <Badge variant="secondary" className="text-xs">
-                    Build free
+                    Free to use
                   </Badge>
                 )}
               </div>

@@ -70,7 +70,7 @@ Return ONLY valid JSON: {"type": "category_name", "cost": number, "category": "e
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gemini-2.5-flash-lite',
+        model: Deno.env.get('GEMINI_LITE_MODEL') ?? 'gemini-3.5-flash-lite',
         messages: [
           { role: 'system', content: classificationPrompt },
           { role: 'user', content: instruction }
@@ -424,7 +424,7 @@ Return ONLY the requested content as clean, well-formatted text. Do not include 
     }
 
     const requestBody: any = {
-      model: "gemini-3-flash-preview",
+      model: Deno.env.get('GEMINI_MODEL') ?? 'gemini-3.8-flash',
       max_tokens: 16000,
       messages: [
         { role: "system", content: systemPrompt },

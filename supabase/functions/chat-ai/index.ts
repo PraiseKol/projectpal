@@ -16,7 +16,7 @@ async function generateIntelligentTitle(userMessage: string, apiKey: string): Pr
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gemini-2.5-flash-lite',
+        model: Deno.env.get('GEMINI_LITE_MODEL') ?? 'gemini-3.5-flash-lite',
         messages: [
           {
             role: 'system',
@@ -201,7 +201,7 @@ Return ONLY valid JSON: {"actionType": "category_name", "cost": number}`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gemini-2.5-flash-lite',
+        model: Deno.env.get('GEMINI_LITE_MODEL') ?? 'gemini-3.5-flash-lite',
         messages: [
           { role: 'system', content: classificationPrompt },
           { role: 'user', content: `RECENT CONVERSATION CONTEXT:\n${conversationContext}\n\nCURRENT USER MESSAGE:\n${message}` }
@@ -741,7 +741,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gemini-3-flash-preview',
+        model: Deno.env.get('GEMINI_MODEL') ?? 'gemini-3.8-flash',
         max_tokens: 16000,
         messages: [
           {
