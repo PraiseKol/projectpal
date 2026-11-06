@@ -6,3 +6,4 @@
 - Lifecycle emails (welcome, 3-day inactivity, low-credit) are sent by the `lifecycle-emails` edge function, scheduled daily at 08:30 UTC by the `lifecycle-emails-daily` pg_cron job; send-state is tracked in `profiles.welcome_email_sent_at` / `inactivity_email_sent_at` / `low_credit_email_sent_at` and respects `email_preferences` opt-outs.
 - Project topics seed data lives in the database only (`project_topics`, 8 departments × 15); keep it idempotent by topic text when re-seeding.
 - Blog posts are managed by super/admin users through the Admin → Blog tab (`src/components/Admin/BlogManagement.tsx`); RLS on `blog_posts` already gates writes to admins.
+- Keep questionnaire export credit eligibility in a pure helper so the five-credit threshold is testable independently of the edge-function runtime.

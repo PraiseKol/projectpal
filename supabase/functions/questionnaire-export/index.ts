@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { hasEnoughExportCredits } from './credits.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -66,14 +67,6 @@ serve(async (req) => {
     const paidCreditsExpired = profile.credits_expiry_date ? new Date(profile.credits_expiry_date) < new Date() : true;
     const isActiveSubscriber = profile.plan_type !== 'free' && !paidCreditsExpired;
 
-    // Exporting a questionnaire is a Scholar feature: free users and expired plans can build and preview only
-    if (!isActiveSubscriber) {
-      return new Response(
-        JSON.stringify({ error: 'Exporting questionnaires is available on the Scholar plan.' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     if (needsDailyReset) {
       if (isActiveSubscriber) {
         dailyCredits = DEFAULT_DAILY;
@@ -87,7 +80,7 @@ serve(async (req) => {
 
     // Check available credits
     const totalAvailable = isActiveSubscriber ? dailyCredits + paidCredits : Math.min(dailyCredits, monthlyCredits);
-    if (totalAvailable < EXPORT_COST) {
+    if (!hasEnoughExportCredits(totalAvailable, EXPORT_COST)) {
       return new Response(
         JSON.stringify({
           error: `Export requires ${EXPORT_COST} credits. You have ${totalAvailable} remaining.`,

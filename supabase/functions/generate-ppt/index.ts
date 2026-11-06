@@ -781,7 +781,7 @@ Color scheme: Use shades of #${theme.primary} and #${theme.secondary}.
 No text in the image. High quality, clean vector-style illustration. Simple and elegant.`;
 
     const imageResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${Deno.env.get('GEMINI_IMAGE_MODEL') ?? 'gemini-3.1-flash-image-preview'}:generateContent`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${Deno.env.get('GEMINI_IMAGE_MODEL') ?? 'gemini-3.1-flash-image'}:generateContent`,
       {
         method: 'POST',
         headers: {
