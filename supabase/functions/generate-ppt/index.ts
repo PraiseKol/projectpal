@@ -3,6 +3,35 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import PptxGenJS from "https://esm.sh/pptxgenjs@3.12.0";
 import { unzipSync } from "https://esm.sh/fflate@0.8.2";
 
+// Google's newest models sometimes answer 503 "high demand". Retry on the lite model instead of failing.
+const GEMINI_FALLBACK_MODEL = Deno.env.get('GEMINI_LITE_MODEL') ?? 'gemini-3.5-flash-lite';
+const GEMINI_RETRY_STATUSES = [429, 500, 502, 503, 504];
+
+async function fetchGemini(url: string, init: RequestInit): Promise<Response> {
+  let res = await fetch(url, init);
+  if (!GEMINI_RETRY_STATUSES.includes(res.status)) return res;
+  console.warn(`[GEMINI] ${res.status} from the main model, retrying with ${GEMINI_FALLBACK_MODEL}`);
+
+  let fallbackInit: RequestInit = init;
+  if (typeof init.body === 'string') {
+    try {
+      const body = JSON.parse(init.body);
+      if (body.model) fallbackInit = { ...init, body: JSON.stringify({ ...body, model: GEMINI_FALLBACK_MODEL }) };
+    } catch {
+      /* body is not JSON, send it unchanged */
+    }
+  }
+  // Image calls keep their own model; text calls move to the lite model in the URL too
+  const fallbackUrl = /image/.test(url) ? url : url.replace(/\/models\/[^/:]+:/, `/models/${GEMINI_FALLBACK_MODEL}:`);
+
+  for (const wait of [1000, 2500]) {
+    await new Promise((r) => setTimeout(r, wait));
+    res = await fetch(fallbackUrl, fallbackInit);
+    if (!GEMINI_RETRY_STATUSES.includes(res.status)) return res;
+  }
+  return res;
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -107,7 +136,7 @@ async function extractPdfTextWithGemini(
   
   console.log('[PPT] Sending PDF to Gemini for text extraction...');
   
-  const response = await fetch(
+  const response = await fetchGemini(
     `https://generativelanguage.googleapis.com/v1beta/models/${Deno.env.get('GEMINI_MODEL') ?? 'gemini-3.8-flash'}:generateContent`,
     {
       method: 'POST',
@@ -780,7 +809,7 @@ Style: Modern, minimalist, professional, suitable for academic presentations.
 Color scheme: Use shades of #${theme.primary} and #${theme.secondary}.
 No text in the image. High quality, clean vector-style illustration. Simple and elegant.`;
 
-    const imageResponse = await fetch(
+    const imageResponse = await fetchGemini(
       `https://generativelanguage.googleapis.com/v1beta/models/${Deno.env.get('GEMINI_IMAGE_MODEL') ?? 'gemini-3.1-flash-image-preview'}:generateContent`,
       {
         method: 'POST',
@@ -1768,7 +1797,7 @@ GUIDELINES:
 - Make content substantive and specific, not generic
 - For tables, extract real data from the document when available`;
 
-    const aiResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+    const aiResponse = await fetchGemini('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
