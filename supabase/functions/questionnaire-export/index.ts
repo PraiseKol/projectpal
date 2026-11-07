@@ -8,7 +8,7 @@ const corsHeaders = {
 
 let EXPORT_COST = 5;
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -68,11 +68,12 @@ serve(async (req) => {
 
     // Exporting a questionnaire is a Scholar feature: free users and expired plans can build and preview only
     if (!isActiveSubscriber) {
-      return new Response(
-        JSON.stringify({ error: 'Exporting questionnaires is available on the Scholar plan.' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+  return new Response(
+    JSON.stringify({ error: 'Exporting questionnaires is available on the Scholar plan.' }),
+    { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
 
     if (needsDailyReset) {
       if (isActiveSubscriber) {
