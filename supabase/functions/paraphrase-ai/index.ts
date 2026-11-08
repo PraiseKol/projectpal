@@ -1,33 +1,72 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Google's newest models sometimes answer 503 "high demand". Retry on the lite model instead of failing.
-const GEMINI_FALLBACK_MODEL = Deno.env.get('GEMINI_LITE_MODEL') ?? 'gemini-3.5-flash-lite';
+// Google's models can be slow or overloaded. Wait only a limited time, then switch to the other model.
+const GEMINI_FAST_MODEL = Deno.env.get('GEMINI_LITE_MODEL') ?? 'gemini-3.5-flash-lite';
+const GEMINI_STRONG_MODEL = Deno.env.get('GEMINI_STRONG_MODEL') ?? 'gemini-3.8-flash';
 const GEMINI_RETRY_STATUSES = [429, 500, 502, 503, 504];
 
-async function fetchGemini(url: string, init: RequestInit): Promise<Response> {
-  let res = await fetch(url, init);
-  if (!GEMINI_RETRY_STATUSES.includes(res.status)) return res;
-  console.warn(`[GEMINI] ${res.status} from the main model, retrying with ${GEMINI_FALLBACK_MODEL}`);
+async function fetchWithTimeout(url: string, init: RequestInit, ms: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    // The timer only covers waiting for the answer to start, so streaming replies are not cut off
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
+async function fetchGemini(url: string, init: RequestInit): Promise<Response> {
+  const isImage = /image/.test(url);
+
+  try {
+    const res = await fetchWithTimeout(url, init, 35000);
+    if (!GEMINI_RETRY_STATUSES.includes(res.status)) return res;
+    console.warn(`[GEMINI] ${res.status} from the first model, trying the other one`);
+  } catch (e) {
+    console.warn('[GEMINI] first model too slow or failed, trying the other one:', String(e).slice(0, 80));
+  }
+
+  // Work out which model was used, then switch to the other one (image calls keep their own model)
+  let currentModel = url.match(/\/models\/([^/:]+):/)?.[1] ?? '';
   let fallbackInit: RequestInit = init;
   if (typeof init.body === 'string') {
     try {
       const body = JSON.parse(init.body);
-      if (body.model) fallbackInit = { ...init, body: JSON.stringify({ ...body, model: GEMINI_FALLBACK_MODEL }) };
+      if (body.model) currentModel = body.model;
     } catch {
-      /* body is not JSON, send it unchanged */
+      /* body is not JSON */
     }
   }
-  // Image calls keep their own model; text calls move to the lite model in the URL too
-  const fallbackUrl = /image/.test(url) ? url : url.replace(/\/models\/[^/:]+:/, `/models/${GEMINI_FALLBACK_MODEL}:`);
+  const alternative = currentModel === GEMINI_FAST_MODEL ? GEMINI_STRONG_MODEL : GEMINI_FAST_MODEL;
+  let fallbackUrl = url;
+  if (!isImage) {
+    fallbackUrl = url.replace(/\/models\/[^/:]+:/, `/models/${alternative}:`);
+    if (typeof init.body === 'string') {
+      try {
+        const body = JSON.parse(init.body);
+        if (body.model) fallbackInit = { ...init, body: JSON.stringify({ ...body, model: alternative }) };
+      } catch {
+        /* body is not JSON */
+      }
+    }
+  }
 
+  let lastResponse: Response | null = null;
+  let lastError: unknown = null;
   for (const wait of [1000, 2500]) {
     await new Promise((r) => setTimeout(r, wait));
-    res = await fetch(fallbackUrl, fallbackInit);
-    if (!GEMINI_RETRY_STATUSES.includes(res.status)) return res;
+    try {
+      const res = await fetchWithTimeout(fallbackUrl, fallbackInit, 45000);
+      if (!GEMINI_RETRY_STATUSES.includes(res.status)) return res;
+      lastResponse = res;
+    } catch (e) {
+      lastError = e;
+    }
   }
-  return res;
+  if (lastResponse) return lastResponse;
+  throw lastError ?? new Error('AI service is not responding');
 }
 
 const corsHeaders = {
@@ -219,7 +258,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: Deno.env.get('GEMINI_MODEL') ?? 'gemini-3.8-flash',
+        model: Deno.env.get('GEMINI_MODEL') ?? 'gemini-3.5-flash-lite',
         messages: [
           {
             role: 'system',

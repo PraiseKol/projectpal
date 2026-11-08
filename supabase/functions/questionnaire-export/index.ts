@@ -8,7 +8,7 @@ const corsHeaders = {
 
 let EXPORT_COST = 5;
 
-serve(async (req: Request) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -65,15 +65,6 @@ serve(async (req: Request) => {
     let paidCredits = profile.paid_credits || 0;
     const paidCreditsExpired = profile.credits_expiry_date ? new Date(profile.credits_expiry_date) < new Date() : true;
     const isActiveSubscriber = profile.plan_type !== 'free' && !paidCreditsExpired;
-
-    // Exporting a questionnaire is a Scholar feature: free users and expired plans can build and preview only
-    if (!isActiveSubscriber) {
-  return new Response(
-    JSON.stringify({ error: 'Exporting questionnaires is available on the Scholar plan.' }),
-    { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
-}
-
 
     if (needsDailyReset) {
       if (isActiveSubscriber) {
