@@ -951,7 +951,53 @@ export interface Chapter4Section {
   tables: TableData[];
   interpretation?: string;
   figureDescription?: string;
+  /** Which analysis this section belongs to (used to attach the long-form narrative) */
+  key?: string;
+  /** True when `interpretation` is the long multi-paragraph narrative */
+  narrative?: boolean;
 }
+
+/** The long-form text written by the chapter4-writer function */
+export interface Chapter4Narrative {
+  intro: string;
+  screening: string;
+  sections: Record<string, string>;
+  discussion: string;
+  summary: string;
+}
+
+/** Splits long text into paragraphs (blank-line separated) */
+export const paragraphsOf = (text: string): string[] =>
+  (text || '')
+    .split(/\n\s*\n/)
+    .map((p) => p.replace(/\s*\n\s*/g, ' ').trim())
+    .filter(Boolean);
+
+/**
+ * Adds the long-form narrative to the sections: a data screening section at the start,
+ * a full narrative for every analysis, then the discussion and the chapter summary.
+ */
+export const enrichChapter4Sections = (
+  sections: Chapter4Section[],
+  narrative: Chapter4Narrative | null
+): Chapter4Section[] => {
+  if (!narrative) return sections;
+  const out: Chapter4Section[] = [];
+  if (narrative.screening) {
+    out.push({ title: 'Data Screening and Preparation', tables: [], interpretation: narrative.screening, narrative: true });
+  }
+  for (const section of sections) {
+    const text = section.key ? narrative.sections?.[section.key] : '';
+    out.push(text ? { ...section, interpretation: text, narrative: true } : section);
+  }
+  if (narrative.discussion) {
+    out.push({ title: 'Discussion of Findings', tables: [], interpretation: narrative.discussion, narrative: true });
+  }
+  if (narrative.summary) {
+    out.push({ title: 'Summary of the Chapter', tables: [], interpretation: narrative.summary, narrative: true });
+  }
+  return out;
+};
 
 export const generateChapter4Sections = (results: any): Chapter4Section[] => {
   const sections: Chapter4Section[] = [];
@@ -961,6 +1007,7 @@ export const generateChapter4Sections = (results: any): Chapter4Section[] => {
     const table = generateDescriptiveTableData(results.descriptive);
     if (table) {
       sections.push({
+        key: 'descriptive',
         title: 'Descriptive Statistics',
         tables: [table],
         interpretation: results.descriptive.interpretation,
@@ -974,6 +1021,7 @@ export const generateChapter4Sections = (results: any): Chapter4Section[] => {
     const tables = generateFrequencyTableData(results.frequencies);
     if (tables.length > 0) {
       sections.push({
+        key: 'frequencies',
         title: 'Socio-Demographic Characteristics of Respondents',
         tables,
         interpretation: results.frequencies.interpretation,
@@ -987,6 +1035,7 @@ export const generateChapter4Sections = (results: any): Chapter4Section[] => {
     const tables = generateLikertTableData(results.likert);
     if (tables.length > 0) {
       sections.push({
+        key: 'likert',
         title: 'Likert Scale Analysis',
         tables,
         interpretation: results.likert?.interpretation
@@ -999,6 +1048,7 @@ export const generateChapter4Sections = (results: any): Chapter4Section[] => {
     const table = generateCorrelationTableData(results.correlation_pearson, 'pearson');
     if (table) {
       sections.push({
+        key: 'correlation_pearson',
         title: 'Pearson Correlation Analysis',
         tables: [table],
         interpretation: results.correlation_pearson.interpretation
@@ -1011,6 +1061,7 @@ export const generateChapter4Sections = (results: any): Chapter4Section[] => {
     const table = generateCorrelationTableData(results.correlation_spearman, 'spearman');
     if (table) {
       sections.push({
+        key: 'correlation_spearman',
         title: 'Spearman Rank Correlation Analysis',
         tables: [table],
         interpretation: results.correlation_spearman.interpretation
@@ -1036,6 +1087,7 @@ export const generateChapter4Sections = (results: any): Chapter4Section[] => {
     
     if (tables.length > 0) {
       sections.push({
+        key: 'ttest_independent',
         title: 'Independent Samples T-Test',
         tables,
         interpretation: results.ttest_independent.interpretation,
@@ -1052,6 +1104,7 @@ export const generateChapter4Sections = (results: any): Chapter4Section[] => {
     
     if (tables.length > 0) {
       sections.push({
+        key: 'ttest_paired',
         title: 'Paired Samples T-Test',
         tables,
         interpretation: results.ttest_paired.interpretation
@@ -1079,6 +1132,7 @@ export const generateChapter4Sections = (results: any): Chapter4Section[] => {
     
     if (tables.length > 0) {
       sections.push({
+        key: 'anova_oneway',
         title: 'One-Way Analysis of Variance (ANOVA)',
         tables,
         interpretation: results.anova_oneway.interpretation,
@@ -1095,6 +1149,7 @@ export const generateChapter4Sections = (results: any): Chapter4Section[] => {
     
     if (tables.length > 0) {
       sections.push({
+        key: 'anova_twoway',
         title: 'Two-Way Analysis of Variance (ANOVA)',
         tables,
         interpretation: results.anova_twoway.interpretation
@@ -1110,6 +1165,7 @@ export const generateChapter4Sections = (results: any): Chapter4Section[] => {
     
     if (tables.length > 0) {
       sections.push({
+        key: 'ancova',
         title: 'Analysis of Covariance (ANCOVA)',
         tables,
         interpretation: results.ancova.interpretation
@@ -1127,6 +1183,7 @@ export const generateChapter4Sections = (results: any): Chapter4Section[] => {
     
     if (tables.length > 0) {
       sections.push({
+        key: 'regression_linear',
         title: 'Linear Regression Analysis',
         tables,
         interpretation: results.regression_linear.interpretation
@@ -1142,6 +1199,7 @@ export const generateChapter4Sections = (results: any): Chapter4Section[] => {
     
     if (tables.length > 0) {
       sections.push({
+        key: 'regression_logistic',
         title: 'Logistic Regression Analysis',
         tables,
         interpretation: results.regression_logistic.interpretation
@@ -1157,6 +1215,7 @@ export const generateChapter4Sections = (results: any): Chapter4Section[] => {
     
     if (tables.length > 0) {
       sections.push({
+        key: 'chi_square',
         title: 'Chi-Square Test of Independence',
         tables,
         interpretation: results.chi_square.interpretation
@@ -1176,6 +1235,7 @@ export const generateChapter4Sections = (results: any): Chapter4Section[] => {
     
     if (tables.length > 0) {
       sections.push({
+        key: 'factor_analysis',
         title: 'Exploratory Factor Analysis',
         tables,
         interpretation: results.factor_analysis.interpretation,
@@ -1192,6 +1252,7 @@ export const generateChapter4Sections = (results: any): Chapter4Section[] => {
     
     if (tables.length > 0) {
       sections.push({
+        key: 'mannwhitney_u',
         title: 'Mann-Whitney U Test',
         tables,
         interpretation: results.mannwhitney_u.interpretation
@@ -1207,6 +1268,7 @@ export const generateChapter4Sections = (results: any): Chapter4Section[] => {
     
     if (tables.length > 0) {
       sections.push({
+        key: 'kruskal_wallis',
         title: 'Kruskal-Wallis H Test',
         tables,
         interpretation: results.kruskal_wallis.interpretation
@@ -1222,6 +1284,7 @@ export const generateChapter4Sections = (results: any): Chapter4Section[] => {
     
     if (tables.length > 0) {
       sections.push({
+        key: 'wilcoxon_signed_rank',
         title: 'Wilcoxon Signed-Rank Test',
         tables,
         interpretation: results.wilcoxon_signed_rank.interpretation

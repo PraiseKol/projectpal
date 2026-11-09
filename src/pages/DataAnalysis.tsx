@@ -319,6 +319,7 @@ const DataAnalysisContent = () => {
             <AnalysisResultsStep
               results={analysisResults}
               columns={columns}
+              sampleSize={rawData.length || undefined}
               isFreeUser={isFreeUser}
               onBack={() => setCurrentStep(3)}
               onNewAnalysis={() => {
