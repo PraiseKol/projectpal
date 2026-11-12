@@ -184,6 +184,44 @@ const DataAnalysisContent = () => {
   const isFreeUser = profile?.plan_type === 'free' || planExpired;
   const availableCredits = (profile?.daily_credits || 0) + (profile?.paid_credits || 0);
 
+  // Responses forwarded from a shared questionnaire arrive here as a CSV and follow the normal upload path
+  useEffect(() => {
+    if (isLoading) return;
+    let raw: string | null = null;
+    try {
+      raw = sessionStorage.getItem("pp_forward_dataset");
+      if (raw) sessionStorage.removeItem("pp_forward_dataset");
+    } catch {
+      raw = null;
+    }
+    if (!raw) return;
+    (async () => {
+      try {
+        const { fileName: forwardedName, csv } = JSON.parse(raw as string);
+        const bytes = new TextEncoder().encode(csv);
+        let binary = "";
+        bytes.forEach((b) => {
+          binary += String.fromCharCode(b);
+        });
+        toast.info("Loading your questionnaire responses...");
+        const response = await supabase.functions.invoke("data-analysis", {
+          body: { action: "parse_data", data: btoa(binary) },
+        });
+        if (response.error) {
+          const serverMessage = await getFunctionErrorMessage(response.error);
+          throw new Error(serverMessage || response.error.message);
+        }
+        if (response.data?.error) throw new Error(response.data.error);
+        await handleFileProcessed(response.data.preview, response.data.columnConfig, forwardedName);
+        toast.success("Your questionnaire responses are ready to analyse.");
+      } catch (e) {
+        console.error("Forwarded dataset failed:", e);
+        toast.error("Could not load the questionnaire responses. You can download them and upload the file instead.");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]);
+
   if (isLoading) {
     return <DataAnalysisSkeleton />;
   }
@@ -319,6 +357,7 @@ const DataAnalysisContent = () => {
             <AnalysisResultsStep
               results={analysisResults}
               columns={columns}
+              sampleSize={rawData.length || undefined}
               isFreeUser={isFreeUser}
               onBack={() => setCurrentStep(3)}
               onNewAnalysis={() => {
