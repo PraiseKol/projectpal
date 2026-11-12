@@ -66,27 +66,12 @@ import {
 import { TutorialTrigger } from "@/components/Tutorial";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
 import { ScreenshotShield } from "@/components/ScreenshotShield";
-import {
-  generateChapter4Sections,
-  enrichChapter4Sections,
-  paragraphsOf,
-  type TableData,
-  type Chapter4Section,
-  type Chapter4Narrative,
-} from "@/utils/analysisExportHelpers";
-import { supabase } from "@/integrations/supabase/client";
-import { getFunctionErrorMessage } from "@/utils/errorMessages";
-import { Loader2 } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { generateChapter4Sections, type TableData, type Chapter4Section } from "@/utils/analysisExportHelpers";
 import type { ColumnConfig, AnalysisResults } from "@/pages/DataAnalysis";
 
 interface AnalysisResultsStepProps {
   results: AnalysisResults;
   columns: ColumnConfig[];
-  sampleSize?: number;
   isFreeUser: boolean;
   onBack: () => void;
   onNewAnalysis: () => void;
@@ -106,18 +91,12 @@ const CHART_COLORS = [
 export const AnalysisResultsStep = ({
   results,
   columns,
-  sampleSize,
   isFreeUser,
   onBack,
   onNewAnalysis,
 }: AnalysisResultsStepProps) => {
   const [activeTab, setActiveTab] = useState<string>(Object.keys(results)[0] || 'descriptive');
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const [isWriting, setIsWriting] = useState(false);
-  const [showSetup, setShowSetup] = useState(false);
-  const [pendingFormat, setPendingFormat] = useState<'txt' | 'docx' | 'pdf'>('docx');
-  const [topicText, setTopicText] = useState('');
-  const [hypothesesText, setHypothesesText] = useState('');
 
   const copyToClipboard = (text: string) => {
     // APA interpretations are part of the paid export
@@ -130,18 +109,15 @@ export const AnalysisResultsStep = ({
   };
 
   // Generate comprehensive Chapter 4 text
-  const generateChapter4Text = (sections: Chapter4Section[], narrative: Chapter4Narrative | null) => {
+  const generateChapter4Text = () => {
+    const sections = generateChapter4Sections(results);
     let text = "CHAPTER FOUR\nDATA PRESENTATION, ANALYSIS AND INTERPRETATION\n\n";
     
     // 4.1 Introduction
     text += "4.1 Introduction\n";
-    if (narrative?.intro) {
-      text += narrative.intro + "\n\n";
-    } else {
-      text += "This chapter presents the data analysis and interpretation of findings from the study. ";
-      text += `The data was analyzed using appropriate statistical techniques, and the results are presented in tables, charts, and narrative form. `;
-      text += `A total of ${sections.length} analyses were conducted as outlined below.\n\n`;
-    }
+    text += "This chapter presents the data analysis and interpretation of findings from the study. ";
+    text += `The data was analyzed using appropriate statistical techniques, and the results are presented in tables, charts, and narrative form. `;
+    text += `A total of ${sections.length} analyses were conducted as outlined below.\n\n`;
 
     let sectionNum = 2;
     let tableNum = 1;
@@ -176,26 +152,29 @@ export const AnalysisResultsStep = ({
       });
 
       if (section.interpretation) {
-        text += section.narrative ? "\n" : "\nInterpretation:\n";
+        text += "\nInterpretation:\n";
         text += section.interpretation + "\n\n";
       }
       
       sectionNum++;
     });
 
-    if (!narrative?.summary) {
-      // Summary section
-      text += `4.${sectionNum} Summary of Findings\n\n`;
-      text += "This chapter presented the results of the data analysis conducted for this study. ";
-      text += `The key findings from ${sections.length} statistical analyses have been presented with their corresponding tables, test statistics, and interpretations. `;
-      text += "The next chapter will discuss these findings in relation to the research objectives and existing literature.\n";
-    }
+    // Summary section
+    text += `4.${sectionNum} Summary of Findings\n\n`;
+    text += "This chapter presented the results of the data analysis conducted for this study. ";
+    text += `The key findings from ${sections.length} statistical analyses have been presented with their corresponding tables, test statistics, and interpretations. `;
+    text += "The next chapter will discuss these findings in relation to the research objectives and existing literature.\n";
 
     return text;
   };
 
-  const exportTxt = (sections: Chapter4Section[], narrative: Chapter4Narrative | null) => {
-    const exportText = generateChapter4Text(sections, narrative);
+  const handleExportTxt = () => {
+    if (isFreeUser) {
+      setShowUpgrade(true);
+      return;
+    }
+    
+    const exportText = generateChapter4Text();
     const blob = new Blob([exportText], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -203,12 +182,18 @@ export const AnalysisResultsStep = ({
     a.download = 'Chapter_4_Analysis.txt';
     a.click();
     URL.revokeObjectURL(url);
-
+    
     toast.success("Chapter 4 exported as TXT");
   };
 
-  const exportDocx = async (sections: Chapter4Section[], narrative: Chapter4Narrative | null) => {
+  const handleExportDocx = async () => {
+    if (isFreeUser) {
+      setShowUpgrade(true);
+      return;
+    }
+
     try {
+      const sections = generateChapter4Sections(results);
       const children: (Paragraph | DocxTable)[] = [];
       
       // Title Page / Chapter Header
@@ -229,34 +214,24 @@ export const AnalysisResultsStep = ({
         heading: HeadingLevel.HEADING_2,
         spacing: { before: 300, after: 200 }
       }));
-      if (narrative?.intro) {
-        for (const para of paragraphsOf(narrative.intro)) {
-          children.push(new Paragraph({
-            children: [new TextRun({ text: para, size: 24 })],
-            alignment: AlignmentType.JUSTIFIED,
-            spacing: { after: 200, line: 300 }
-          }));
-        }
-      } else {
-        children.push(new Paragraph({
-          children: [
-            new TextRun({ 
-              text: "This chapter presents the data analysis and interpretation of findings from the study. The data was analyzed using appropriate statistical techniques including descriptive statistics, inferential tests, and where applicable, assumption checks. The results are presented in tables with accompanying interpretations following academic standards.", 
-              size: 24 
-            })
-          ],
-          spacing: { after: 200 }
-        }));
-        children.push(new Paragraph({
-          children: [
-            new TextRun({ 
-              text: `A total of ${sections.length} statistical analyses were conducted. Each analysis section includes the relevant statistical tables, test statistics, significance values, and academic interpretations of the results.`,
-              size: 24 
-            })
-          ],
-          spacing: { after: 300 }
-        }));
-      }
+      children.push(new Paragraph({
+        children: [
+          new TextRun({ 
+            text: "This chapter presents the data analysis and interpretation of findings from the study. The data was analyzed using appropriate statistical techniques including descriptive statistics, inferential tests, and where applicable, assumption checks. The results are presented in tables with accompanying interpretations following academic standards.", 
+            size: 24 
+          })
+        ],
+        spacing: { after: 200 }
+      }));
+      children.push(new Paragraph({
+        children: [
+          new TextRun({ 
+            text: `A total of ${sections.length} statistical analyses were conducted. Each analysis section includes the relevant statistical tables, test statistics, significance values, and academic interpretations of the results.`,
+            size: 24 
+          })
+        ],
+        spacing: { after: 300 }
+      }));
 
       let sectionNum = 2;
       let tableNum = 1;
@@ -341,59 +316,51 @@ export const AnalysisResultsStep = ({
 
         // Interpretation
         if (section.interpretation) {
-          if (!section.narrative) {
-            children.push(new Paragraph({
-              children: [new TextRun({ text: "Interpretation:", bold: true, size: 24 })],
-              spacing: { before: 200, after: 100 }
-            }));
-          }
-          const interpParagraphs = paragraphsOf(section.interpretation);
-          interpParagraphs.forEach((para, idx) => {
-            children.push(new Paragraph({
-              children: [new TextRun({ text: para, size: 24 })],
-              alignment: section.narrative ? AlignmentType.JUSTIFIED : AlignmentType.LEFT,
-              spacing: { after: idx === interpParagraphs.length - 1 ? 300 : 200, line: section.narrative ? 300 : undefined }
-            }));
-          });
+          children.push(new Paragraph({
+            children: [new TextRun({ text: "Interpretation:", bold: true, size: 24 })],
+            spacing: { before: 200, after: 100 }
+          }));
+          children.push(new Paragraph({
+            children: [new TextRun({ text: section.interpretation, size: 24 })],
+            spacing: { after: 300 }
+          }));
         }
 
         sectionNum++;
       }
 
-      if (!narrative?.summary) {
-        // Summary of Findings
-        children.push(new Paragraph({
-          children: [new TextRun({ text: `4.${sectionNum} Summary of Findings`, bold: true, size: 26 })],
-          heading: HeadingLevel.HEADING_2,
-          spacing: { before: 400, after: 200 }
-        }));
-        children.push(new Paragraph({
-          children: [
-            new TextRun({ 
-              text: "This chapter has presented a comprehensive analysis of the data collected for this study. ", 
-              size: 24 
-            })
-          ]
-        }));
-        children.push(new Paragraph({
-          children: [
-            new TextRun({ 
-              text: `The analysis included ${sections.length} statistical tests, with results presented in ${tableNum - 1} tables. Key findings include test statistics, significance values, effect sizes where applicable, and academic interpretations for each analysis.`, 
-              size: 24 
-            })
-          ],
-          spacing: { after: 200 }
-        }));
-        children.push(new Paragraph({
-          children: [
-            new TextRun({ 
-              text: "The findings from these analyses will be discussed in relation to the research objectives, hypotheses, and existing literature in the next chapter.", 
-              size: 24 
-            })
-          ],
-          spacing: { after: 300 }
-        }));
-      }
+      // Summary of Findings
+      children.push(new Paragraph({
+        children: [new TextRun({ text: `4.${sectionNum} Summary of Findings`, bold: true, size: 26 })],
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 400, after: 200 }
+      }));
+      children.push(new Paragraph({
+        children: [
+          new TextRun({ 
+            text: "This chapter has presented a comprehensive analysis of the data collected for this study. ", 
+            size: 24 
+          })
+        ]
+      }));
+      children.push(new Paragraph({
+        children: [
+          new TextRun({ 
+            text: `The analysis included ${sections.length} statistical tests, with results presented in ${tableNum - 1} tables. Key findings include test statistics, significance values, effect sizes where applicable, and academic interpretations for each analysis.`, 
+            size: 24 
+          })
+        ],
+        spacing: { after: 200 }
+      }));
+      children.push(new Paragraph({
+        children: [
+          new TextRun({ 
+            text: "The findings from these analyses will be discussed in relation to the research objectives, hypotheses, and existing literature in the next chapter.", 
+            size: 24 
+          })
+        ],
+        spacing: { after: 300 }
+      }));
 
       // Significance Legend
       children.push(new Paragraph({
@@ -432,8 +399,14 @@ export const AnalysisResultsStep = ({
     }
   };
 
-  const exportPdf = (sections: Chapter4Section[], narrative: Chapter4Narrative | null) => {
+  const handleExportPdf = () => {
+    if (isFreeUser) {
+      setShowUpgrade(true);
+      return;
+    }
+
     try {
+      const sections = generateChapter4Sections(results);
       const pdf = new jsPDF();
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
@@ -462,19 +435,6 @@ export const AnalysisResultsStep = ({
         return false;
       };
 
-      // Prints long text as paragraphs, moving to a new page when needed
-      const printParagraphs = (text: string) => {
-        for (const para of paragraphsOf(text)) {
-          const lines = pdf.splitTextToSize(para, maxWidth);
-          for (const line of lines) {
-            checkNewPage(15);
-            pdf.text(line, margin, y);
-            y += 5;
-          }
-          y += 3;
-        }
-      };
-
       // Title
       pdf.setFontSize(18);
       pdf.setFont("helvetica", "bold");
@@ -491,15 +451,10 @@ export const AnalysisResultsStep = ({
       y += 8;
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(11);
-      if (narrative?.intro) {
-        printParagraphs(narrative.intro);
-        y += 5;
-      } else {
-        const introText = `This chapter presents the data analysis and interpretation of findings from the study. The data was analyzed using appropriate statistical techniques including descriptive statistics, inferential tests, and where applicable, assumption checks. A total of ${sections.length} statistical analyses were conducted.`;
-        const introLines = pdf.splitTextToSize(introText, maxWidth);
-        pdf.text(introLines, margin, y);
-        y += introLines.length * 5 + 10;
-      }
+      const introText = `This chapter presents the data analysis and interpretation of findings from the study. The data was analyzed using appropriate statistical techniques including descriptive statistics, inferential tests, and where applicable, assumption checks. A total of ${sections.length} statistical analyses were conducted.`;
+      const introLines = pdf.splitTextToSize(introText, maxWidth);
+      pdf.text(introLines, margin, y);
+      y += introLines.length * 5 + 10;
 
       let sectionNum = 2;
 
@@ -581,47 +536,39 @@ export const AnalysisResultsStep = ({
         if (section.interpretation) {
           checkNewPage(40);
           pdf.setFontSize(11);
+          pdf.setFont("helvetica", "bold");
+          pdf.text("Interpretation:", margin, y);
+          y += 6;
           pdf.setFont("helvetica", "normal");
-          if (section.narrative) {
-            printParagraphs(section.interpretation);
-            y += 7;
-          } else {
-            pdf.setFont("helvetica", "bold");
-            pdf.text("Interpretation:", margin, y);
-            y += 6;
-            pdf.setFont("helvetica", "normal");
-            const interpLines = pdf.splitTextToSize(section.interpretation, maxWidth);
-
-            for (let i = 0; i < interpLines.length; i++) {
-              if (checkNewPage(15)) {
-                // Restart after page break
-              }
-              pdf.text(interpLines[i], margin, y);
-              y += 5;
+          const interpLines = pdf.splitTextToSize(section.interpretation, maxWidth);
+          
+          for (let i = 0; i < interpLines.length; i++) {
+            if (checkNewPage(15)) {
+              // Restart after page break
             }
-            y += 10;
+            pdf.text(interpLines[i], margin, y);
+            y += 5;
           }
+          y += 10;
         }
 
         sectionNum++;
       }
 
-      if (!narrative?.summary) {
-        // Summary Section
-        checkNewPage(50);
-        pdf.setFontSize(14);
-        pdf.setFont("helvetica", "bold");
-        pdf.text(`4.${sectionNum} Summary of Findings`, margin, y);
-        y += 10;
-        pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(11);
-        const summaryText = `This chapter has presented a comprehensive analysis of the data collected for this study. The analysis included ${sections.length} statistical tests, with results presented in ${tableNum - 1} tables. Key findings include test statistics, significance values, effect sizes where applicable, and academic interpretations for each analysis. The findings will be discussed in relation to the research objectives and existing literature in the next chapter.`;
-        const summaryLines = pdf.splitTextToSize(summaryText, maxWidth);
-        for (const line of summaryLines) {
-          if (checkNewPage(15)) {}
-          pdf.text(line, margin, y);
-          y += 5;
-        }
+      // Summary Section
+      checkNewPage(50);
+      pdf.setFontSize(14);
+      pdf.setFont("helvetica", "bold");
+      pdf.text(`4.${sectionNum} Summary of Findings`, margin, y);
+      y += 10;
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(11);
+      const summaryText = `This chapter has presented a comprehensive analysis of the data collected for this study. The analysis included ${sections.length} statistical tests, with results presented in ${tableNum - 1} tables. Key findings include test statistics, significance values, effect sizes where applicable, and academic interpretations for each analysis. The findings will be discussed in relation to the research objectives and existing literature in the next chapter.`;
+      const summaryLines = pdf.splitTextToSize(summaryText, maxWidth);
+      for (const line of summaryLines) {
+        if (checkNewPage(15)) {}
+        pdf.text(line, margin, y);
+        y += 5;
       }
 
       // Significance legend
@@ -643,62 +590,6 @@ export const AnalysisResultsStep = ({
     } catch (error) {
       console.error("PDF export error:", error);
       toast.error("Failed to export as PDF");
-    }
-  };
-
-  // ---- Chapter 4 export: ask the student for context, write the long-form chapter, then build the file ----
-  const fetchNarrative = async (useDetails: boolean): Promise<Chapter4Narrative | null> => {
-    const variables = (columns || []).filter((c) => c.included !== false).map((c) => c.name);
-    const { data, error } = await supabase.functions.invoke('chapter4-writer', {
-      body: {
-        results,
-        context: {
-          topic: useDetails ? topicText.trim() : '',
-          hypotheses: useDetails ? hypothesesText.trim() : '',
-          sampleSize,
-          variables,
-        },
-      },
-    });
-    if (error) {
-      const serverMessage = await getFunctionErrorMessage(error);
-      throw new Error(serverMessage || error.message);
-    }
-    if (!data || data.error) throw new Error(data?.error || 'No chapter was returned');
-    return data as Chapter4Narrative;
-  };
-
-  const requestExport = (format: 'txt' | 'docx' | 'pdf') => {
-    if (isFreeUser) {
-      setShowUpgrade(true);
-      return;
-    }
-    setPendingFormat(format);
-    setShowSetup(true);
-  };
-
-  const runExport = async (useDetails = true) => {
-    setShowSetup(false);
-    if (isFreeUser) {
-      setShowUpgrade(true);
-      return;
-    }
-    setIsWriting(true);
-    toast.info("Writing your full Chapter 4. This usually takes under a minute.");
-    let narrative: Chapter4Narrative | null = null;
-    try {
-      narrative = await fetchNarrative(useDetails);
-    } catch (e) {
-      console.error('Chapter 4 writer failed:', e);
-      toast.error("The full-length version could not be written just now, so the standard version is exported instead.");
-    }
-    try {
-      const sections = enrichChapter4Sections(generateChapter4Sections(results), narrative);
-      if (pendingFormat === 'txt') exportTxt(sections, narrative);
-      else if (pendingFormat === 'pdf') exportPdf(sections, narrative);
-      else await exportDocx(sections, narrative);
-    } finally {
-      setIsWriting(false);
     }
   };
 
@@ -784,25 +675,21 @@ export const AnalysisResultsStep = ({
             ) : (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button disabled={isWriting}>
-                    {isWriting ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4 mr-2" />
-                    )}
-                    {isWriting ? "Writing your chapter..." : "Export Chapter 4"}
+                  <Button>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export Chapter 4
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => requestExport('txt')}>
+                  <DropdownMenuItem onClick={handleExportTxt}>
                     <FileText className="h-4 w-4 mr-2" />
                     Download as .txt
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => requestExport('docx')}>
+                  <DropdownMenuItem onClick={handleExportDocx}>
                     <FileText className="h-4 w-4 mr-2" />
                     Download as .docx
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => requestExport('pdf')}>
+                  <DropdownMenuItem onClick={handleExportPdf}>
                     <FileType className="h-4 w-4 mr-2" />
                     Download as .pdf
                   </DropdownMenuItem>
@@ -2921,43 +2808,6 @@ export const AnalysisResultsStep = ({
         </TutorialTrigger>
       </Tabs>
       </ScreenshotShield>
-
-      <Dialog open={showSetup} onOpenChange={setShowSetup}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Write my full Chapter 4</DialogTitle>
-            <DialogDescription>
-              Tell us about your project so the chapter ties your results to your topic and hypotheses. Both
-              boxes are optional, and you can skip them.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="ch4-topic">Project topic</Label>
-              <Input
-                id="ch4-topic"
-                value={topicText}
-                onChange={(e) => setTopicText(e.target.value)}
-                placeholder="e.g. Effect of social media use on students' academic performance"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="ch4-hyp">Research questions, objectives or hypotheses</Label>
-              <Textarea
-                id="ch4-hyp"
-                rows={5}
-                value={hypothesesText}
-                onChange={(e) => setHypothesesText(e.target.value)}
-                placeholder={"H01: There is no significant relationship between ...\nH02: ..."}
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => runExport(false)}>Skip and write</Button>
-            <Button onClick={() => runExport(true)}>Write my Chapter 4</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <UpgradeDialog
         open={showUpgrade}

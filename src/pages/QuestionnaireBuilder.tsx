@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, FileDown, FileText, Eye, Hammer, RotateCcw, BookOpen, MessageSquare, Lock, Crown, ArrowRight, Loader2, Coins, Share2 } from "lucide-react";
-import { FormSharePanel } from "@/components/Questionnaire/FormSharePanel";
+import { ArrowLeft, FileDown, FileText, Eye, Hammer, RotateCcw, BookOpen, MessageSquare, Lock, Crown, ArrowRight, Loader2, Coins } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -248,9 +247,6 @@ const QuestionnaireBuilder = () => {
             <TabsTrigger value="preview">
               <Eye className="h-4 w-4 mr-1.5" /> Preview
             </TabsTrigger>
-            <TabsTrigger value="share">
-              <Share2 className="h-4 w-4 mr-1.5" /> Share &amp; Responses
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="ai-assistant">
@@ -312,10 +308,6 @@ const QuestionnaireBuilder = () => {
               </div>
             </div>
             <QuestionnairePreview data={data} />
-          </TabsContent>
-
-          <TabsContent value="share">
-            <FormSharePanel data={data} validate={validate} planType={planType} />
           </TabsContent>
         </Tabs>
       </main>
