@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -44,6 +44,8 @@ const QuestionnaireBuilder = () => {
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showSampleDialog, setShowSampleDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("builder");
+  const dataRef = useRef<QuestionnaireData | null>(null);
+  dataRef.current = data; // always the latest questionnaire, so an AI update can be undone
   const [planType, setPlanType] = useState<string>("");
   const [isExporting, setIsExporting] = useState(false);
 
@@ -253,14 +255,22 @@ const QuestionnaireBuilder = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="ai-assistant">
+          {/* forceMount keeps the chat alive (messages, typing and any request in progress) while you visit other tabs */}
+          <TabsContent value="ai-assistant" forceMount className="data-[state=inactive]:hidden">
             {planType === 'scholar' ? (
               <QuestionnaireChat
                 currentQuestionnaire={data}
+                onOpenTab={setActiveTab}
                 onQuestionnaireGenerated={(newData) => {
+                  const previous = dataRef.current;
                   setData(newData);
                   setErrors({});
-                  toast.success("Questionnaire updated from AI!");
+                  toast.success("Your questionnaire has been loaded into the Builder and Preview.", {
+                    duration: 8000,
+                    action: previous
+                      ? { label: "Undo", onClick: () => setData(previous) }
+                      : undefined,
+                  });
                 }}
               />
             ) : (
