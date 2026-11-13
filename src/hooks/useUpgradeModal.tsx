@@ -23,7 +23,10 @@ const UpgradeModalContext = createContext<UpgradeModalContextValue | null>(null)
 
 export const useUpgradeModal = () => {
   const ctx = useContext(UpgradeModalContext);
-  if (!ctx) throw new Error("useUpgradeModal must be used within UpgradeModalProvider");
+  if (!ctx) {
+    console.warn("useUpgradeModal must be used within UpgradeModalProvider");
+    return { showUpgrade: () => {} };
+  }
   return ctx;
 };
 
