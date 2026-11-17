@@ -84,6 +84,8 @@ const Admin = () => {
     }
   };
 
+    // just here for a check
+
   const callAdminOperation = async (action: string, params: Record<string, any> = {}) => {
     const response = await supabase.functions.invoke("admin-operations", {
       body: { action, ...params },
