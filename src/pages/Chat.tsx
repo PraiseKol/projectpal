@@ -811,7 +811,7 @@ const Chat = () => {
                             <div className="mt-3 flex items-center gap-2 bg-primary/5 border border-primary/10 rounded-lg p-2">
                               <Shield className="h-4 w-4 text-primary shrink-0" />
                               <span className="text-xs text-muted-foreground flex-1">
-                                Make this content undetectable by AI checkers
+                                Rewrite this in a more natural voice
                               </span>
                               <Button
                                 variant="ghost"
@@ -830,7 +830,14 @@ const Chat = () => {
                                 variant="default"
                                 size="sm"
                                 className="h-7 text-xs shrink-0"
-                                onClick={() => navigate("/humanizer")}
+                                onClick={() => {
+  try {
+    sessionStorage.setItem("pp_humanizer_prefill", String(msg.content).slice(0, 25000));
+  } catch {
+    /* storage not available */
+  }
+  navigate("/humanizer");
+}}
                               >
                                 Humanize
                               </Button>
